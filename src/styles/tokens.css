@@ -1,0 +1,95 @@
+  /* ============================================================
+     CCS - SIGNAL PATH SYSTEM
+     Color: bg-void, surface, surface-2 (blue-shifted near-black) /
+            signal (electric current) / spark (bright arc) /
+            ink-1, ink-2 (blue-grey text) / go (active-green) / rate (gold)
+     Type:  Bricolage Grotesque (display, engineered/technical character)
+            Hanken Grotesk (body, warm humanist grotesque)
+            IBM Plex Mono (signal/data - eyebrows, tags, numerals)
+     Layout: vertical "signal spine" runs the length of the page,
+             pulses travel it - the four-mode path made literal.
+     ============================================================ */
+
+  :root{
+    /* Engineered Light / CCS Signal Path tokens */
+    --void:#02060f;
+    --surface:#08101d;
+    --surface-2:#0d1727;
+    --surface-3:#152140;
+    --line:rgba(140,152,170,.16);
+    --line-strong:rgba(140,152,170,.3);
+    --ink-1:#f5f8ff;
+    --ink-2:#8c98aa;
+    --ink-3:#5f6a80;
+    --signal:#1267e8;
+    --signal-2:#0a4bb8;
+    --spark:#0aa9ff;
+    --spark-2:#72d8ff;
+    --go:#34d399;
+    --rate:#fbbf24;
+
+    /* --font-display / --font-body / --font-mono are no longer set here -
+       they're defined by next/font/google in src/lib/fonts.ts and applied
+       as CSS custom properties via the .variable classes on <html> in
+       src/app/layout.tsx (self-hosted fonts; see that file for why). */
+
+    --edge: 1440px;
+    --pad: clamp(20px, 4vw, 64px);
+    --radius: 16px;
+    --radius-sm: 10px;
+    --ease: cubic-bezier(.16,.8,.24,1);
+
+    /* Translucent "glass" surfaces (header, mobile menu, cookie panel) -
+       theme-aware so they never render as a hardcoded dark bar over a
+       light page. Edge shadows give sticky/fixed panels a soft seam
+       against the page instead of a hard 1px line. */
+    --glass-bg: rgba(5, 7, 13, 0.72);
+    --glass-bg-strong: rgba(5, 7, 13, 0.92);
+    --menu-glass-bg: rgba(6, 10, 20, 0.82);
+    --edge-shadow: 0 10px 30px -16px rgba(0, 0, 0, 0.6);
+    --edge-shadow-top: 0 -10px 30px -16px rgba(0, 0, 0, 0.6);
+
+    /* Logo-matched button blue - sampled from the CCS neon mark, not a
+       generic "AI blue". Used by .btn-primary and .to-top so every filled
+       CTA in the app reads as the same signal-blue as the brand mark. */
+    --btn-blue-1: #0d84ff;
+    --btn-blue-2: #0033d6;
+    --btn-glow: rgba(0, 120, 242, 0.55);
+    --btn-glow-strong: rgba(0, 120, 242, 0.8);
+    --btn-spark: #eaf7ff;
+  }
+
+  /*
+    Light theme - intentionally designed, not an inversion of dark (doc 06 §6).
+    Values are the documented Engineered Light "Light" column (doc 05 §2).
+    Applied via [data-theme="light"] on <html>, set by ThemeProvider.
+  */
+  [data-theme="light"]{
+    --void:#f6f8fc;
+    --surface:#ffffff;
+    --surface-2:#eef3fa;
+    --surface-3:#e3ebf6;
+    --line:#d8e1ee;
+    --line-strong:#c1cfe3;
+    --ink-1:#101827;
+    --ink-2:#5b6678;
+    --ink-3:#7c8797;
+    --signal:#0b5bd3;
+    --signal-2:#073e93;
+    --spark:#0077d9;
+    --spark-2:#006ea8;
+    --go:#0f9d68;
+    --rate:#b5790a;
+
+    --glass-bg: rgba(255, 255, 255, 0.72);
+    --glass-bg-strong: rgba(255, 255, 255, 0.92);
+    --menu-glass-bg: rgba(255, 255, 255, 0.82);
+    --edge-shadow: 0 10px 28px -14px rgba(15, 23, 42, 0.16);
+    --edge-shadow-top: 0 -10px 28px -14px rgba(15, 23, 42, 0.16);
+
+    --btn-blue-1: #0d84ff;
+    --btn-blue-2: #0026b8;
+    --btn-glow: rgba(0, 100, 220, 0.28);
+    --btn-glow-strong: rgba(0, 100, 220, 0.42);
+    --btn-spark: #f2f9ff;
+  }
