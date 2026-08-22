@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { routeFor, type Locale } from "@/lib/routes";
 import { PageHero } from "@/components/PageHero";
+import { HoldNavLink } from "@/components/navigation/HoldNavLink";
 
 const ARROW = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -54,9 +54,9 @@ export function AboutPage({ locale }: { locale: Locale }) {
         title={t.title}
         lede={t.lede}
         actions={
-          <Link href={routeFor("contact", locale)} className="btn btn-primary">
+          <HoldNavLink href={routeFor("contact", locale)} className="btn btn-primary">
             {t.cta} {ARROW}
-          </Link>
+          </HoldNavLink>
         }
       />
 

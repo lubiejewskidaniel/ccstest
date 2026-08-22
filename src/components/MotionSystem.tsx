@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { events, getBaseContext } from "@/lib/analytics";
 
 /**
@@ -18,7 +18,6 @@ import { events, getBaseContext } from "@/lib/analytics";
  */
 export function MotionSystem() {
   const pathname = usePathname();
-  const router = useRouter();
 
   // Runs once: boot curtain, scroll progress/header state, back-to-top,
   // and the click-ripple (delegated on `document`, so it keeps working for
@@ -27,7 +26,16 @@ export function MotionSystem() {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     // ---- boot curtain ----
+    // NB: this used to `return` a cleanup function straight from inside
+    // this block on a normal (non-reduced-motion) load - which exits the
+    // WHOLE effect right here. Everything wired up below (scroll progress,
+    // to-top, the click-spark listener, external-link tracking) never got
+    // wired up on a fresh page load - it only appeared to work when
+    // `reduceMotion` was true, which skips this branch entirely. Fixed by
+    // collecting this cleanup instead of returning it, so the rest of the
+    // effect always runs and everything's cleanup is merged at the end.
     const curtain = document.getElementById("bootCurtain");
+    let curtainCleanup: (() => void) | undefined;
     if (curtain) {
       if (reduceMotion) {
         curtain.remove();
@@ -38,7 +46,7 @@ export function MotionSystem() {
           document.documentElement.classList.remove("boot-lock");
           window.setTimeout(() => curtain.remove(), 650);
         }, 620);
-        return () => window.clearTimeout(t1);
+        curtainCleanup = () => window.clearTimeout(t1);
       }
     }
 
@@ -70,19 +78,20 @@ export function MotionSystem() {
     // fixed-position .spark-burst layer on <body>, positioned at the
     // click's viewport coordinates, fully independent of the button box.
     //
-    // Most `.btn`/`.to-top` elements are actually next/link `<a>` tags
-    // (header/hero/footer CTAs). Next.js Link navigates almost instantly
-    // (prefetched routes swap on the same tick), which was outrunning the
-    // ~0.65s spark animation entirely - the effect fired but the page was
-    // already gone before a frame rendered it. Fixed by capturing the
-    // click BEFORE Link's own handler runs (capture phase), calling
-    // preventDefault (Next's Link checks event.defaultPrevented and backs
-    // off when it sees it), playing the spark burst, then finishing the
-    // navigation ourselves once the burst has had time to read.
-    const NAV_HOLD_MS = 1000;
-
+    // Purely visual - this listener never touches navigation. Buttons
+    // that are next/link `<a>` tags hold their real navigation back for a
+    // beat via useHoldNavClick (see src/lib/useHoldNavClick.ts), wired on
+    // each Link's own onClick - that's the reliable place to intercept a
+    // Link click (Link checks event.defaultPrevented itself), not a
+    // separate document-level listener racing against it.
+    //
+    // Deliberately NOT gated behind `reduceMotion` (unlike the rest of
+    // this file): a brief, localized click acknowledgment isn't the kind
+    // of continuous/looping/parallax motion that setting targets, and
+    // gating it here was silently killing the entire effect for anyone
+    // with "reduce motion" on at the OS level (e.g. Windows' "Show
+    // animations" toggle) - most likely what was happening.
     function onButtonClick(e: MouseEvent) {
-      if (reduceMotion) return;
       const btn = (e.target as HTMLElement)?.closest<HTMLElement>(".btn, .to-top");
       if (!btn) return;
       const r = btn.getBoundingClientRect();
@@ -119,28 +128,8 @@ export function MotionSystem() {
         });
         burst.appendChild(bit);
       }
-
-      // Hold back real navigation so the burst is actually seen.
-      const anchor = btn.closest<HTMLAnchorElement>("a[href]");
-      const isPlainLeftClick =
-        e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
-      if (!anchor || !isPlainLeftClick || anchor.target === "_blank" || anchor.hasAttribute("download")) {
-        return;
-      }
-      const href = anchor.getAttribute("href") ?? "";
-      if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) {
-        return;
-      }
-      e.preventDefault();
-      window.setTimeout(() => {
-        if (href.startsWith("/")) {
-          router.push(href);
-        } else {
-          window.location.href = href;
-        }
-      }, NAV_HOLD_MS);
     }
-    document.addEventListener("click", onButtonClick, { capture: true });
+    document.addEventListener("click", onButtonClick);
 
     // ---- external link tracking (brief §5 `external_link_click`) ----
     // A single delegated listener on `document`, so every outbound link on
@@ -163,17 +152,22 @@ export function MotionSystem() {
     document.addEventListener("click", onExternalLinkClick);
 
     return () => {
+      curtainCleanup?.();
       window.removeEventListener("scroll", onScroll);
       toTop?.removeEventListener("click", onToTop);
-      document.removeEventListener("click", onButtonClick, { capture: true });
+      document.removeEventListener("click", onButtonClick);
       document.removeEventListener("click", onExternalLinkClick);
     };
   }, []);
 
-  // `<html lang>` tracks the active locale. There is a single root layout
-  // (Next.js only allows one <html> in the tree), so rather than forking the
-  // whole shell per locale we correct the attribute here whenever the route
-  // changes - cheap, and it runs before anything assistive tech would read.
+  // `<html lang>` tracks the active locale. The server already sets this
+  // correctly on the initial response (middleware.ts stamps an x-locale
+  // header from the URL, app/layout.tsx reads it) - that's what matters
+  // for SEO/crawlers. This effect is the client-side-navigation safety
+  // net: the root layout doesn't re-run when a user clicks the language
+  // switcher (single root layout, no [locale] segment - Next.js only
+  // allows one <html> in the tree), so without this the attribute would
+  // stay stale after navigating between EN and PL client-side.
   useEffect(() => {
     document.documentElement.lang = pathname?.startsWith("/pl") ? "pl" : "en";
   }, [pathname]);

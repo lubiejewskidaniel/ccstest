@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import "@/styles/globals.css";
 import { bricolageGrotesque, hankenGrotesk, ibmPlexMono } from "@/lib/fonts";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
@@ -14,10 +15,16 @@ import { siteUrl } from "@/lib/seo/metadata";
 
 /**
  * Single root layout for the whole bilingual tree (Next.js allows exactly
- * one <html>/<body> pair). `<html lang>` starts as "en" and is corrected to
- * "pl" on `/pl/...` routes by MotionSystem's pathname-driven effect - see
- * the comment there for why this is the pragmatic choice over a
- * [locale]-segment restructure.
+ * one <html>/<body> pair - this app deliberately doesn't use a [locale]
+ * dynamic segment). `<html lang>` is read from the `x-locale` request
+ * header, stamped by middleware.ts from the URL's /pl prefix (same rule as
+ * src/lib/routes.ts) - so the actual server response for
+ * /pl/uslugi already ships `<html lang="pl">`, and /services ships
+ * `<html lang="en">`, with no client-side correction needed for SEO/
+ * accessibility on the initial load. MotionSystem's pathname effect still
+ * corrects it on CLIENT-SIDE navigation between locales, since this root
+ * layout doesn't re-run on those (only the leaf page changes) - see the
+ * comment there.
  *
  * Default metadata is the English identity; every route under `src/app/**`
  * overrides `title`/`description`/`alternates` with its own
@@ -25,83 +32,109 @@ import { siteUrl } from "@/lib/seo/metadata";
  * every indexable page ships its own title, description and hreflang pair).
  */
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
-  title: {
-    default: "Code Consulting Studio - Engineered software, products & growth",
-    template: "%s · Code Consulting Studio",
-  },
-  description:
-    "Code Consulting Studio builds software, owns products, grows businesses online, and teaches the people behind them - BUILD, CREATE, GROW, TEACH.",
-  alternates: { languages: { en: "/", pl: "/pl" } },
-  icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/favicon-32.png", type: "image/png", sizes: "32x32" },
-      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
-      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
-    ],
-    apple: "/apple-touch-icon.png",
-  },
-  openGraph: {
-    type: "website",
-    siteName: "Code Consulting Studio",
-    title: "Code Consulting Studio - Engineered software, products & growth",
-    description:
-      "Software development, owned products, digital growth and 1:1 mentoring - one engineering-led studio.",
-  },
-  twitter: { card: "summary_large_image" },
+	metadataBase: new URL(siteUrl),
+	title: {
+		default: "Code Consulting Studio - Engineered software, products & growth",
+		template: "%s · Code Consulting Studio",
+	},
+	description:
+		"Code Consulting Studio builds software, owns products, grows businesses online, and teaches the people behind them - BUILD, CREATE, GROW, TEACH.",
+	alternates: { languages: { en: "/", pl: "/pl" } },
+	icons: {
+		icon: [
+			{ url: "/favicon.ico", sizes: "any" },
+			{ url: "/favicon-32.png", type: "image/png", sizes: "32x32" },
+			{ url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+			{ url: "/icon-512.png", type: "image/png", sizes: "512x512" },
+		],
+		apple: "/apple-touch-icon.png",
+	},
+	openGraph: {
+		type: "website",
+		siteName: "Code Consulting Studio",
+		title: "Code Consulting Studio - Engineered software, products & growth",
+		description:
+			"Software development, owned products, digital growth and 1:1 mentoring - one engineering-led studio.",
+		images: [
+			{
+				url: "/og-image.png",
+				width: 1200,
+				height: 630,
+				alt: "Code Consulting Studio - Software, Products, Growth and Mentoring",
+			},
+		],
+	},
+	twitter: { card: "summary_large_image" },
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#02060f" },
-    { media: "(prefers-color-scheme: light)", color: "#f6f8fc" },
-  ],
-  colorScheme: "dark light",
+	// The browser chrome color (mobile address bar, PWA title bar) - fixed
+	// to the logo's signal-blue (matches --btn-blue-1 in tokens.css, sampled
+	// from the neon "{ }" bracket in the CCS mark) rather than following
+	// light/dark like the page background, since this is a brand accent.
+	themeColor: "#0d84ff",
+	colorScheme: "dark light",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html
-      lang="en"
-      className={`${bricolageGrotesque.variable} ${hankenGrotesk.variable} ${ibmPlexMono.variable}`}
-    >
-      <body>
-        <JsonLd data={[organizationSchema(), websiteSchema()]} />
-        <a href="#main-content" className="skip-link">
-          Skip to content
-        </a>
-        <div className="progress-rail" aria-hidden="true">
-          <i id="progressFill" />
-        </div>
-        <div className="boot-curtain" id="bootCurtain" aria-hidden="true">
-          <svg viewBox="0 0 100 100">
-            <defs>
-              <linearGradient id="bootGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#0aa9ff" />
-                <stop offset="100%" stopColor="#1267e8" />
-              </linearGradient>
-            </defs>
-            <path d="M64 20c-16 0-30 13-30 30s14 30 30 30" />
-          </svg>
-        </div>
+export default async function RootLayout({
+	children,
+}: {
+	children: React.ReactNode;
+}) {
+	const headerList = await headers();
+	const lang = headerList.get("x-locale") === "pl" ? "pl" : "en";
 
-        <ThemeProvider>
-          <div className="spine" aria-hidden="true" />
-          <SiteChrome>{children}</SiteChrome>
-          <button className="to-top" id="toTop" type="button" aria-label="Back to top">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 19V5M5 12l7-7 7 7" />
-            </svg>
-          </button>
-        </ThemeProvider>
+	return (
+		<html
+			lang={lang}
+			className={`${bricolageGrotesque.variable} ${hankenGrotesk.variable} ${ibmPlexMono.variable}`}
+		>
+			<body>
+				<JsonLd data={[organizationSchema(), websiteSchema()]} />
+				<a href="#main-content" className="skip-link">
+					Skip to content
+				</a>
+				<div className="progress-rail" aria-hidden="true">
+					<i id="progressFill" />
+				</div>
+				<div className="boot-curtain" id="bootCurtain" aria-hidden="true">
+					<svg viewBox="0 0 100 100">
+						<defs>
+							<linearGradient id="bootGrad" x1="0" y1="0" x2="1" y2="1">
+								<stop offset="0%" stopColor="#0aa9ff" />
+								<stop offset="100%" stopColor="#1267e8" />
+							</linearGradient>
+						</defs>
+						<path d="M64 20c-16 0-30 13-30 30s14 30 30 30" />
+					</svg>
+				</div>
 
-        <MotionSystem />
-        <SectionReveal />
-        <AttributionCapture />
-        <PageViewTracker />
-        <GoogleAnalytics />
-      </body>
-    </html>
-  );
+				<ThemeProvider>
+					<div className="spine" aria-hidden="true" />
+					<SiteChrome>{children}</SiteChrome>
+					<button
+						className="to-top"
+						id="toTop"
+						type="button"
+						aria-label="Back to top"
+					>
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+						>
+							<path d="M12 19V5M5 12l7-7 7 7" />
+						</svg>
+					</button>
+				</ThemeProvider>
+
+				<MotionSystem />
+				<SectionReveal />
+				<AttributionCapture />
+				<PageViewTracker />
+				<GoogleAnalytics />
+			</body>
+		</html>
+	);
 }

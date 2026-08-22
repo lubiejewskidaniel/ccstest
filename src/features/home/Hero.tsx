@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { routeFor, type Locale } from "@/lib/routes";
 import { events, getBaseContext } from "@/lib/analytics";
+import { HoldNavLink } from "@/components/navigation/HoldNavLink";
 
 const COPY = {
 	en: {
@@ -246,7 +247,7 @@ export function Hero({ locale }: { locale: Locale }) {
 					</h1>
 					<p className="lede">{t.lede}</p>
 					<div className="hero-actions">
-						<Link
+						<HoldNavLink
 							href={routeFor("contact", locale)}
 							className="btn btn-primary"
 							onClick={() =>
@@ -258,8 +259,8 @@ export function Hero({ locale }: { locale: Locale }) {
 							}
 						>
 							{t.primaryCta}
-						</Link>
-						<Link
+						</HoldNavLink>
+						<HoldNavLink
 							href={routeFor("services", locale)}
 							className="btn btn-ghost"
 							onClick={() =>
@@ -271,7 +272,7 @@ export function Hero({ locale }: { locale: Locale }) {
 							}
 						>
 							{t.secondaryCta}
-						</Link>
+						</HoldNavLink>
 					</div>
 					<div className="trust">
 						<p>{t.trustLabel}</p>

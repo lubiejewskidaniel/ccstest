@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { routeFor, type Locale } from "@/lib/routes";
+import { HoldNavLink } from "@/components/navigation/HoldNavLink";
 
 const COPY = {
   en: {
@@ -33,9 +33,9 @@ export default function NotFound() {
           </span>
           <h1 style={{ fontSize: "clamp(1.8rem, 4vw, 2.6rem)", marginTop: 16, fontWeight: 600 }}>{t.title}</h1>
           <p style={{ color: "var(--ink-2)", marginTop: 14, lineHeight: 1.6 }}>{t.desc}</p>
-          <Link href={routeFor("home", locale)} className="btn btn-primary" style={{ marginTop: 28 }}>
+          <HoldNavLink href={routeFor("home", locale)} className="btn btn-primary" style={{ marginTop: 28 }}>
             {t.cta}
-          </Link>
+          </HoldNavLink>
         </div>
       </section>
     </main>

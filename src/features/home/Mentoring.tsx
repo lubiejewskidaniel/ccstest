@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { routeFor, type Locale } from "@/lib/routes";
 import { MentorCanvas } from "./MentorCanvas";
+import { HoldNavLink } from "@/components/navigation/HoldNavLink";
 
 const COPY = {
   en: {
@@ -63,12 +63,12 @@ export function Mentoring({ locale }: { locale: Locale }) {
             <MentorCanvas />
             <div className="content">
               <h3>{t.featureTitle}</h3>
-              <Link href={routeFor("mentoringEnquire", locale)} className="btn btn-primary">
+              <HoldNavLink href={routeFor("mentoringEnquire", locale)} className="btn btn-primary">
                 {t.cta}{" "}
                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M7 17 17 7M9 7h8v8" />
                 </svg>
-              </Link>
+              </HoldNavLink>
             </div>
           </div>
         </div>

@@ -8,6 +8,7 @@ import { routeFor, type Locale } from "@/lib/routes";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { LanguageSwitch } from "./LanguageSwitch";
 import { MobileMenu } from "./MobileMenu";
+import { HoldNavLink } from "./HoldNavLink";
 
 const NAV_ITEMS: {
 	key: Parameters<typeof routeFor>[0];
@@ -68,9 +69,9 @@ export function Header({ locale }: { locale: Locale }) {
 				<div className="head-actions">
 					<LanguageSwitch locale={locale} />
 					<ThemeToggle />
-					<Link href={routeFor("contact", locale)} className="btn btn-primary">
+					<HoldNavLink href={routeFor("contact", locale)} className="btn btn-primary">
 						{locale === "en" ? "Contact us" : "Kontakt"}
-					</Link>
+					</HoldNavLink>
 					<button
 						className="menu-btn"
 						type="button"

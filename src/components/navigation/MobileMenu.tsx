@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect } from "react";
 import { routeFor, type Locale, type RouteKey } from "@/lib/routes";
+import { HoldNavLink } from "./HoldNavLink";
 
 type NavItem = { key: RouteKey; label: { en: string; pl: string }; badge?: string };
 
@@ -64,9 +65,9 @@ export function MobileMenu({
           );
         })}
       </nav>
-      <Link href={routeFor("contact", locale)} className="btn btn-primary" onClick={onClose}>
+      <HoldNavLink href={routeFor("contact", locale)} className="btn btn-primary" onClick={onClose}>
         {locale === "en" ? "Contact us" : "Kontakt"}
-      </Link>
+      </HoldNavLink>
     </div>
   );
 }

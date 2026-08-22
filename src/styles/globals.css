@@ -8,6 +8,10 @@
 html {
 	background: var(--void);
 	scroll-behavior: smooth;
+	/* Firefox (and now Chromium/Safari via the standard property) - logo
+	   blue thumb over a track that matches the page surface. */
+	scrollbar-color: var(--btn-blue-1) var(--surface);
+	scrollbar-width: thin;
 }
 body {
 	margin: 0;
@@ -18,6 +22,25 @@ body {
 	line-height: 1.5;
 	-webkit-font-smoothing: antialiased;
 	overflow-x: hidden;
+}
+/* WebKit/Blink scrollbar (Chrome, Edge, Safari) - same logo-blue thumb,
+   `scrollbar-color` above already covers Firefox. The border + clip gives
+   the thumb breathing room from the track instead of touching both edges. */
+::-webkit-scrollbar {
+	width: 12px;
+	height: 12px;
+}
+::-webkit-scrollbar-track {
+	background: var(--surface);
+}
+::-webkit-scrollbar-thumb {
+	background-color: var(--btn-blue-1);
+	background-clip: padding-box;
+	border: 3px solid var(--surface);
+	border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+	background-color: var(--btn-blue-2);
 }
 img,
 svg {
@@ -2503,5 +2526,17 @@ nav.primary a.active {
 	}
 	.process-row::after {
 		transform: scaleX(1) !important;
+	}
+	/* The universal `animation-duration: 0.01ms !important` above would
+	   otherwise crush the click-spark burst to an imperceptible flash -
+	   it's a brief, localized click acknowledgment, not the sort of
+	   continuous/looping/parallax motion this preference targets, so it
+	   keeps its real timing even under reduced motion (see the matching
+	   note in MotionSystem.tsx's onButtonClick). */
+	.spark-ripple {
+		animation-duration: 0.6s !important;
+	}
+	.spark-bit {
+		animation-duration: 0.65s !important;
 	}
 }
