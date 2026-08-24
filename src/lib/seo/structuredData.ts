@@ -1,5 +1,6 @@
-import { routes, type Locale, type RouteKey } from "@/lib/routes";
+import { routes, caseStudyPath, type Locale, type RouteKey } from "@/lib/routes";
 import { siteUrl, siteName } from "./metadata";
+import type { Project } from "@/features/work/projects";
 
 /**
  * JSON-LD builders (brief §12: "valid structured data... only where
@@ -104,5 +105,47 @@ export function breadcrumbsFor(routeKey: RouteKey, locale: Locale, pageTitle: st
   return breadcrumbSchema([
     { name: HOME_LABEL[locale], path: routes.home[locale] },
     { name: pageTitle, path: routes[routeKey][locale] },
+  ]);
+}
+
+
+/** WebPage schema for one project's case-study page - the dynamic-route
+ * sibling of `webPageSchema` above (case studies aren't `RouteKey`
+ * entries, so they need their own path rather than a `routes[key]`
+ * lookup). */
+export function projectWebPageSchema({
+  project,
+  locale,
+}: {
+  project: Project;
+  locale: Locale;
+}) {
+  const path = caseStudyPath(project.slug, locale);
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: project.seo.title[locale],
+    description: project.seo.description[locale],
+    url: new URL(path, siteUrl).toString(),
+    inLanguage: locale === "pl" ? "pl-PL" : "en-US",
+    isPartOf: { "@type": "WebSite", name: siteName, url: siteUrl },
+  };
+}
+
+/** Home > Work > Project breadcrumb trail for a case-study page. */
+export function projectBreadcrumbs({
+  project,
+  locale,
+}: {
+  project: Project;
+  locale: Locale;
+}) {
+  return breadcrumbSchema([
+    { name: HOME_LABEL[locale], path: routes.home[locale] },
+    {
+      name: locale === "pl" ? "Realizacje" : "Work",
+      path: routes.work[locale],
+    },
+    { name: project.name, path: caseStudyPath(project.slug, locale) },
   ]);
 }

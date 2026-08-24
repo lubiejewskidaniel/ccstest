@@ -67,3 +67,13 @@ export function alternatePath(pathname: string): string {
   const otherLocale: Locale = resolved.locale === "en" ? "pl" : "en";
   return routes[resolved.key][otherLocale];
 }
+
+/**
+ * Path for one project's case-study page, e.g. "/work/takblisko" or
+ * "/pl/realizacje/takblisko" - built on top of the "work" hub route so a
+ * case study is always addressed relative to wherever /work actually
+ * lives, instead of a second, hardcoded routing table for project slugs.
+ */
+export function caseStudyPath(slug: string, locale: Locale): string {
+  return `${routes.work[locale]}/${slug}`;
+}

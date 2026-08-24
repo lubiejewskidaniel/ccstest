@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
-import { routes, locales, type RouteKey } from "@/lib/routes";
+import { routes, locales, caseStudyPath, type RouteKey } from "@/lib/routes";
+import { getAllProjects } from "@/features/work/projects";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://codeconsultingstudio.com";
 
@@ -27,6 +28,23 @@ export default function sitemap(): MetadataRoute.Sitemap {
         },
       });
     });
+
+  // Case-study routes are dynamic (/work/[slug]) so they aren't part of
+  // the static `routes` map above - list one sitemap entry per project,
+  // per locale, from the same `projects.ts` source everything else reads.
+  getAllProjects().forEach((project) => {
+    entries.push({
+      url: new URL(caseStudyPath(project.slug, "en"), siteUrl).toString(),
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.7,
+      alternates: {
+        languages: Object.fromEntries(
+          locales.map((locale) => [locale, new URL(caseStudyPath(project.slug, locale), siteUrl).toString()])
+        ),
+      },
+    });
+  });
 
   return entries;
 }

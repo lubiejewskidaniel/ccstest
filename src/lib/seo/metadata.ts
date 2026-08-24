@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { routes, type Locale, type RouteKey } from "@/lib/routes";
+import { routes, caseStudyPath, type Locale, type RouteKey } from "@/lib/routes";
+import type { Project } from "@/features/work/projects";
 
 export const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://codeconsultingstudio.com";
 export const siteName = "Code Consulting Studio";
@@ -55,5 +56,47 @@ export function buildPageMetadata({ routeKey, locale, title, description, noinde
       locale: locale === "pl" ? "pl_PL" : "en_US",
     },
     twitter: { card: "summary_large_image", title: fullTitle, description },
+  };
+}
+
+
+export type ProjectMetadataInput = {
+  project: Project;
+  locale: Locale;
+};
+
+/**
+ * Metadata for one project's case-study page. Case-study routes are
+ * dynamic (`/work/[slug]`), so they fall outside the static `RouteKey`
+ * union `buildPageMetadata` relies on - this sibling helper builds the
+ * same canonical/hreflang/OG/Twitter shape from `caseStudyPath` and the
+ * project's own `seo.title`/`seo.description` (single source of truth:
+ * see `src/features/work/projects.ts`) instead of duplicating those
+ * fields again per route file.
+ */
+export function buildProjectMetadata({ project, locale }: ProjectMetadataInput): Metadata {
+  const canonicalPath = caseStudyPath(project.slug, locale);
+  const languages: Record<string, string> = {
+    en: caseStudyPath(project.slug, "en"),
+    pl: caseStudyPath(project.slug, "pl"),
+    "x-default": caseStudyPath(project.slug, "en"),
+  };
+
+  const title = project.seo.title[locale];
+  const description = project.seo.description[locale];
+
+  return {
+    title,
+    description,
+    alternates: { canonical: canonicalPath, languages },
+    openGraph: {
+      type: "article",
+      url: canonicalPath,
+      title,
+      description,
+      siteName,
+      locale: locale === "pl" ? "pl_PL" : "en_US",
+    },
+    twitter: { card: "summary_large_image", title, description },
   };
 }

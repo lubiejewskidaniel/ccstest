@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { routeFor, type Locale, type RouteKey } from "@/lib/routes";
 import { HoldNavLink } from "./HoldNavLink";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 type NavItem = { key: RouteKey; label: { en: string; pl: string }; badge?: string };
 
@@ -48,11 +49,19 @@ export function MobileMenu({
             className="brand-logo"
           />
         </span>
-        <button className="menu-btn" type="button" aria-label="Close menu" onClick={onClose}>
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
-        </button>
+        {/* Below the 1180px breakpoint this overlay is the ONLY way to reach
+            the header - it's position:fixed above everything, including
+            header.site (z-index 100 vs its own 2200) - so without its own
+            ThemeToggle there was no way to change theme once the nav
+            collapsed to the hamburger. */}
+        <div className="mobile-menu-head-actions">
+          <ThemeToggle />
+          <button className="menu-btn" type="button" aria-label="Close menu" onClick={onClose}>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
       </div>
       <nav className="mobile-menu-nav" aria-label="Primary">
         {items.map((item) => {

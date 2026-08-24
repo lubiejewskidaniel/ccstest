@@ -10,34 +10,52 @@ import { HoldNavLink } from "@/components/navigation/HoldNavLink";
 
 const COPY = {
 	en: {
-		eyebrow: "Build · Create · Grow · Teach",
+		eyebrow: "CODE · GROWTH · KNOWLEDGE",
 		lines: ["We build.", "We grow.", "We teach."],
-		lede: "Software solutions, digital growth and 1:1 mentoring. Engineered with precision. Delivered with purpose.",
+		lede: "Digital solutions built around real goals, not templates. Engineered with precision. Delivered with purpose.",
 		primaryCta: "Start a project",
 		secondaryCta: "Explore our services",
-		trustLabel: "Trusted by founders, businesses and ambitious learners.",
+		trustLabel: "Built on real experience.",
 		rating: "5.0 rating",
-		satisfaction: "Client satisfaction",
-		delivery: "Delivery focus",
-		privacy: "Privacy first",
-		build: { title: "BUILD", desc: "Custom software & products" },
-		grow: { title: "GROW", desc: "Marketing & growth in social media" },
-		teach: { title: "TEACH", desc: "1:1 mentoring & guidance" },
+		products: "Built in-house",
+		engineering: "Quality focused",
+		privacy: "By design",
+		build: {
+			title: "BUILD",
+			desc: "Websites, apps & digital products",
+		},
+		grow: {
+			title: "GROW",
+			desc: "SEO, content & online visibility",
+		},
+		teach: {
+			title: "TEACH",
+			desc: "1:1 mentoring & practical guidance",
+		},
 	},
 	pl: {
-		eyebrow: "Build · Create · Grow · Teach",
+		eyebrow: "CODE · GROWTH · KNOWLEDGE",
 		lines: ["Budujemy.", "Rozwijamy.", "Uczymy."],
-		lede: "Rozwiązania software'owe, rozwój cyfrowy i mentoring 1:1. Zaprojektowane z precyzją. Dostarczone z celem.",
+		lede: "Rozwiązania cyfrowe dopasowane do realnych potrzeb. Precyzyjnie zaprojektowane. Tworzone z konkretnym celem.",
 		primaryCta: "Rozpocznij projekt",
 		secondaryCta: "Zobacz nasze usługi",
-		trustLabel: "Zaufali nam founderzy, firmy i ambitni uczniowie.",
+		trustLabel: "Oparte na realnym doświadczeniu.",
 		rating: "ocena 5.0",
-		satisfaction: "Zadowolenie klientów",
-		delivery: "Terminowość",
-		privacy: "Prywatność",
-		build: { title: "BUILD", desc: "Oprogramowanie i produkty na zamówienie" },
-		grow: { title: "GROW", desc: "Marketing i rozwój w social media" },
-		teach: { title: "TEACH", desc: "Mentoring 1:1 i wsparcie" },
+		products: "Tworzone przez CCS",
+		engineering: "Dbałość o jakość",
+		privacy: "Od podstaw",
+		build: {
+			title: "BUDUJEMY",
+			desc: "Strony, aplikacje i produkty cyfrowe",
+		},
+		grow: {
+			title: "ROZWIJAMY",
+			desc: "SEO, treści i widoczność online",
+		},
+		teach: {
+			title: "UCZYMY",
+			desc: "Mentoring 1:1 i praktyczne wsparcie",
+		},
 	},
 };
 
@@ -284,18 +302,20 @@ export function Hero({ locale }: { locale: Locale }) {
 								<span className="t2">{t.rating}</span>
 							</div>
 							<div className="trust-item">
-								<span className="t1">100%</span>
-								<span className="t2">{t.satisfaction}</span>
-							</div>
-							<div className="trust-item">
 								<span className="t1">
-									{locale === "en" ? "On time" : "Na czas"}
+									{locale === "en" ? "REAL PRODUCTS" : "WŁASNE PRODUKTY"}
 								</span>
-								<span className="t2">{t.delivery}</span>
+								<span className="t2">{t.products}</span>
 							</div>
 							<div className="trust-item">
 								<span className="t1">
-									{locale === "en" ? "Secure" : "Bezpiecznie"}
+									{locale === "en" ? "ENGINEERING" : "INŻYNIERIA"}
+								</span>
+								<span className="t2">{t.engineering}</span>
+							</div>
+							<div className="trust-item">
+								<span className="t1">
+									{locale === "en" ? "PRIVACY" : "PRYWATNOŚĆ"}
 								</span>
 								<span className="t2">{t.privacy}</span>
 							</div>

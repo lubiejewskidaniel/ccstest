@@ -449,6 +449,11 @@ nav.primary a:hover {
 	height: 56px;
 	flex: 0 0 auto;
 }
+.mobile-menu-head-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
 .mobile-menu-nav {
 	display: flex;
 	flex-direction: column;
@@ -1020,116 +1025,304 @@ section.tight {
 .work-card:hover .case-link svg {
 	transform: translate(2px, -2px);
 }
+.work-visual-img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+.case-pill-status {
+	background: var(--surface-2);
+	color: var(--ink-2);
+	border-color: var(--line-strong);
+}
+.work-role {
+	font-size: 12px;
+	color: var(--ink-3);
+	font-weight: 500;
+}
 
 /* ---- products spotlight ---- */
+
 .spotlight {
 	display: grid;
-	grid-template-columns: 1fr 1.15fr;
+	grid-template-columns: 1.05fr 1fr;
 	gap: 0;
 	overflow: hidden;
 	align-items: stretch;
 }
+
 .spotlight-visual {
 	position: relative;
-	padding: 36px;
+	padding: 48px 44px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: radial-gradient(
-		120% 120% at 20% 20%,
-		rgba(59, 130, 246, 0.14),
-		transparent 60%
-	);
+	overflow: hidden;
+
+	background:
+		radial-gradient(
+			72% 88% at 50% 46%,
+			rgba(59, 130, 246, 0.13),
+			transparent 70%
+		),
+		linear-gradient(135deg, rgba(59, 130, 246, 0.035), transparent 55%);
+
 	border-right: 1px solid var(--line);
 }
+
+.spotlight-visual::before {
+	content: "";
+	position: absolute;
+
+	width: 420px;
+	height: 340px;
+
+	border-radius: 50%;
+
+	background: radial-gradient(
+		circle,
+		rgba(16, 185, 129, 0.13),
+		transparent 68%
+	);
+
+	filter: blur(42px);
+	opacity: 0.78;
+
+	pointer-events: none;
+}
+
+.spotlight-screenshot {
+	position: relative;
+	z-index: 1;
+
+	width: 100%;
+	max-width: 430px;
+	height: auto;
+
+	border-radius: 20px;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+
+	box-shadow:
+		0 35px 80px -28px rgba(0, 0, 0, 0.85),
+		0 18px 45px -25px rgba(16, 185, 129, 0.22),
+		0 0 52px -28px rgba(16, 185, 129, 0.16);
+
+	transform: perspective(1000px) rotateX(1deg) rotateY(1.5deg);
+
+	transition:
+		transform 300ms ease,
+		box-shadow 300ms ease;
+}
+
+.spotlight:hover .spotlight-screenshot {
+	transform: perspective(1000px) rotateX(0deg) rotateY(0deg) translateY(-4px);
+
+	box-shadow:
+		0 42px 95px -30px rgba(0, 0, 0, 0.9),
+		0 20px 48px -24px rgba(16, 185, 129, 0.24),
+		0 0 58px -26px rgba(16, 185, 129, 0.18);
+}
+
 .spotlight-body {
-	padding: 36px 40px;
+	padding: 40px 42px;
+
 	display: flex;
 	flex-direction: column;
-	gap: 16px;
 	justify-content: center;
+
+	gap: 18px;
 }
+
 .flag-row {
 	display: flex;
 	align-items: center;
 	gap: 10px;
+
+	flex-wrap: wrap;
 }
+
 .flagship {
 	font-family: var(--font-mono);
+
 	font-size: 10px;
 	letter-spacing: 0.08em;
+
 	background: rgba(59, 130, 246, 0.15);
 	color: var(--spark);
+
 	border: 1px solid rgba(59, 130, 246, 0.35);
+
 	padding: 3px 8px;
+
 	border-radius: 6px;
 }
+
 .spotlight-body h3 {
 	font-size: 1.7rem;
 	font-weight: 600;
+	letter-spacing: -0.02em;
 }
+
 .spotlight-body p {
 	color: var(--ink-2);
+
 	font-size: 14.5px;
-	max-width: 38ch;
-	line-height: 1.6;
+	line-height: 1.65;
+
+	max-width: 44ch;
 }
+
 .feat-list {
 	display: flex;
 	flex-direction: column;
-	gap: 9px;
-	margin-top: 2px;
+
+	gap: 10px;
+
+	margin-top: 1px;
 }
+
 .feat-list li {
 	display: flex;
-	align-items: center;
-	gap: 9px;
+	align-items: flex-start;
+
+	gap: 10px;
+
 	font-size: 13px;
+	line-height: 1.5;
+
 	color: var(--ink-2);
 }
+
 .feat-list svg {
 	width: 15px;
 	height: 15px;
+
+	margin-top: 2px;
+
 	color: var(--spark);
+
 	flex: 0 0 auto;
 }
+
 .spotlight-foot {
 	display: flex;
-	align-items: center;
+	align-items: flex-end;
 	justify-content: space-between;
-	margin-top: 10px;
+	margin-top: 16px;
 	flex-wrap: wrap;
-	gap: 14px;
+	gap: 24px;
 }
+
+.spotlight-meta {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 8px;
+}
+
 .built-by {
 	font-size: 12px;
-	color: var(--ink-3);
-}
-.status-dot {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	font-size: 12.5px;
-	color: var(--ink-1);
 	font-weight: 500;
-	margin-top: 4px;
+
+	color: var(--ink-2);
 }
+
+.status-dot {
+	display: flex;
+	align-items: center;
+
+	gap: 7px;
+
+	font-size: 12px;
+	font-weight: 500;
+
+	color: var(--ink-1);
+}
+
 .status-dot i {
 	width: 7px;
 	height: 7px;
+
 	border-radius: 50%;
+
 	background: var(--go);
-	box-shadow: 0 0 8px var(--go);
+
+	box-shadow:
+		0 0 8px var(--go),
+		0 0 16px rgba(16, 185, 129, 0.18);
+
 	display: inline-block;
+
 	animation: pulse-dot 2.4s ease-in-out infinite;
 }
+
 @keyframes pulse-dot {
 	0%,
 	100% {
 		opacity: 1;
 	}
+
 	50% {
 		opacity: 0.4;
+	}
+}
+
+@media (max-width: 975px) {
+	.spotlight {
+		grid-template-columns: 1fr;
+	}
+
+	.spotlight-visual {
+		padding: 44px 32px;
+
+		border-right: 0;
+		border-bottom: 1px solid var(--line);
+	}
+
+	.spotlight-screenshot {
+		max-width: 520px;
+	}
+
+	.spotlight-body {
+		padding: 34px 32px;
+	}
+}
+
+@media (max-width: 640px) {
+	.spotlight-visual {
+		padding: 32px 20px;
+	}
+
+	.spotlight-screenshot {
+		max-width: 100%;
+		border-radius: 16px;
+	}
+
+	.spotlight-body {
+		padding: 28px 22px;
+	}
+
+	.spotlight-foot {
+		align-items: flex-start;
+	}
+
+	.flag-row {
+		align-items: flex-start;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.spotlight-screenshot {
+		transform: none;
+		transition: none;
+	}
+
+	.spotlight:hover .spotlight-screenshot {
+		transform: none;
+	}
+
+	.status-dot i {
+		animation: none;
 	}
 }
 
@@ -1276,6 +1469,17 @@ section.tight {
 	line-height: 1.4;
 }
 .mentor-feature {
+	/* Deliberately always dark, independent of the site-wide theme toggle -
+	   same reasoning as .hero (see that comment): MentorCanvas paints
+	   light cyan particles that assume a dark backdrop, so the background
+	   itself was never going to become theme-aware. But without a matching
+	   local --ink-1 override, its text WAS inheriting the page's real
+	   theme value - meaning dark-on-dark, illegible text the moment
+	   someone switched to light mode. Re-declaring ink here fixes that. */
+	--ink-1: #f5f8ff;
+	--ink-2: #8c98aa;
+	--ink-3: #5f6a80;
+	color-scheme: dark;
 	position: relative;
 	overflow: hidden;
 	padding: 32px;
@@ -2068,6 +2272,325 @@ nav.primary a.active {
 }
 .breadcrumb a:hover {
 	color: var(--ink-1);
+}
+
+/* ---- case study ---- */
+.case-study-head {
+	max-width: 840px;
+	margin: 0 auto;
+	/* padding-block only (not the "padding: A 0 B" shorthand) - that
+	   shorthand's middle "0" was zeroing left/right padding, which
+	   silently overrode .wrap's padding-inline and left the heading
+	   flush against the edge on narrow/full-screen modal viewports. */
+	padding-block: min(9vw, 72px) 40px;
+	position: relative;
+}
+.case-study-head .breadcrumb {
+	margin-bottom: 18px;
+}
+.case-pill-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+.case-study-head h1 {
+	font-size: clamp(2rem, 4.4vw, 3.1rem);
+	font-weight: 600;
+	line-height: 1.08;
+	margin-top: 14px;
+}
+.case-study-head p.lede {
+	margin-top: 16px;
+	font-size: 16px;
+	color: var(--ink-2);
+	line-height: 1.65;
+	max-width: 56ch;
+}
+.case-study-visual {
+	padding-bottom: 48px;
+	display: flex;
+	justify-content: center;
+}
+.case-visual-img {
+	display: block;
+	max-width: min(440px, 100%);
+	height: auto;
+	border-radius: var(--radius);
+	border: 1px solid var(--line-strong);
+	box-shadow: 0 30px 70px -30px rgba(0, 0, 0, 0.6);
+}
+.case-visual-art {
+	width: 100%;
+	max-width: 900px;
+	height: 360px;
+	border-radius: var(--radius);
+	overflow: hidden;
+	border: 1px solid var(--line);
+}
+.case-study-body {
+	max-width: 840px;
+	margin: 0 auto;
+	padding-bottom: 88px;
+	display: flex;
+	flex-direction: column;
+	gap: 40px;
+}
+.case-study-body h2 {
+	font-size: 1.35rem;
+	font-weight: 600;
+	margin-bottom: 12px;
+}
+.case-overview {
+	font-size: 18px;
+	line-height: 1.65;
+	color: var(--ink-1);
+	max-width: 68ch;
+}
+.case-grid-2 {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 32px;
+}
+.case-block p,
+.case-grid-2 p {
+	font-size: 14.5px;
+	line-height: 1.7;
+	color: var(--ink-2);
+}
+.case-context {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 24px;
+	padding: 24px;
+	border: 1px solid var(--line);
+	border-radius: var(--radius-sm);
+	background: var(--surface-2);
+}
+.case-context-item {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 140px;
+}
+.case-context-label {
+	font-family: var(--font-mono);
+	font-size: 10.5px;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--ink-3);
+}
+.case-tech-groups {
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+.case-tech-group {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+.case-tech-group-label {
+	font-family: var(--font-mono);
+	font-size: 10.5px;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--spark);
+}
+.case-context-value {
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--ink-1);
+}
+.case-capabilities {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px 24px;
+}
+.case-capabilities li {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	font-size: 14px;
+	line-height: 1.5;
+	color: var(--ink-2);
+}
+.case-capabilities svg {
+	flex: 0 0 auto;
+	margin-top: 3px;
+}
+.case-research {
+	padding: 22px 24px;
+	border-left: 2px solid var(--rate);
+	background: var(--surface-2);
+	border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.case-research-label {
+	font-family: var(--font-mono);
+	font-size: 10.5px;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+	color: var(--rate);
+}
+.case-research p {
+	margin-top: 8px;
+	font-size: 14.5px;
+	line-height: 1.6;
+	color: var(--ink-1);
+}
+.case-cta-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 20px;
+	padding-top: 8px;
+}
+.case-back-link {
+	font-size: 12.5px;
+	font-weight: 600;
+	color: var(--ink-3);
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	transition: color 0.2s;
+}
+.case-back-link:hover {
+	color: var(--ink-1);
+}
+.case-back-link svg {
+	width: 12px;
+	height: 12px;
+	transition: transform 0.25s var(--ease);
+}
+.case-back-link:hover svg {
+	transform: translate(-2px, 0);
+}
+@media (max-width: 860px) {
+	.case-grid-2 {
+		grid-template-columns: 1fr;
+		gap: 24px;
+	}
+	.case-capabilities {
+		grid-template-columns: 1fr;
+	}
+}
+@media (max-width: 640px) {
+	.case-study-head {
+		padding-block: 40px 28px;
+	}
+	.case-context {
+		gap: 18px;
+		padding: 18px;
+	}
+	.case-cta-row {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+}
+
+/* ---- case study modal (intercepted /work/[slug] route) ---- */
+.case-modal-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 3500;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	background: rgba(2, 6, 15, 0.72);
+	backdrop-filter: blur(6px);
+	-webkit-backdrop-filter: blur(6px);
+	animation: case-modal-fade 0.25s var(--ease);
+}
+[data-theme="light"] .case-modal-overlay {
+	background: rgba(15, 23, 42, 0.45);
+}
+.case-modal {
+	position: relative;
+	width: min(1200px, calc(100vw - 48px));
+	max-height: calc(100vh - 48px);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	background: var(--void);
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius);
+	box-shadow: 0 40px 100px -30px rgba(0, 0, 0, 0.7);
+	animation: case-modal-scale 0.3s var(--ease);
+}
+.case-modal:focus {
+	outline: none;
+}
+.case-modal-scroll {
+	overflow-y: auto;
+	overscroll-behavior: contain;
+}
+.case-modal-scroll .case-study-head {
+	padding-top: 56px;
+}
+.case-modal-close {
+	position: absolute;
+	top: 18px;
+	right: 18px;
+	z-index: 2;
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--surface-2);
+	border: 1px solid var(--line);
+	color: var(--ink-2);
+	transition:
+		color 0.2s,
+		background 0.2s,
+		border-color 0.2s;
+}
+.case-modal-close:hover {
+	color: var(--ink-1);
+	background: var(--surface-3);
+	border-color: var(--line-strong);
+}
+@keyframes case-modal-fade {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+@keyframes case-modal-scale {
+	from {
+		opacity: 0;
+		transform: translateY(14px) scale(0.98);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.case-modal-overlay,
+	.case-modal {
+		animation: none;
+	}
+}
+@media (max-width: 640px) {
+	.case-modal-overlay {
+		padding: 0;
+	}
+	.case-modal {
+		width: 100vw;
+		max-height: 100vh;
+		height: 100vh;
+		border-radius: 0;
+		border: none;
+	}
+	.case-modal-scroll .case-study-head {
+		padding-top: 64px;
+	}
 }
 
 /* ================= PROSE (legal pages) ================= */
