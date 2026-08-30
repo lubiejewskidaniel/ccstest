@@ -10,16 +10,16 @@ import { HoldNavLink } from "@/components/navigation/HoldNavLink";
 
 const COPY = {
 	en: {
-		eyebrow: "CODE · GROWTH · KNOWLEDGE",
+		eyebrow: "BUILD · GROW · TEACH",
 		lines: ["We build.", "We grow.", "We teach."],
 		lede: "Digital solutions built around real goals, not templates. Engineered with precision. Delivered with purpose.",
-		primaryCta: "Start a project",
+		primaryCta: "Let's talk about your project",
 		secondaryCta: "Explore our services",
 		trustLabel: "Built on real experience.",
 		rating: "5.0 rating",
-		products: "Built in-house",
-		engineering: "Quality focused",
-		privacy: "By design",
+		products: "Designed and built in-house",
+		quality: "From code to deployment",
+		privacy: "Considered from day one",
 		build: {
 			title: "BUILD",
 			desc: "Websites, apps & digital products",
@@ -34,16 +34,16 @@ const COPY = {
 		},
 	},
 	pl: {
-		eyebrow: "CODE · GROWTH · KNOWLEDGE",
+		eyebrow: "BUILD · GROW · TEACH",
 		lines: ["Budujemy.", "Rozwijamy.", "Uczymy."],
-		lede: "Rozwiązania cyfrowe dopasowane do realnych potrzeb. Precyzyjnie zaprojektowane. Tworzone z konkretnym celem.",
-		primaryCta: "Rozpocznij projekt",
+		lede: "Tworzymy rozwiązania dopasowane do realnych potrzeb, nie według gotowych szablonów. Przemyślane technicznie. Tworzone z charakterem.",
+		primaryCta: "Porozmawiajmy o Twoim projekcie",
 		secondaryCta: "Zobacz nasze usługi",
 		trustLabel: "Oparte na realnym doświadczeniu.",
 		rating: "ocena 5.0",
-		products: "Tworzone przez CCS",
-		engineering: "Dbałość o jakość",
-		privacy: "Od podstaw",
+		products: "Tworzone i rozwijane dla CCS",
+		quality: "Przemyślana na każdym etapie",
+		privacy: "Uwzględniana od początku",
 		build: {
 			title: "BUDUJEMY",
 			desc: "Strony, aplikacje i produkty cyfrowe",
@@ -303,15 +303,15 @@ export function Hero({ locale }: { locale: Locale }) {
 							</div>
 							<div className="trust-item">
 								<span className="t1">
-									{locale === "en" ? "REAL PRODUCTS" : "WŁASNE PRODUKTY"}
+									{locale === "en" ? "OUR PRODUCTS" : "WŁASNE PRODUKTY"}
 								</span>
 								<span className="t2">{t.products}</span>
 							</div>
 							<div className="trust-item">
 								<span className="t1">
-									{locale === "en" ? "ENGINEERING" : "INŻYNIERIA"}
+									{locale === "en" ? "QUALITY" : "JAKOŚĆ"}
 								</span>
-								<span className="t2">{t.engineering}</span>
+								<span className="t2">{t.quality}</span>
 							</div>
 							<div className="trust-item">
 								<span className="t1">

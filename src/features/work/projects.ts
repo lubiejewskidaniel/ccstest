@@ -129,8 +129,8 @@ export const projects: Project[] = [
 		},
 		externalUrl: "https://www.takblisko.pl",
 		shortDescription: {
-			en: "A map-first local discovery platform helping people find events, places and things happening nearby.",
-			pl: "Lokalna platforma oparta na mapie, pomagająca odkrywać wydarzenia, miejsca i to, co dzieje się w pobliżu.",
+			en: "A map-first local platform helping people discover events, places and what's happening nearby.",
+			pl: "Lokalna platforma oparta na mapie, która pomaga odkrywać wydarzenia, miejsca i to, co dzieje się w pobliżu.",
 		},
 		role: {
 			en: "Product strategy · Architecture · Full-stack · Growth",
@@ -260,8 +260,8 @@ export const projects: Project[] = [
 			},
 		},
 		shortDescription: {
-			en: "A property lead management platform built to help real-estate teams organise, track and manage potential clients.",
-			pl: "Platforma do zarządzania leadami, pomagająca zespołom nieruchomości organizować, śledzić i obsługiwać potencjalnych klientów.",
+			en: "A platform helping real-estate teams organise, track and convert property leads into clients.",
+			pl: "Platforma pomagająca zespołom z branży nieruchomości organizować i śledzić leady oraz przekształcać je w klientów.",
 		},
 		role: {
 			en: "Project management · Full-stack development",
@@ -411,8 +411,8 @@ export const projects: Project[] = [
 			},
 		},
 		shortDescription: {
-			en: "A dual-layer privacy system designed to control what information is revealed under coercion-prone access.",
-			pl: "Dwuwarstwowy system prywatności pozwalający kontrolować zakres informacji ujawnianych w sytuacjach dostępu pod przymusem.",
+			en: "A dual-layer privacy system designed to control what information is revealed under pressure.",
+			pl: "Dwuwarstwowy system prywatności pozwalający kontrolować, jakie informacje są ujawniane w sytuacji przymusu.",
 		},
 		role: {
 			en: "Research · Architecture · Privacy engineering",

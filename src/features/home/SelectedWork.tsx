@@ -18,13 +18,13 @@ const ARROW = (
 const COPY = {
 	en: {
 		eyebrow: "Selected work",
-		title: "Built for real impact.",
+		title: "Ideas brought to life.",
 		viewAll: "View all projects",
 		exploreProject: "Explore project",
 	},
 	pl: {
 		eyebrow: "Wybrane realizacje",
-		title: "Zbudowane z myślą o realnym efekcie.",
+		title: "Pomysły, które stały się rzeczywistością.",
 		viewAll: "Zobacz wszystkie projekty",
 		exploreProject: "Poznaj projekt",
 	},
@@ -173,7 +173,10 @@ export function SelectedWork({ locale }: { locale: Locale }) {
 
 				<div className="work-grid reveal-stagger">
 					{projects.map((project) => {
-						const ArtComponent = project.visual.kind === "art" ? ART_BY_KEY[project.visual.key] : null;
+						const ArtComponent =
+							project.visual.kind === "art"
+								? ART_BY_KEY[project.visual.key]
+								: null;
 						return (
 							<Link
 								href={routeFor("work", locale)}

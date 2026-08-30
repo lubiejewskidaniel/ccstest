@@ -33,7 +33,7 @@ const ITEMS: Item[] = [
 				<path d="M8 5 3 12l5 7M16 5l5 7-5 7" />
 			</svg>
 		),
-		title: { en: "Software Development", pl: "Wytwarzanie oprogramowania" },
+		title: { en: "Software Development", pl: "Tworzenie oprogramowania" },
 		desc: {
 			en: "Custom web applications, systems and cloud solutions.",
 			pl: "Dedykowane aplikacje webowe, systemy i rozwiązania chmurowe.",
@@ -54,8 +54,8 @@ const ITEMS: Item[] = [
 		),
 		title: { en: "Product Development", pl: "Tworzenie produktów" },
 		desc: {
-			en: "From first idea to launch-ready digital products.",
-			pl: "Od pierwszego pomysłu do gotowego produktu cyfrowego.",
+			en: "From idea to launch-ready digital products.",
+			pl: "Od pomysłu do gotowego produktu cyfrowego.",
 		},
 	},
 	{
@@ -74,7 +74,7 @@ const ITEMS: Item[] = [
 		title: { en: "Technology Consulting", pl: "Doradztwo technologiczne" },
 		desc: {
 			en: "Architecture, technical audits and strategic guidance.",
-			pl: "Architektura, audyty techniczne i doradztwo strategiczne.",
+			pl: "Architektura, audyty techniczne i wsparcie strategiczne.",
 		},
 	},
 	{
@@ -90,10 +90,13 @@ const ITEMS: Item[] = [
 				<path d="M8 20h8M12 16v4" />
 			</svg>
 		),
-		title: { en: "Web & Digital", pl: "Web i digital" },
+		title: {
+			en: "Websites & Platforms",
+			pl: "Strony i platformy interaktywne",
+		},
 		desc: {
-			en: "Modern websites, landing pages and platforms.",
-			pl: "Nowoczesne strony, landing page'e i platformy.",
+			en: "Modern websites, landing pages and interactive platforms.",
+			pl: "Nowoczesne strony, landing page'e i platformy internetowe.",
 		},
 	},
 	{
@@ -133,7 +136,7 @@ const ITEMS: Item[] = [
 		),
 		title: { en: "1:1 Tech Mentoring", pl: "Mentoring IT 1:1" },
 		desc: {
-			en: "Practical guidance in coding, projects and career development.",
+			en: "Practical support with coding, projects and career development.",
 			pl: "Praktyczne wsparcie w nauce programowania, projektach i rozwoju kariery.",
 		},
 	},

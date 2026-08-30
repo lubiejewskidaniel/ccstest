@@ -18,14 +18,14 @@ const ARROW = (
 const COPY = {
 	en: {
 		eyebrow: "Our products",
-		title: "We don't just build for clients.",
+		title: ["We don't just", "build for clients."],
 		viewAll: "View all products",
 		flagship: "FLAGSHIP PRODUCT",
 		screenshotAlt:
 			"TakBlisko app screenshot showing a live map with nearby events",
 		desc: "A map-first local discovery platform bringing nearby events, places and community activity into one simple experience.",
-		feat1: "Live local discovery through an interactive map",
-		feat2: "Built around what's happening nearby, right now",
+		feat1: "Discover your area through an interactive map",
+		feat2: "See what's happening nearby, right now",
 		builtBy: "Designed & built by CCS",
 		active: "In active development",
 		explore: "Explore TakBlisko",
@@ -33,15 +33,15 @@ const COPY = {
 
 	pl: {
 		eyebrow: "Nasze produkty",
-		title: "Budujemy również własne produkty.",
+		title: ["Tworzymy nie tylko", "dla klientów."],
 		viewAll: "Zobacz wszystkie produkty",
 		flagship: "FLAGOWY PRODUKT",
 		screenshotAlt:
 			"Zrzut ekranu aplikacji TakBlisko z mapą i wydarzeniami w pobliżu",
-		desc: "Lokalna platforma oparta na mapie, która łączy wydarzenia, miejsca i aktywność społeczności w jednym prostym doświadczeniu.",
-		feat1: "Odkrywanie okolicy na interaktywnej mapie",
-		feat2: "Skupione na tym, co dzieje się blisko Ciebie - teraz",
-		builtBy: "Zaprojektowane i tworzone przez CCS",
+		desc: "Lokalna platforma oparta na mapie, która pomaga odkrywać wydarzenia, miejsca i to, co dzieje się w Twojej okolicy.",
+		feat1: "Odkrywaj okolicę na interaktywnej mapie",
+		feat2: "Zobacz, co dzieje się blisko Ciebie - teraz",
+		builtBy: "Projektowana i rozwijana przez CCS",
 		active: "Aktywnie rozwijany",
 		explore: "Poznaj TakBlisko",
 	},
@@ -56,7 +56,11 @@ export function ProductSpotlight({ locale }: { locale: Locale }) {
 				<div className="section-head reveal">
 					<div>
 						<span className="eyebrow">{t.eyebrow}</span>
-						<h2>{t.title}</h2>
+						<h2>
+							{t.title[0]}
+							<br />
+							{t.title[1]}
+						</h2>
 					</div>
 
 					<Link href={routeFor("products", locale)} className="view-all">
