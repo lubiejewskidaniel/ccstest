@@ -92,12 +92,15 @@ export default async function RootLayout({
 		>
 			<body>
 				<JsonLd data={[organizationSchema(), websiteSchema()]} />
+
 				<a href="#main-content" className="skip-link">
 					Skip to content
 				</a>
+
 				<div className="progress-rail" aria-hidden="true">
 					<i id="progressFill" />
 				</div>
+
 				<div className="boot-curtain" id="bootCurtain" aria-hidden="true">
 					<svg viewBox="0 0 100 100">
 						<defs>
@@ -106,20 +109,17 @@ export default async function RootLayout({
 								<stop offset="100%" stopColor="#1267e8" />
 							</linearGradient>
 						</defs>
+
 						<path d="M64 20c-16 0-30 13-30 30s14 30 30 30" />
 					</svg>
 				</div>
 
 				<ThemeProvider>
 					<div className="spine" aria-hidden="true" />
+
 					<SiteChrome>{children}</SiteChrome>
-					<ThemeProvider>
-						<div className="spine" aria-hidden="true" />
 
-						<SiteChrome>{children}</SiteChrome>
-
-						<BackToTop locale={lang} />
-					</ThemeProvider>
+					<BackToTop locale={lang} />
 				</ThemeProvider>
 
 				<MotionSystem />
