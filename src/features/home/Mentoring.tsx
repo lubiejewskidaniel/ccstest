@@ -81,16 +81,19 @@ export function Mentoring({ locale }: { locale: Locale }) {
 								href={routeFor("mentoringEnquire", locale)}
 								className="btn btn-primary"
 							>
-								{t.cta}{" "}
+								{t.cta}
+
 								<svg
 									viewBox="0 0 24 24"
-									width="13"
-									height="13"
 									fill="none"
 									stroke="currentColor"
-									strokeWidth="2"
+									strokeWidth="1.8"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+									aria-hidden="true"
 								>
-									<path d="M7 17 17 7M9 7h8v8" />
+									<path d="M7 17 17 7" />
+									<path d="M9 7h8v8" />
 								</svg>
 							</HoldNavLink>
 						</div>

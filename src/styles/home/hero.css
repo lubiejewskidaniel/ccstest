@@ -1,0 +1,175 @@
+/* ==========================================================================
+   Home — Hero
+   ==========================================================================
+   Moved out of globals.css. Scope: only classes used exclusively by
+   src/features/home/Hero.tsx (verified against the full app source).
+
+   NOT included here even though visually part of the hero:
+   - .hero-actions -- used by Hero.tsx AND the shared PageHero.tsx
+     component, so it lives in styles/components/page-hero.css instead.
+   - .eyebrow, .trust, .trust-row, .trust-item, .stars, .mode-cards,
+     .mark-connectors, .trace-lines -- shared/global or out of this
+     round's agreed scope (hero, cap, work, spotlight, growth, process,
+     mentor, insight, page-hero prefixes only). Left untouched in
+     globals.css.
+   - @keyframes fade-up -- still used by .trust (globals.css) and other
+     non-hero rules, so it stays defined in globals.css. .hero-copy
+     p.lede and .hero-actions (in page-hero.css) both still reference it
+     by name; CSS doesn't care which file a @keyframes rule lives in.
+*/
+
+.hero {
+	--void: #02060f;
+	--surface: #08101d;
+	--surface-2: #0d1727;
+	--surface-3: #152140;
+	--line: rgba(140, 152, 170, 0.16);
+	--line-strong: rgba(140, 152, 170, 0.3);
+	--ink-1: #f5f8ff;
+	--ink-2: #8c98aa;
+	--ink-3: #5f6a80;
+	--signal: #1267e8;
+	--signal-2: #0a4bb8;
+	--spark: #0aa9ff;
+	--spark-2: #72d8ff;
+	color-scheme: dark;
+	position: relative;
+	padding: min(11vw, 96px) 0 80px;
+	overflow: hidden;
+	background: var(--void);
+	color: var(--ink-1);
+}
+.hero-field {
+	/* height is viewport-width-based (not a % of .hero's own, content-driven
+	   height) so it always keeps the same box aspect ratio as the SVG's
+	   viewBox (1400:700 = 2:1: box width is ~112vw from the -6% left/right
+	   inset, so 56vw makes height = width/2). That holds at every viewport
+	   width with no breakpoint jump, so "xMidYMid slice" always crops the
+	   pattern by the same (small, deliberate) amount instead of distorting
+	   or over-zooming as the window is resized or the hero reflows taller
+	   on narrow screens. */
+	position: absolute;
+	inset: -10% -6% auto -6%;
+	height: 56vw;
+	z-index: 0;
+	pointer-events: none;
+}
+.hero-grid {
+	transition: transform 0.4s var(--ease);
+}
+.hero-inner {
+	position: relative;
+	z-index: 2;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 40px;
+	align-items: center;
+}
+
+.hero-copy h1 {
+	font-size: clamp(2.5rem, 5.4vw, 4.1rem);
+	font-weight: 600;
+	line-height: 1.04;
+	margin-top: 16px;
+}
+.hero-copy h1 span {
+	display: block;
+	opacity: 0;
+	transform: translateY(16px);
+	animation: line-in 0.8s var(--ease) forwards;
+}
+.hero-copy h1 span:nth-child(1) {
+	animation-delay: 0.15s;
+}
+.hero-copy h1 span:nth-child(2) {
+	animation-delay: 0.32s;
+	color: var(--signal);
+	position: relative;
+}
+.hero-copy h1 span:nth-child(3) {
+	animation-delay: 0.49s;
+}
+@keyframes line-in {
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+.hero-copy p.lede {
+	margin-top: 20px;
+	max-width: 46ch;
+	color: var(--ink-2);
+	font-size: 16.5px;
+	line-height: 1.65;
+	opacity: 0;
+	animation: fade-up 0.8s var(--ease) forwards;
+	animation-delay: 0.66s;
+}
+
+/* hero right: signal mark + orbit lines to mode cards */
+.hero-visual {
+	position: relative;
+	height: 420px;
+	z-index: 2;
+	/* Shared by .hero-logo and .mode-cards below, so both are always
+	   computed from the SAME actual reserved width - previously .hero-logo
+	   subtracted a fixed 384px guess that was fine at desktop widths but,
+	   on "tablet" widths where .hero-visual itself is much narrower, left
+	   it no room at all and it fell back to a floor width that overlapped
+	   .mode-cards. Tying both to one custom property keeps them from ever
+	   colliding, at any width. */
+	--cards-w: clamp(150px, 30%, 190px);
+}
+.hero-logo {
+	/* left is 4% and width is the space left over after that inset,
+	   --cards-w, and a fixed 24px gap - so it grows and shrinks in
+	   lockstep with .mode-cards's own actual width instead of against a
+	   fixed guess, and never overlaps it. --cards-w was tightened
+	   (170-230 → 150-190) to make room for a bigger logo without losing
+	   that guarantee. */
+	position: absolute;
+	left: -20%;
+	top: 50%;
+	transform: translateY(-50%);
+	width: clamp(190px, calc(96% - var(--cards-w) - 24px), 460px);
+	z-index: 2;
+	perspective: 1200px;
+}
+.hero-logo img {
+	width: 100%;
+	height: auto;
+	display: block;
+	animation: logo-spin-3d 10s ease-in-out infinite;
+}
+@keyframes logo-spin-3d {
+	0%,
+	100% {
+		transform: rotateY(-32deg);
+	}
+	50% {
+		transform: rotateY(32deg);
+	}
+}
+
+@media (max-width: 975px) {
+	.hero-inner {
+		grid-template-columns: 1fr;
+	}
+	.hero-visual {
+		height: auto;
+		order: -1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 18px;
+		padding-top: 8px;
+	}
+	.hero-logo {
+		position: relative;
+		left: auto;
+		top: auto;
+		transform: none;
+		width: clamp(220px, 70vw, 380px);
+	}
+}

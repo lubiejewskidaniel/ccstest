@@ -1,0 +1,79 @@
+/* ==========================================================================
+   Services page
+   ========================================================================== */
+
+/*
+   The services page has its own three-column layout.
+
+   This must live in CSS rather than inline JSX styles so responsive
+   breakpoints can change the number of columns normally.
+*/
+.services-page .services-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 14px;
+}
+
+/*
+   Service cards reuse the shared card and capability styles, but this page
+   does not need the fixed minimum height used elsewhere.
+*/
+.services-page .services-card {
+	min-height: auto;
+}
+
+/*
+   Adds a small separation between the service description and its tags.
+*/
+.services-page .services-tags {
+	margin-top: 4px;
+}
+
+/* ==========================================================================
+   Process
+   ========================================================================== */
+
+.services-page .services-process-head {
+	margin-bottom: 24px;
+}
+
+/*
+   The services process always starts as three equal steps.
+
+   Keeping this outside JSX allows the layout to collapse naturally at
+   smaller viewport widths.
+*/
+.services-page .services-process-grid {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
+@media (max-width: 900px) {
+	/*
+	   Six service cards move to two columns before reaching the mobile
+	   layout. This avoids narrow cards and keeps longer Polish and English
+	   descriptions readable.
+	*/
+	.services-page .services-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 640px) {
+	.services-page .services-grid,
+	.services-page .services-process-grid {
+		grid-template-columns: 1fr;
+	}
+
+	/*
+	   The desktop process connector is horizontal, so it is hidden once
+	   the process becomes a vertical mobile list.
+	*/
+	.services-page .services-process-grid::before,
+	.services-page .services-process-grid::after {
+		display: none;
+	}
+}

@@ -1,0 +1,30 @@
+/* ==========================================================================
+   Home — Insights
+   ==========================================================================
+   Moved out of globals.css. Scope: only .insight-grid, used exclusively
+   by src/features/home/Insights.tsx (verified against the full app
+   source).
+
+   NOT included here: .insight-card, .insight-body, .insight-meta,
+   .insight-visual — shared with src/features/pages/InsightsPage.tsx and
+   deferred to a later round. Left untouched in globals.css.
+*/
+
+.insight-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr 1fr 1fr;
+	gap: 16px;
+	align-items: stretch;
+}
+
+@media (max-width: 1080px) {
+	.insight-grid {
+		grid-template-columns: 1fr 1fr;
+	}
+}
+
+@media (max-width: 640px) {
+	.insight-grid {
+		grid-template-columns: 1fr;
+	}
+}

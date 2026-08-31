@@ -1,0 +1,94 @@
+/* ==========================================================================
+   Home — Product Spotlight
+   ==========================================================================
+   Moved out of globals.css. Scope: only the three classes used
+   exclusively by src/features/home/ProductSpotlight.tsx (verified
+   against the full app source): .spotlight-screenshot, .spotlight-foot,
+   .spotlight-meta.
+
+   NOT included here even though visually adjacent: .spotlight,
+   .spotlight-visual, .spotlight-body, .flag-row, .flagship, .feat-list,
+   .built-by — these are shared with src/features/pages/ProductsPage.tsx
+   and are deferred to a later round once that page has been reviewed.
+   Left untouched in globals.css. The .spotlight:hover selector below is
+   kept here (not split into globals.css) because it only ever targets
+   .spotlight-screenshot; .spotlight itself still lives in globals.css,
+   and CSS selector matching does not care which file a rule is declared
+   in.
+*/
+
+.spotlight-screenshot {
+	position: relative;
+	z-index: 1;
+
+	width: 100%;
+	max-width: 430px;
+	height: auto;
+
+	border-radius: 20px;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+
+	box-shadow:
+		0 35px 80px -28px rgba(0, 0, 0, 0.85),
+		0 18px 45px -25px rgba(16, 185, 129, 0.22),
+		0 0 52px -28px rgba(16, 185, 129, 0.16);
+
+	transform: perspective(1000px) rotateX(1deg) rotateY(1.5deg);
+
+	transition:
+		transform 300ms ease,
+		box-shadow 300ms ease;
+}
+
+.spotlight:hover .spotlight-screenshot {
+	transform: perspective(1000px) rotateX(0deg) rotateY(0deg) translateY(-4px);
+
+	box-shadow:
+		0 42px 95px -30px rgba(0, 0, 0, 0.9),
+		0 20px 48px -24px rgba(16, 185, 129, 0.24),
+		0 0 58px -26px rgba(16, 185, 129, 0.18);
+}
+
+.spotlight-foot {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	margin-top: 16px;
+	flex-wrap: wrap;
+	gap: 24px;
+}
+
+.spotlight-meta {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 8px;
+}
+
+@media (max-width: 975px) {
+	.spotlight-screenshot {
+		max-width: 520px;
+	}
+}
+
+@media (max-width: 640px) {
+	.spotlight-screenshot {
+		max-width: 100%;
+		border-radius: 16px;
+	}
+
+	.spotlight-foot {
+		align-items: flex-start;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.spotlight-screenshot {
+		transform: none;
+		transition: none;
+	}
+
+	.spotlight:hover .spotlight-screenshot {
+		transform: none;
+	}
+}

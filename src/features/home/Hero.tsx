@@ -267,7 +267,7 @@ export function Hero({ locale }: { locale: Locale }) {
 					<div className="hero-actions">
 						<HoldNavLink
 							href={routeFor("contact", locale)}
-							className="btn btn-primary"
+							className="btn btn-split"
 							onClick={() =>
 								events.serviceCtaClick(
 									"general",
@@ -276,8 +276,23 @@ export function Hero({ locale }: { locale: Locale }) {
 								)
 							}
 						>
-							{t.primaryCta}
+							<span className="btn-split__label">{t.primaryCta}</span>
+
+							<span className="btn-split__icon" aria-hidden="true">
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="1.8"
+									strokeLinecap="round"
+									strokeLinejoin="round"
+								>
+									<path d="M7 17 17 7" />
+									<path d="M9 7h8v8" />
+								</svg>
+							</span>
 						</HoldNavLink>
+
 						<HoldNavLink
 							href={routeFor("services", locale)}
 							className="btn btn-ghost"

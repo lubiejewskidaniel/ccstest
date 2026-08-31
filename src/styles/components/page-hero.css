@@ -1,0 +1,81 @@
+/* ==========================================================================
+   Shared component — PageHero (inner-page hero, hub/legal pages)
+   ==========================================================================
+   .page-hero / .page-hero-inner back src/components/PageHero.tsx, used by
+   7 hub pages (Services, Growth, Mentoring, Products, Work, Insights,
+   About) plus a hand-rolled "<section className=page-hero>" in
+   ContactPage.tsx and MentoringEnquiryPage.tsx.
+
+   .hero-actions is included here (not in home/hero.css) because it is
+   genuinely shared: used by both src/features/home/Hero.tsx and this
+   component. The .page-hero .hero-actions rule below is PageHero's own
+   override (turns off the homepage's entrance-animation delay/opacity
+   for this context) and must stay adjacent to keep that relationship
+   obvious.
+
+   BUGFIX (round 2): .page-hero-inner is scoped as ".page-hero
+   .page-hero-inner" (not a bare ".page-hero-inner") on purpose. It is
+   always rendered as "<div className='wrap page-hero-inner'>" -- i.e.
+   paired with the shared .wrap class, which also sets max-width. In the
+   original globals.css, .page-hero-inner was declared near the end of
+   the file so it happened to win that tie by source order. Once this
+   file is pulled in via @import (which CSS requires to sit at the very
+   top of globals.css), that source-order coincidence flips and .wrap's
+   max-width wins instead, silently widening every hub-page hero. Scoping
+   under the real parent selector raises specificity so this rule wins
+   unconditionally, independent of import/file order. Verified against
+   PageHero.tsx: .page-hero-inner is only ever a direct child of
+   .page-hero, so this scoping changes nothing else.
+*/
+
+.page-hero {
+	border-top: none;
+	padding: min(9vw, 84px) 0 56px;
+	position: relative;
+	overflow: hidden;
+}
+.page-hero::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	pointer-events: none;
+	background: radial-gradient(
+		60% 100% at 85% 0%,
+		rgba(59, 130, 246, 0.14),
+		transparent 60%
+	);
+}
+.page-hero .page-hero-inner {
+	position: relative;
+	z-index: 1;
+	max-width: 64ch;
+}
+.page-hero h1 {
+	font-size: clamp(2rem, 4.4vw, 3.1rem);
+	font-weight: 600;
+	line-height: 1.08;
+	margin-top: 14px;
+}
+.page-hero p.lede {
+	margin-top: 16px;
+	font-size: 16px;
+	color: var(--ink-2);
+	line-height: 1.65;
+	max-width: 56ch;
+}
+
+.hero-actions {
+	display: flex;
+	gap: 12px;
+	margin-top: 30px;
+	flex-wrap: wrap;
+	opacity: 0;
+	animation: fade-up 0.8s var(--ease) forwards;
+	animation-delay: 0.8s;
+}
+.page-hero .hero-actions {
+	margin-top: 26px;
+	opacity: 1;
+	animation: none;
+}

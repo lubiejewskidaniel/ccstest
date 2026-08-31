@@ -5,16 +5,21 @@ import { routeFor, type Locale } from "@/lib/routes";
 import { getAllProjects } from "@/features/work/projects";
 
 const ARROW = (
-	<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-		<path d="M7 17 17 7M9 7h8v8" />
+	<svg
+		viewBox="0 0 24 24"
+		fill="none"
+		stroke="currentColor"
+		strokeWidth="1.8"
+		strokeLinecap="round"
+		strokeLinejoin="round"
+		aria-hidden="true"
+	>
+		<path d="M7 17 17 7" />
+		<path d="M9 7h8v8" />
 	</svg>
 );
 
-// Homepage-only copy (eyebrow/title/CTAs). Project name, description and
-// tags are NOT duplicated here - they come from `projects.ts`, the single
-// source of truth shared with /work and every case study (see that file's
-// header comment for why: this is what used to let Dual-Layer Vault's tags
-// drift to "Vercel" here while the case study said "Access Control").
+// Homepage copy only. Project data comes from projects.ts.
 const COPY = {
 	en: {
 		eyebrow: "Selected work",
@@ -146,9 +151,7 @@ export function VaultArt() {
 	);
 }
 
-/** See the matching map in WorkPage.tsx / CaseStudy.tsx - kept local to
- * each presentation component rather than in projects.ts so the data
- * file stays JSX-free. */
+// Visual components mapped to project keys.
 const ART_BY_KEY: Record<string, ComponentType> = {
 	takblisko: TakBliskoArt,
 	plms: PlmsArt,

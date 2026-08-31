@@ -1,0 +1,53 @@
+/* ==========================================================================
+   Work page
+   ========================================================================== */
+
+/*
+   The /work grid needs layout control independent of the homepage's own
+   .work-grid usage -- but .work-grid and .work-card must keep their
+   exact names regardless (see MotionSystem.tsx's magnetic-tilt
+   querySelector, and globals.css's shared "magnetic tilt targets" rule
+   that puts perspective: 1200px on .work-grid so the tilt on .work-card
+   renders in 3D). So this container keeps the "work-grid" class for
+   that shared behaviour, but ALSO gets "work-page-grid" for its own
+   layout -- scoped under .work-page so it wins deterministically over
+   .work-grid's bare rule (higher specificity, not a fragile
+   same-specificity coincidence), while Home's own .work-grid usage
+   (no .work-page ancestor) is completely unaffected.
+
+   This must live in CSS rather than inline JSX styles so responsive
+   breakpoints can change the column count normally -- the previous
+   inline gridTemplateColumns forced 3 columns at every viewport width,
+   which is what made the page look broken on tablets/phones. Values
+   below match what .work-grid's own (now bypassed) breakpoints already
+   provided, since the homepage's 3-column layout was already the
+   correct design -- only the enforcement mechanism was replaced.
+*/
+.work-page .work-page-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 18px;
+}
+
+/*
+   Project role/contribution label -- exclusive to the /work overview
+   (the homepage preview only shows tags + "view case study", no role
+   line), so this lives here rather than in globals.css.
+*/
+.work-role {
+	font-size: 12px;
+	color: var(--ink-3);
+	font-weight: 500;
+}
+
+@media (max-width: 1080px) {
+	.work-page .work-page-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+@media (max-width: 640px) {
+	.work-page .work-page-grid {
+		grid-template-columns: 1fr;
+	}
+}

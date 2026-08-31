@@ -69,7 +69,10 @@ export function Header({ locale }: { locale: Locale }) {
 				<div className="head-actions">
 					<LanguageSwitch locale={locale} />
 					<ThemeToggle />
-					<HoldNavLink href={routeFor("contact", locale)} className="btn btn-primary">
+					<HoldNavLink
+						href={routeFor("contact", locale)}
+						className="btn btn-header"
+					>
 						{locale === "en" ? "Contact us" : "Kontakt"}
 					</HoldNavLink>
 					<button

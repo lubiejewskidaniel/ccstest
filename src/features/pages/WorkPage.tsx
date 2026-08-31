@@ -50,7 +50,7 @@ export function WorkPage({ locale }: { locale: Locale }) {
   const projects = getAllProjects();
 
   return (
-    <main>
+    <main className="work-page">
       <PageHero
         eyebrow={t.eyebrow}
         title={t.title}
@@ -63,7 +63,7 @@ export function WorkPage({ locale }: { locale: Locale }) {
       />
       <section className="tight">
         <div className="wrap">
-          <div className="work-grid reveal-stagger" style={{ gridTemplateColumns: "repeat(3,1fr)" }}>
+          <div className="work-grid work-page-grid reveal-stagger">
             {projects.map((project) => {
               const ArtComponent = project.visual.kind === "art" ? ART_BY_KEY[project.visual.key] : null;
               return (
