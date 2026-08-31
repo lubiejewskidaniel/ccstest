@@ -1,4 +1,5 @@
 @import "./tokens.css";
+@import "./back-to-top.css";
 
 *,
 *::before,
@@ -1752,47 +1753,6 @@ footer {
 	height: 14px;
 }
 
-.to-top {
-	position: fixed;
-	right: 26px;
-	bottom: 26px;
-	width: 44px;
-	height: 44px;
-	border-radius: 50%;
-	background: linear-gradient(155deg, var(--btn-blue-1), var(--btn-blue-2));
-	color: #fff;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	overflow: hidden;
-	box-shadow:
-		0 10px 26px -8px var(--btn-glow),
-		0 0 14px -3px var(--btn-glow);
-	opacity: 0;
-	transform: translateY(10px) scale(0.9);
-	pointer-events: none;
-	transition:
-		opacity 0.3s var(--ease),
-		transform 0.3s var(--ease),
-		box-shadow 0.3s var(--ease);
-	z-index: 90;
-}
-.to-top.show {
-	opacity: 1;
-	transform: none;
-	pointer-events: auto;
-}
-.to-top:hover {
-	transform: translateY(-3px);
-	box-shadow:
-		0 14px 30px -8px var(--btn-glow-strong),
-		0 0 22px -2px var(--btn-glow-strong);
-}
-.to-top svg {
-	width: 17px;
-	height: 17px;
-}
-
 /* ================= COOKIE CONSENT ================= */
 .cookie-panel {
 	position: fixed;
@@ -1979,13 +1939,13 @@ nav.primary a.active {
 }
 
 /* button spark ripple + spark-shower click effect (logo-blue, not generic white) */
-.btn,
-.to-top {
+
+.btn {
 	position: relative;
 	overflow: hidden;
 }
-.btn .spark-ripple,
-.to-top .spark-ripple {
+
+.btn .spark-ripple {
 	position: absolute;
 	width: 10px;
 	height: 10px;
@@ -2000,16 +1960,14 @@ nav.primary a.active {
 	opacity: 0.95;
 	animation: spark-out 0.6s var(--ease) forwards;
 }
+
 @keyframes spark-out {
 	to {
 		transform: translate(-50%, -50%) scale(14);
 		opacity: 0;
 	}
 }
-/* Spark particles fly OUTSIDE the button's own box, so they must live in a
-   fixed-position layer on <body> rather than as children of .btn/.to-top -
-   those have overflow:hidden (needed to mask the ripple fill) which would
-   clip a particle almost the instant it starts moving. */
+/* Spark particles use a body-level layer so they can travel beyond the button. */
 .spark-burst {
 	position: fixed;
 	left: 0;

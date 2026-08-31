@@ -12,6 +12,7 @@ import { PageViewTracker } from "@/lib/analytics/PageViewTracker";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { organizationSchema, websiteSchema } from "@/lib/seo/structuredData";
 import { siteUrl } from "@/lib/seo/metadata";
+import { BackToTop } from "@/components/navigation/BackToTop";
 
 /**
  * Single root layout for the whole bilingual tree (Next.js allows exactly
@@ -112,21 +113,13 @@ export default async function RootLayout({
 				<ThemeProvider>
 					<div className="spine" aria-hidden="true" />
 					<SiteChrome>{children}</SiteChrome>
-					<button
-						className="to-top"
-						id="toTop"
-						type="button"
-						aria-label="Back to top"
-					>
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="2"
-						>
-							<path d="M12 19V5M5 12l7-7 7 7" />
-						</svg>
-					</button>
+					<ThemeProvider>
+						<div className="spine" aria-hidden="true" />
+
+						<SiteChrome>{children}</SiteChrome>
+
+						<BackToTop locale={lang} />
+					</ThemeProvider>
 				</ThemeProvider>
 
 				<MotionSystem />
