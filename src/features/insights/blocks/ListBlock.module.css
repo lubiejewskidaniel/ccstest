@@ -1,0 +1,21 @@
+.list {
+	margin: 0 0 1.4em;
+	padding-left: 1.3em;
+	max-width: var(--insights-measure, 68ch);
+	font-family: var(--font-body);
+	color: var(--ink-1);
+}
+
+.item {
+	font-size: 1.0625rem;
+	line-height: 1.7;
+	margin-bottom: 0.5em;
+}
+
+.item:last-child {
+	margin-bottom: 0;
+}
+
+.item::marker {
+	color: var(--spark);
+}

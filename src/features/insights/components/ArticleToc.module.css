@@ -1,0 +1,43 @@
+.toc {
+	border: 1px solid var(--line);
+	border-radius: var(--radius-sm);
+	padding: 18px 20px;
+	background: var(--surface);
+}
+
+.label {
+	display: block;
+	font-family: var(--font-mono);
+	font-size: 0.72rem;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--ink-3);
+	margin-bottom: 12px;
+}
+
+.list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.item a,
+.subItem a {
+	font-family: var(--font-body);
+	font-size: 0.88rem;
+	color: var(--ink-2);
+	line-height: 1.4;
+	transition: color 0.15s var(--ease);
+}
+
+.subItem {
+	padding-left: 14px;
+}
+
+.item a:hover,
+.subItem a:hover {
+	color: var(--spark);
+}

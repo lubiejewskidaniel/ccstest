@@ -1,0 +1,16 @@
+.page {
+	background: var(--void);
+}
+
+.grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+	gap: 24px;
+}
+
+.empty {
+	font-family: var(--font-body);
+	color: var(--ink-3);
+	font-size: 0.95rem;
+	padding: 24px 0 48px;
+}

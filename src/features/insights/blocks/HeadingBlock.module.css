@@ -1,0 +1,24 @@
+.h2,
+.h3 {
+	font-family: var(--font-display);
+	color: var(--ink-1);
+	font-weight: 600;
+	scroll-margin-top: 96px; /* clears the sticky header when a TOC link jumps here */
+	max-width: var(--insights-measure, 68ch);
+}
+
+.h2 {
+	font-size: clamp(1.5rem, 1.1rem + 1.4vw, 2rem);
+	margin: 2.2em 0 0.7em;
+	letter-spacing: -0.01em;
+}
+
+.h3 {
+	font-size: clamp(1.2rem, 1rem + 0.7vw, 1.4rem);
+	margin: 1.8em 0 0.6em;
+}
+
+.h2:first-child,
+.h3:first-child {
+	margin-top: 0;
+}

@@ -34,7 +34,7 @@ export function Mentoring({ locale }: { locale: Locale }) {
 	return (
 		<section id="mentoring">
 			<div className="wrap">
-				<div className="section-head reveal" style={{ marginBottom: 24 }}>
+				<div className="section-head section-head-tight reveal">
 					<div>
 						<span className="eyebrow">{t.eyebrow}</span>
 						<h2>{t.title}</h2>

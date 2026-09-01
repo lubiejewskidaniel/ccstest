@@ -53,32 +53,27 @@ const COPY = {
 export function InsightsPage({ locale }: { locale: Locale }) {
   const t = COPY[locale];
   return (
-    <main>
+    <main className="insights-page">
       <FireViewEvent event="insightsView" />
       <PageHero eyebrow={t.eyebrow} title={t.title} lede={t.lede} />
 
       <section className="tight">
         <div className="wrap">
-          <div className="work-grid reveal-stagger" style={{ gridTemplateColumns: "repeat(3,1fr)" }}>
+          <div className="insights-grid reveal-stagger">
             {POSTS.map((post) => (
-              <article className="insight-card card" key={post.title.en} style={{ height: "auto" }}>
-                <div
-                  className="insight-visual"
-                  style={{ background: post.bg, display: "flex", alignItems: "center", justifyContent: "center" }}
-                >
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 20, letterSpacing: ".1em", color: "var(--spark)" }}>
-                    {post.tag}
-                  </span>
+              <article className="insight-card card" key={post.title.en}>
+                <div className="insight-visual" style={{ background: post.bg }}>
+                  <span className="insights-tag-label">{post.tag}</span>
                 </div>
-                <div className="insight-body" style={{ padding: "18px 20px 22px" }}>
-                  <b style={{ fontSize: 15 }}>{post.title[locale]}</b>
-                  <p style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.6 }}>{post.excerpt[locale]}</p>
+                <div className="insight-body">
+                  <b>{post.title[locale]}</b>
+                  <p>{post.excerpt[locale]}</p>
                   <span className="insight-meta">{post.meta[locale]}</span>
                 </div>
               </article>
             ))}
           </div>
-          <p style={{ marginTop: 40, textAlign: "center", color: "var(--ink-3)", fontSize: 13.5 }}>{t.comingSoon}</p>
+          <p className="insights-coming-soon">{t.comingSoon}</p>
         </div>
       </section>
     </main>

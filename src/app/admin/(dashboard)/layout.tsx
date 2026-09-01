@@ -9,17 +9,18 @@ export const metadata: Metadata = {
 	robots: { index: false, follow: false },
 };
 
-const NAV = [
-	{ href: "/admin", label: "Overview" },
-	{ href: "/admin/leads", label: "Leads" },
-];
-
 /**
  * Auth gate for every admin route (doc 08 SEC-005 "admin routes SHALL
  * require authenticated authorised users"; SEC-006 "role checks SHALL
  * include active-account state"). `getAdminSession` returns null both when
  * nobody's signed in AND when Supabase isn't configured - either way we
  * bounce to /admin/login, which explains the difference to the visitor.
+ *
+ * Nav items are filtered by role: "Leads" spans all three business lines
+ * and has nothing to do with content, so it's admin-only; "Insights" is
+ * the one area an editor-only account is meant to reach (master
+ * instruction Decision 10 — see docs/INSIGHTS_ARCHITECTURE.md §9 for the
+ * getAdminSession() change this depends on).
  */
 export default async function AdminDashboardLayout({
 	children,
@@ -29,6 +30,12 @@ export default async function AdminDashboardLayout({
 	const session = await getAdminSession();
 	if (!session) redirect("/admin/login");
 
+	const nav = [
+		{ href: "/admin", label: "Overview", show: session.isAdmin },
+		{ href: "/admin/leads", label: "Leads", show: session.isAdmin },
+		{ href: "/admin/insights", label: "Insights", show: session.isEditor },
+	].filter((item) => item.show);
+
 	return (
 		<div className="admin-shell">
 			<aside className="admin-nav">
@@ -37,7 +44,7 @@ export default async function AdminDashboardLayout({
 						CC
 					</span>
 				</div>
-				{NAV.map((item) => (
+				{nav.map((item) => (
 					<Link key={item.href} href={item.href}>
 						{item.label}
 					</Link>

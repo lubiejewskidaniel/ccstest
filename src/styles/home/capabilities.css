@@ -1,0 +1,112 @@
+/* ==========================================================================
+   Home — Capabilities
+   ==========================================================================
+   Moved out of globals.css. .cap-grid's own display/grid-template-columns/
+   gap + breakpoints are meaningfully Home-owned: every other consumer
+   (ServicesPage, AboutPage, admin dashboard) that also puts the
+   .cap-grid class on a container does so purely to pick up
+   motion.css's shared "perspective: 1200px" rule for the tilt effect,
+   and immediately supplies its own scoped column-count override
+   (.services-grid, .about-page .cap-grid, .admin-main
+   .admin-cards-grid) rather than relying on this file's values -- so
+   moving this here doesn't affect any of them.
+
+   .cap-card/.cap-ic/.cap-link/.cap-new are the shared visual shell,
+   reused as-is (dual-classed, no per-consumer override needed beyond
+   the already-established .cap-card-auto min-height modifier) by
+   ServicesPage and AboutPage; .cap-ic/.cap-link/.cap-new specifically
+   are only ever used by Home and ServicesPage (verified via full-app
+   grep). .cap-card is additionally a MotionSystem.tsx tilt target
+   (will-change set in motion.css) -- kept exactly as-is.
+*/
+
+/* BUGFIX (found earlier in this refactor, kept here with its history):
+   this base rule was missing entirely from the app pre-dating this
+   whole session -- confirmed present as a gap in the very first git
+   checkpoint. Without it .cap-grid had no `display: grid` at all
+   outside its two media queries, so it rendered as a plain block and
+   every card stacked full-width. Values inferred from .growth-grid,
+   which shares the exact same 1080px (-> repeat(3,1fr)) and 640px
+   (-> 1fr) breakpoints, strongly suggesting these two grids were
+   designed as a matched pair. */
+.cap-grid {
+	display: grid;
+	grid-template-columns: repeat(6, 1fr);
+	gap: 14px;
+}
+
+.cap-card {
+	padding: 20px 18px;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	min-height: 190px;
+}
+/* CONSOLIDATION: min-height:auto on .cap-card is needed by both
+   ServicesPage (previously its own single-purpose .services-card
+   class, retired in favour of this) and AboutPage (previously an
+   inline style) -- same override, same reason (their card content
+   doesn't need forcing to Home's fixed 190px). */
+.cap-card.cap-card-auto {
+	min-height: auto;
+}
+.cap-ic {
+	width: 36px;
+	height: 36px;
+	border-radius: 9px;
+	background: var(--surface-2);
+	border: 1px solid var(--line-strong);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--spark);
+	position: relative;
+}
+.cap-ic svg {
+	width: 17px;
+	height: 17px;
+}
+.cap-new {
+	position: absolute;
+	top: -7px;
+	right: -7px;
+}
+.cap-card b {
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.3;
+}
+.cap-card p {
+	font-size: 12.8px;
+	color: var(--ink-3);
+	line-height: 1.45;
+}
+.cap-link {
+	margin-top: auto;
+	font-size: 12.5px;
+	font-weight: 600;
+	color: var(--spark);
+	display: flex;
+	align-items: center;
+	gap: 5px;
+}
+.cap-link svg {
+	width: 12px;
+	height: 12px;
+	transition: transform 0.25s var(--ease);
+}
+.cap-card:hover .cap-link svg {
+	transform: translate(2px, -2px);
+}
+
+@media (max-width: 1080px) {
+	.cap-grid {
+		grid-template-columns: repeat(3, 1fr);
+	}
+}
+
+@media (max-width: 640px) {
+	.cap-grid {
+		grid-template-columns: 1fr;
+	}
+}

@@ -1,0 +1,74 @@
+/* ==========================================================================
+   Home — Selected work
+   ==========================================================================
+   Moved out of globals.css. .work-grid's display/grid-template-columns/
+   gap + breakpoints are Home-owned in effect: WorkPage.tsx also carries
+   the .work-grid class (needed for motion.css's shared tilt-perspective
+   rule and MotionSystem.tsx's .work-card querySelector) but supplies
+   its own scoped column override (.work-page .work-page-grid, see
+   pages/work.css), so it never actually relies on this file's values.
+
+   .work-card/.work-visual/.work-body/.work-visual-img are the shared
+   card shell, reused identically (no per-consumer override needed) by
+   WorkPage.tsx -- verified via full-app grep. .work-card is
+   additionally a MotionSystem.tsx tilt target (will-change set in
+   motion.css) -- kept exactly as-is.
+
+   NOT included here: .tag-row, .tag, .case-link, .case-pill-status --
+   each shared across 2-4 OTHER consumers well beyond Home+Work (Case
+   Study, Services, Insights, Mentoring), so they stay in globals.css
+   as genuinely cross-cutting utilities rather than being filed under
+   any one section.
+*/
+
+.work-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 18px;
+}
+.work-card {
+	overflow: hidden;
+}
+.work-visual {
+	height: 180px;
+	position: relative;
+	overflow: hidden;
+	border-bottom: 1px solid var(--line);
+	background: var(--void);
+}
+.work-body {
+	padding: 20px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+.work-body b {
+	font-size: 16px;
+	font-weight: 600;
+}
+.work-body p {
+	font-size: 13px;
+	color: var(--ink-3);
+	line-height: 1.5;
+	min-height: 39px;
+}
+.work-card:hover .case-link svg {
+	transform: translate(2px, -2px);
+}
+.work-visual-img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+@media (max-width: 1080px) {
+	.work-grid {
+		grid-template-columns: 1fr 1fr;
+	}
+}
+
+@media (max-width: 640px) {
+	.work-grid {
+		grid-template-columns: 1fr;
+	}
+}

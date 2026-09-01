@@ -50,7 +50,7 @@ const COPY = {
 export function ProductsPage({ locale }: { locale: Locale }) {
   const t = COPY[locale];
   return (
-    <main>
+    <main className="products-page">
       <PageHero eyebrow={t.eyebrow} title={t.title} lede={t.lede} />
 
       <section className="tight">
@@ -109,13 +109,13 @@ export function ProductsPage({ locale }: { locale: Locale }) {
 
       <section>
         <div className="wrap">
-          <div className="section-head reveal" style={{ marginBottom: 24 }}>
+          <div className="section-head section-head-tight reveal">
             <div>
               <span className="eyebrow">{t.nextTitle}</span>
               <h2>{t.nextLede}</h2>
             </div>
           </div>
-          <div className="mentor-grid reveal-stagger" style={{ gridTemplateColumns: "1fr 1fr" }}>
+          <div className="mentor-grid mentor-grid-2col reveal-stagger">
             {t.nextItems.map((item) => (
               <div className="mentor-card card" key={item.t}>
                 <b>{item.t}</b>
@@ -123,7 +123,7 @@ export function ProductsPage({ locale }: { locale: Locale }) {
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 32 }}>
+          <div className="products-cta">
             <HoldNavLink href={routeFor("contact", locale)} className="btn btn-dark">
               {t.cta} {ARROW}
             </HoldNavLink>

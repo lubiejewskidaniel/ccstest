@@ -1,0 +1,70 @@
+/* ==========================================================================
+   Home — Growth icons row
+   ==========================================================================
+   Moved out of globals.css. Used identically (no page-specific override
+   class, no scoping needed) by both src/features/home/Growth.tsx and
+   src/features/pages/GrowthPage.tsx -- both call sites use the bare
+   classes below, verified via full-app grep.
+
+   .growth-ic is additionally referenced by motion.css's shared
+   "will-change: transform" performance-hint rule (grouped with
+   .cap-card/.work-card/.mentor-card) -- kept exactly as-is, zero
+   property overlap so no duplicate-definition risk.
+*/
+
+.growth-grid {
+	display: grid;
+	grid-template-columns: repeat(6, 1fr);
+	gap: 14px;
+}
+.growth-item {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 6px;
+}
+.growth-ic {
+	width: 42px;
+	height: 42px;
+	border-radius: 11px;
+	background: var(--surface);
+	border: 1px solid var(--line);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--spark);
+	transition:
+		border-color 0.3s,
+		transform 0.3s;
+}
+.growth-item:hover .growth-ic {
+	border-color: var(--line-strong);
+	transform: translateY(-3px);
+}
+.growth-ic svg {
+	width: 18px;
+	height: 18px;
+}
+.growth-item b {
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.3;
+}
+.growth-item p {
+	font-size: 12px;
+	color: var(--ink-3);
+	line-height: 1.4;
+}
+
+@media (max-width: 1080px) {
+	.growth-grid {
+		grid-template-columns: repeat(3, 1fr);
+	}
+}
+
+@media (max-width: 640px) {
+	.growth-grid {
+		grid-template-columns: 1fr;
+	}
+}

@@ -1,6 +1,8 @@
 import { routes, caseStudyPath, type Locale, type RouteKey } from "@/lib/routes";
 import { siteUrl, siteName } from "./metadata";
 import type { Project } from "@/features/work/projects";
+import type { Article } from "@/features/insights/types/article";
+import { articlePath } from "@/features/insights/seo/paths";
 
 /**
  * JSON-LD builders (brief §12: "valid structured data... only where
@@ -147,5 +149,42 @@ export function projectBreadcrumbs({
       path: routes.work[locale],
     },
     { name: project.name, path: caseStudyPath(project.slug, locale) },
+  ]);
+}
+
+/**
+ * `BlogPosting` schema for an Insights article (master instruction §12
+ * "Article schema" — a `BlogPosting` is a more accurate `Article` subtype
+ * for editorial content than the bare `Article` type). Only fields the
+ * article record actually has are emitted — no invented author bios or
+ * publisher logos beyond what `organizationSchema()` already provides,
+ * matching the same "never misleading" rule the rest of this file
+ * follows for `Person`/`Service` schema.
+ */
+export function articleSchema({ article, locale }: { article: Article; locale: Locale }) {
+  const path = articlePath(article.slug, locale);
+  return {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: article.title,
+    description: article.excerpt,
+    url: new URL(path, siteUrl).toString(),
+    inLanguage: locale === "pl" ? "pl-PL" : "en-US",
+    datePublished: article.publishedAt ?? undefined,
+    dateModified: article.updatedAt,
+    author: { "@type": "Person", name: article.authorName },
+    publisher: { "@type": "Organization", name: siteName, url: siteUrl },
+    image: article.coverImageUrl ?? undefined,
+    articleSection: article.category.name,
+    isPartOf: { "@type": "WebSite", name: siteName, url: siteUrl },
+  };
+}
+
+/** Home > Insights > Article breadcrumb trail. */
+export function articleBreadcrumbs({ article, locale }: { article: Article; locale: Locale }) {
+  return breadcrumbSchema([
+    { name: HOME_LABEL[locale], path: routes.home[locale] },
+    { name: locale === "pl" ? "Wiedza" : "Insights", path: routes.insights[locale] },
+    { name: article.title, path: articlePath(article.slug, locale) },
   ]);
 }

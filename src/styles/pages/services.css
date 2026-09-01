@@ -15,14 +15,6 @@
 }
 
 /*
-   Service cards reuse the shared card and capability styles, but this page
-   does not need the fixed minimum height used elsewhere.
-*/
-.services-page .services-card {
-	min-height: auto;
-}
-
-/*
    Adds a small separation between the service description and its tags.
 */
 .services-page .services-tags {
@@ -32,11 +24,6 @@
 /* ==========================================================================
    Process
    ========================================================================== */
-
-.services-page .services-process-head {
-	margin-bottom: 24px;
-}
-
 /*
    The services process always starts as three equal steps.
 

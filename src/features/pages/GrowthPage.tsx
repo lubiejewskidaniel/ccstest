@@ -97,7 +97,7 @@ const COPY = {
 export function GrowthPage({ locale }: { locale: Locale }) {
   const t = COPY[locale];
   return (
-    <main>
+    <main className="growth-page">
       <PageHero
         eyebrow={t.eyebrow}
         title={t.title}
@@ -131,13 +131,13 @@ export function GrowthPage({ locale }: { locale: Locale }) {
 
       <section>
         <div className="wrap">
-          <div className="section-head reveal" style={{ marginBottom: 24 }}>
+          <div className="section-head section-head-tight reveal">
             <div>
               <span className="eyebrow">{t.engageEyebrow}</span>
               <h2>{t.engageTitle}</h2>
             </div>
           </div>
-          <div className="mentor-grid reveal-stagger" style={{ gridTemplateColumns: "1fr 1fr" }}>
+          <div className="mentor-grid mentor-grid-2col reveal-stagger">
             {ENGAGEMENTS.map((e) => (
               <div className="mentor-card card" key={e.t.en}>
                 <b>{e.t[locale]}</b>

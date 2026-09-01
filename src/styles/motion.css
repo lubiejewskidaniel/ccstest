@@ -1,0 +1,170 @@
+/* ==========================================================================
+   Motion system
+   ==========================================================================
+   Moved out of globals.css. Site-wide, JS-driven interactive effects
+   (src/components/MotionSystem.tsx, src/app/layout.tsx) rather than any
+   one page's content -- boot curtain, scroll progress rail, the
+   magnetic tilt effect's shared config, and the click-spark ripple.
+
+   NOT included here despite living under the same original "BOOT /
+   PROGRESS / SCROLLSPY / TILT / RIPPLE" section header in globals.css
+   -- verified individually via full-app grep before concluding this:
+   - .cursor-glow -- despite the "hero cursor-reactive glow" comment
+     suggesting a generic effect, it's exclusively used by
+     src/features/home/Hero.tsx. Moved to home/hero.css instead.
+   - .process-row::after / .process-row.in::after (the animated signal
+     line) -- belongs with the rest of the .process-row family, which
+     hasn't been extracted anywhere yet. Left in globals.css so it stays
+     next to .process-row's base rule rather than being split across
+     two files.
+   - .eyebrow.pulse + @keyframes eyebrow-pulse -- confirmed dead code
+     (zero references anywhere in src/, not just as a className string --
+     checked for any trace of "pulse" at all). Removed outright rather
+     than moved.
+   - @keyframes underline-flow -- shared by layout/header.css's
+     nav.primary and layout/footer.css's link hovers, left in
+     globals.css as a neutral shared location rather than implying it's
+     motion-system-exclusive.
+*/
+
+html.boot-lock,
+html.boot-lock body {
+	overflow: hidden;
+}
+.boot-curtain {
+	position: fixed;
+	inset: 0;
+	z-index: 3000;
+	background: var(--void);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition:
+		opacity 0.6s var(--ease),
+		visibility 0.6s var(--ease);
+}
+.boot-curtain svg {
+	width: 64px;
+	height: 64px;
+}
+.boot-curtain path {
+	fill: none;
+	stroke: url(#bootGrad);
+	stroke-width: 9;
+	stroke-linecap: round;
+	stroke-dasharray: 230;
+	stroke-dashoffset: 230;
+	animation: boot-draw 1.05s var(--ease) forwards;
+	filter: drop-shadow(0 0 10px rgba(10, 169, 255, 0.65));
+}
+@keyframes boot-draw {
+	to {
+		stroke-dashoffset: 0;
+	}
+}
+.boot-curtain.done {
+	opacity: 0;
+	visibility: hidden;
+}
+
+.progress-rail {
+	position: fixed;
+	top: 0;
+	left: 0;
+	height: 2px;
+	width: 100%;
+	z-index: 200;
+	background: transparent;
+}
+.progress-rail i {
+	display: block;
+	height: 100%;
+	width: 0%;
+	background: linear-gradient(
+		90deg,
+		var(--signal),
+		var(--spark),
+		var(--spark-2)
+	);
+	box-shadow: 0 0 8px rgba(10, 169, 255, 0.7);
+	transition: width 0.1s linear;
+}
+
+/* magnetic tilt targets: perspective set on grid ancestors, transform
+   applied inline via JS. The classes referenced here (.cap-card,
+   .work-card, .mentor-card, .growth-ic, .cap-grid, .work-grid,
+   .mentor-grid) still live in globals.css -- this rule can reference
+   them regardless of which file actually defines the rest of their
+   styling. */
+.cap-card,
+.work-card,
+.mentor-card,
+.growth-ic {
+	will-change: transform;
+}
+.cap-grid,
+.work-grid,
+.mentor-grid {
+	perspective: 1200px;
+}
+
+/* Spark particles use a body-level layer so they can travel beyond the button. */
+@keyframes spark-out {
+	to {
+		transform: translate(-50%, -50%) scale(14);
+		opacity: 0;
+	}
+}
+
+.spark-burst {
+	position: fixed;
+	left: 0;
+	top: 0;
+	width: 0;
+	height: 0;
+	pointer-events: none;
+	z-index: 4000;
+}
+.spark-burst .spark-bit {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 5px;
+	height: 5px;
+	border-radius: 50%;
+	background: var(--btn-spark);
+	box-shadow:
+		0 0 8px 2px var(--btn-glow-strong),
+		0 0 2px 1px #fff;
+	transform: translate(-50%, -50%);
+	opacity: 1;
+	animation: spark-fly 0.65s cubic-bezier(0.12, 0.7, 0.3, 1) forwards;
+}
+@keyframes spark-fly {
+	to {
+		transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy)))
+			scale(0.2);
+		opacity: 0;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.boot-curtain {
+		display: none;
+	}
+	/* The universal `animation-duration: 0.01ms !important` set globally
+	   under this same media query (globals.css) would otherwise crush
+	   the click-spark burst to an imperceptible flash -- it's a brief,
+	   localized click acknowledgment, not the sort of continuous/
+	   looping/parallax motion this preference targets, so it keeps its
+	   real timing even under reduced motion (see the matching note in
+	   MotionSystem.tsx's onButtonClick). .spark-ripple's own base rule
+	   lives in buttons.css; this is just its reduced-motion timing
+	   exception. */
+	.spark-ripple {
+		animation-duration: 0.6s !important;
+	}
+	.spark-bit {
+		animation-duration: 0.65s !important;
+	}
+}

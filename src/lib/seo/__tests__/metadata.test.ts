@@ -49,7 +49,7 @@ describe("buildPageMetadata", () => {
   it("sets the correct Open Graph locale per language", () => {
     const en = buildPageMetadata({ routeKey: "home", locale: "en", title: "Home", description: "d" });
     const pl = buildPageMetadata({ routeKey: "home", locale: "pl", title: "Home", description: "d" });
-    expect((en.openGraph as { locale?: unknown })?.locale).toBe("en_US");
+    expect((en.openGraph as { locale?: unknown })?.locale).toBe("en_GB");
     expect((pl.openGraph as { locale?: unknown })?.locale).toBe("pl_PL");
   });
 });

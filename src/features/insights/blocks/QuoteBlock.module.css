@@ -1,0 +1,29 @@
+.quote {
+	margin: 2em 0;
+	padding-left: 20px;
+	border-left: 2px solid var(--spark);
+	max-width: var(--insights-measure, 68ch);
+}
+
+.text {
+	font-family: var(--font-display);
+	font-weight: 500;
+	font-size: 1.15rem;
+	line-height: 1.55;
+	color: var(--ink-1);
+	margin: 0;
+	letter-spacing: -0.005em;
+}
+
+.attribution {
+	display: block;
+	margin-top: 10px;
+	font-family: var(--font-mono);
+	font-style: normal;
+	font-size: 0.8rem;
+	color: var(--ink-3);
+}
+
+.attribution::before {
+	content: "— ";
+}

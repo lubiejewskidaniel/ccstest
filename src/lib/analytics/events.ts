@@ -51,6 +51,20 @@ export const events = {
   insightsCtaClick: (ctaLocation: string, context: EventContext) =>
     send("insights_cta_click", context, { cta_location: ctaLocation }),
 
+  // Article-level events (Insights Checkpoint 2/5) — extends the same
+  // taxonomy above rather than a second events file, per
+  // docs/INSIGHTS_ARCHITECTURE.md §6.
+  articleView: (slug: string, category: string, context: EventContext) =>
+    send("article_view", context, { slug, category }),
+  articleReadProgress: (slug: string, percent: 25 | 50 | 75 | 100, context: EventContext) =>
+    send("article_read_progress", context, { slug, percent }),
+  articleCtaClick: (slug: string, ctaLocation: string, context: EventContext) =>
+    send("article_cta_click", context, { slug, cta_location: ctaLocation }),
+  categoryView: (slug: string, context: EventContext) => send("category_view", context, { slug }),
+  tagView: (slug: string, context: EventContext) => send("tag_view", context, { slug }),
+  insightsSearch: (query: string, resultCount: number, context: EventContext) =>
+    send("insights_search", context, { query, result_count: resultCount }),
+
   externalLinkClick: (href: string, context: EventContext) => send("external_link_click", context, { href }),
   languageSwitch: (from: "en" | "pl", to: "en" | "pl", context: EventContext) =>
     send("language_switch", context, { from_locale: from, to_locale: to }),

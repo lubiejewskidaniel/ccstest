@@ -1,0 +1,216 @@
+/* ==========================================================================
+   Layout — Footer
+   ==========================================================================
+   Moved out of globals.css. Every class verified exclusive to
+   src/components/navigation/Footer.tsx via full-app grep -- no sharing
+   with any other component.
+
+   .foot-brand .brand is a compound descendant selector referencing
+   .brand (defined in layout/header.css, also used by Header.tsx) --
+   this works regardless of which file each half lives in, and its
+   2-class specificity means it always applies its extra margin-bottom
+   on top of .brand's own rules, independent of import order.
+
+   Shares @keyframes underline-flow (the animated link hover) with
+   nav.primary a in layout/header.css -- still defined in globals.css
+   since both reference it by name; CSS doesn't care which file a
+   @keyframes rule lives in.
+
+   Includes the responsive column-count history for .foot-top: two
+   design changes made earlier in this refactor (removing an awkward
+   tablet 2-column state, then choosing 3 columns over 2 on mobile) are
+   documented at the .foot-top rule itself now, rather than being split
+   across a media query elsewhere in globals.css that has nothing else
+   to do with the footer.
+*/
+
+footer {
+	padding: 56px 0 26px;
+	border-top: 1px solid var(--line);
+	box-shadow: var(--edge-shadow-top);
+	position: relative;
+}
+/* Below 1080px this simply carries the desktop 4-across layout
+   through unchanged, down to the 640px breakpoint further down in
+   this file. An earlier version of this refactor had a tablet-width
+   (641-1080px) 2-column override here, but it produced a staggered,
+   misaligned look -- the brand block (tall, has the tagline) paired
+   next to the short Studio column in row 1, then Grow & Learn paired
+   with Company in row 2, each row a different height. Removing it
+   entirely (rather than patching it) eliminated that awkward
+   in-between tablet state. */
+.foot-top {
+	display: grid;
+	grid-template-columns: 1.4fr repeat(3, 1fr);
+	gap: 32px;
+	padding-bottom: 40px;
+}
+.foot-brand .brand {
+	margin-bottom: 14px;
+}
+.foot-brand p {
+	font-size: 13px;
+	color: var(--ink-3);
+	max-width: 34ch;
+	line-height: 1.55;
+}
+.foot-col b {
+	font-size: 11.5px;
+	font-family: var(--font-mono);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--ink-3);
+	display: block;
+	margin-bottom: 14px;
+}
+.foot-col ul {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+.foot-col a {
+	position: relative;
+	display: inline-block;
+	font-size: 13.5px;
+	color: var(--ink-2);
+	transition: color 0.2s;
+}
+.foot-col a::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: -3px;
+	height: 1.5px;
+	background: linear-gradient(
+		90deg,
+		var(--spark),
+		var(--spark-2),
+		var(--spark)
+	);
+	background-size: 220% 100%;
+	border-radius: 2px;
+	box-shadow: 0 0 8px 1px rgba(10, 169, 255, 0.55);
+	transform: scaleX(0);
+	transform-origin: left;
+	opacity: 0;
+	transition:
+		transform 0.4s var(--ease),
+		opacity 0.4s var(--ease);
+}
+.foot-col a:hover,
+.foot-col a:focus-visible {
+	color: var(--ink-1);
+}
+.foot-col a:hover::after,
+.foot-col a:focus-visible::after {
+	transform: scaleX(1);
+	opacity: 1;
+	animation: underline-flow 1.8s linear infinite;
+}
+.foot-bottom {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding-top: 24px;
+	border-top: 1px solid var(--line);
+	flex-wrap: wrap;
+	gap: 14px;
+}
+.foot-bottom p {
+	font-size: 12.5px;
+	color: var(--ink-3);
+}
+.legal-links {
+	display: flex;
+	gap: 18px;
+}
+.legal-links a {
+	position: relative;
+	display: inline-block;
+	font-size: 12.5px;
+	color: var(--ink-3);
+	transition: color 0.2s;
+}
+.legal-links a::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: -3px;
+	height: 1.5px;
+	background: linear-gradient(
+		90deg,
+		var(--spark),
+		var(--spark-2),
+		var(--spark)
+	);
+	background-size: 220% 100%;
+	border-radius: 2px;
+	box-shadow: 0 0 8px 1px rgba(10, 169, 255, 0.55);
+	transform: scaleX(0);
+	transform-origin: left;
+	opacity: 0;
+	transition:
+		transform 0.4s var(--ease),
+		opacity 0.4s var(--ease);
+}
+.legal-links a:hover,
+.legal-links a:focus-visible {
+	color: var(--ink-1);
+}
+.legal-links a:hover::after,
+.legal-links a:focus-visible::after {
+	transform: scaleX(1);
+	opacity: 1;
+	animation: underline-flow 1.8s linear infinite;
+}
+.socials {
+	display: flex;
+	gap: 10px;
+}
+.socials a {
+	width: 32px;
+	height: 32px;
+	border-radius: 8px;
+	border: 1px solid var(--line);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--ink-2);
+	transition: 0.2s;
+}
+.socials a:hover {
+	border-color: var(--line-strong);
+	color: var(--ink-1);
+}
+.socials svg {
+	width: 14px;
+	height: 14px;
+}
+
+/* DESIGN CHANGE (requested, not a bug fix -- footer wasn't part of
+   this refactor's original class scope): previously .foot-top went to
+   a single column here, stacking brand+tagline and all 3 link groups
+   fully vertically with the desktop 32px gap between every one of the
+   4 blocks -- tall and loose on narrow phones. Now the brand block
+   stays full-width (it needs the room for the tagline paragraph) and
+   the three link columns (Studio / Grow & Learn / Company) sit in one
+   row of 3 equal columns below it -- matches the actual count of link
+   groups exactly, so nothing is left orphaned with wasted space next
+   to it (an earlier 2-column attempt did leave Company alone in its
+   own row). Link text is short (single words/short phrases in a
+   flexible 1fr column) so it simply wraps rather than overflowing on
+   narrow phones -- no extra breakpoint needed. Revert to
+   `grid-template-columns: 1fr;` (and drop the .foot-brand override) to
+   go back to the fully stacked version if neither of these fits the
+   desired look. */
+@media (max-width: 640px) {
+	.foot-top {
+		grid-template-columns: 1fr 1fr 1fr;
+		gap: 28px 16px;
+	}
+	.foot-brand {
+		grid-column: 1 / -1;
+	}
+}

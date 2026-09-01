@@ -1,0 +1,20 @@
+.figure {
+	margin: 2em 0;
+	max-width: var(--insights-content-width, 780px);
+}
+
+.image {
+	width: 100%;
+	height: auto;
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--line);
+	display: block;
+}
+
+.caption {
+	margin-top: 10px;
+	font-family: var(--font-mono);
+	font-size: 0.8rem;
+	color: var(--ink-3);
+	text-align: center;
+}

@@ -1,0 +1,269 @@
+/* ==========================================================================
+   Forms
+   ==========================================================================
+   Moved out of globals.css verbatim -- this is genuinely shared,
+   consumer-agnostic form UI (inputs, tabs, choice pills, consent row,
+   status banners), not tied to any one page. Used by ContactForm.tsx,
+   MentoringEnquiryForm.tsx, and their two wrapper pages (form-shell,
+   form-side, form-facts), plus AdminLoginForm.tsx (.field, .form-submit,
+   .form-status specifically). No inline styles were found in any of the
+   four forms-feature files, and no page-specific overrides exist for
+   any of these classes -- so unlike the page extractions, this needed
+   no class renaming or specificity scoping, just relocation.
+*/
+
+.form-shell {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 48px;
+	align-items: start;
+}
+.form-side {
+	position: sticky;
+	top: 110px;
+}
+.form-side .eyebrow {
+	margin-bottom: 4px;
+}
+.form-side h1 {
+	font-size: clamp(1.8rem, 3.4vw, 2.5rem);
+	font-weight: 600;
+	line-height: 1.12;
+	margin-top: 14px;
+}
+.form-side p {
+	margin-top: 16px;
+	color: var(--ink-2);
+	font-size: 14.5px;
+	line-height: 1.7;
+	max-width: 44ch;
+}
+.form-facts {
+	margin-top: 32px;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+.form-fact {
+	display: flex;
+	gap: 12px;
+	align-items: flex-start;
+}
+.form-fact-ic {
+	width: 32px;
+	height: 32px;
+	border-radius: 9px;
+	background: var(--surface-2);
+	border: 1px solid var(--line-strong);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--spark);
+	flex: 0 0 auto;
+}
+.form-fact-ic svg {
+	width: 15px;
+	height: 15px;
+}
+.form-fact b {
+	display: block;
+	font-size: 13px;
+	font-weight: 600;
+}
+.form-fact span {
+	font-size: 12.5px;
+	color: var(--ink-3);
+	line-height: 1.4;
+}
+
+.form-card {
+	padding: 32px;
+}
+.form-tabs {
+	display: flex;
+	gap: 6px;
+	margin-bottom: 28px;
+	padding: 4px;
+	background: var(--surface-2);
+	border-radius: 11px;
+	border: 1px solid var(--line);
+}
+.form-tab {
+	flex: 1;
+	padding: 10px 14px;
+	border-radius: 8px;
+	font-size: 13.5px;
+	font-weight: 600;
+	color: var(--ink-3);
+	text-align: center;
+	transition:
+		background 0.2s,
+		color 0.2s;
+}
+.form-tab.active {
+	background: var(--surface-3);
+	color: var(--ink-1);
+}
+
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: 7px;
+	margin-bottom: 18px;
+}
+.field label {
+	font-size: 12.5px;
+	font-weight: 600;
+	color: var(--ink-2);
+	display: flex;
+	justify-content: space-between;
+}
+.field label .opt {
+	font-weight: 400;
+	color: var(--ink-3);
+	font-size: 11.5px;
+}
+.field input[type="text"],
+.field input[type="email"],
+.field select,
+.field textarea {
+	width: 100%;
+	padding: 11px 13px;
+	border-radius: 9px;
+	border: 1px solid var(--line-strong);
+	background: var(--surface-2);
+	color: var(--ink-1);
+	font: inherit;
+	font-size: 14px;
+	transition:
+		border-color 0.2s,
+		box-shadow 0.2s;
+}
+.field textarea {
+	resize: vertical;
+	min-height: 110px;
+	line-height: 1.55;
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+	outline: none;
+	border-color: var(--spark);
+	box-shadow: 0 0 0 3px rgba(10, 169, 255, 0.16);
+}
+.field-row {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 14px;
+}
+.field-error {
+	font-size: 12px;
+	color: #ff6b6b;
+}
+
+.choice-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+}
+.choice {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	padding: 10px 12px;
+	border-radius: 9px;
+	border: 1px solid var(--line-strong);
+	background: var(--surface-2);
+	cursor: pointer;
+	font-size: 13px;
+	transition:
+		border-color 0.2s,
+		background 0.2s;
+}
+.choice:has(input:checked) {
+	border-color: var(--spark);
+	background: rgba(10, 169, 255, 0.08);
+	color: var(--ink-1);
+}
+.choice input {
+	accent-color: var(--signal);
+}
+
+.consent-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	margin: 22px 0;
+}
+.consent-row input {
+	margin-top: 3px;
+	accent-color: var(--signal);
+}
+.consent-row label {
+	font-size: 12.5px;
+	color: var(--ink-3);
+	line-height: 1.55;
+}
+.consent-row a {
+	color: var(--spark);
+	font-weight: 600;
+}
+
+.form-submit {
+	width: 100%;
+	justify-content: center;
+	margin-top: 6px;
+}
+.form-note {
+	margin-top: 14px;
+	font-size: 11.5px;
+	color: var(--ink-3);
+	text-align: center;
+}
+
+.form-status {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 16px 18px;
+	border-radius: var(--radius-sm);
+	margin-bottom: 20px;
+	font-size: 13.5px;
+	line-height: 1.55;
+}
+.form-status.ok {
+	background: rgba(52, 211, 153, 0.08);
+	border: 1px solid rgba(52, 211, 153, 0.35);
+	color: var(--ink-1);
+}
+.form-status.err {
+	background: rgba(255, 107, 107, 0.08);
+	border: 1px solid rgba(255, 107, 107, 0.35);
+	color: var(--ink-1);
+}
+.form-status svg {
+	width: 18px;
+	height: 18px;
+	flex: 0 0 auto;
+	margin-top: 1px;
+}
+.form-status.ok svg {
+	color: var(--go);
+}
+.form-status.err svg {
+	color: #ff6b6b;
+}
+
+@media (max-width: 900px) {
+	.form-shell {
+		grid-template-columns: 1fr;
+		gap: 32px;
+	}
+	.form-side {
+		position: static;
+	}
+	.field-row,
+	.choice-grid {
+		grid-template-columns: 1fr;
+	}
+}

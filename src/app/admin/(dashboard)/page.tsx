@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { getAdminSession } from "@/lib/supabase/adminAuth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 async function countRows(table: string) {
@@ -8,6 +10,12 @@ async function countRows(table: string) {
 }
 
 export default async function AdminOverviewPage() {
+  // Cross-business lead overview is admin-only (docs/INSIGHTS_
+  // ARCHITECTURE.md §9) — an editor-only session is redirected to the
+  // one area it's meant to reach instead of seeing an empty/broken page.
+  const session = await getAdminSession();
+  if (!session?.isAdmin) redirect("/admin/insights");
+
   const [projectCount, marketingCount, mentoringCount] = await Promise.all([
     countRows("project_leads"),
     countRows("marketing_enquiries"),
@@ -23,9 +31,9 @@ export default async function AdminOverviewPage() {
   return (
     <div>
       <h1 style={{ fontSize: "1.6rem", fontWeight: 600, marginBottom: 24 }}>Overview</h1>
-      <div className="cap-grid" style={{ gridTemplateColumns: "repeat(3,1fr)" }}>
+      <div className="cap-grid admin-cards-grid">
         {cards.map((c) => (
-          <div className="cap-card card" key={c.label} style={{ minHeight: "auto" }}>
+          <div className="cap-card cap-card-auto card" key={c.label}>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 32, fontWeight: 500, color: "var(--ink-1)" }}>
               {c.count ?? "-"}
             </span>

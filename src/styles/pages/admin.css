@@ -1,0 +1,130 @@
+/* ==========================================================================
+   Admin dashboard
+   ==========================================================================
+   Moved out of globals.css. Every "admin-*" class confirmed exclusive to
+   the admin route tree (src/app/admin/**) via full-app grep.
+
+   BUGFIX: .brand-mark was accidentally deleted entirely during an
+   earlier round of this refactor (the layout/header.css extraction).
+   That round correctly identified .brand-mark as admin-exclusive (a
+   text-badge "CC" fallback logo, unrelated despite the similar name to
+   .brand/.brand-logo/.brand-word which Header.tsx and Footer.tsx use)
+   and said it would stay in globals.css for a future admin-focused
+   round -- but the surgical line-based removal that round used ended up
+   deleting its rule along with the header content around it, instead
+   of preserving it. Caught by a full audit run at the start of this
+   round: every class name that existed in the very first pre-session
+   checkpoint of this whole refactor was checked against the current
+   full styles tree; this was the only one unaccounted for. Restored
+   here verbatim from that checkpoint, now in the file where it always
+   should have ended up.
+*/
+
+/* ================= ADMIN ================= */
+.admin-shell {
+	min-height: 100vh;
+	display: flex;
+}
+.admin-nav {
+	width: 230px;
+	flex: 0 0 auto;
+	border-right: 1px solid var(--line);
+	padding: 24px 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+.brand-mark {
+	width: 38px;
+	height: 38px;
+	border-radius: 10px;
+	flex: 0 0 auto;
+	background: linear-gradient(155deg, var(--signal), var(--signal-2));
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-family: var(--font-mono);
+	font-weight: 500;
+	font-size: 15px;
+	color: #fff;
+	box-shadow:
+		0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+		0 6px 18px -6px rgba(59, 130, 246, 0.7);
+}
+.admin-nav a {
+	padding: 10px 12px;
+	border-radius: 8px;
+	font-size: 13.5px;
+	color: var(--ink-2);
+	display: flex;
+	align-items: center;
+	gap: 9px;
+}
+.admin-nav a:hover,
+.admin-nav a.active {
+	background: var(--surface-2);
+	color: var(--ink-1);
+}
+.admin-main {
+	flex: 1;
+	padding: 32px var(--pad);
+	max-width: 1100px;
+}
+.admin-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13.5px;
+}
+.admin-table th,
+.admin-table td {
+	text-align: left;
+	padding: 12px 14px;
+	border-bottom: 1px solid var(--line);
+}
+.admin-table th {
+	font-family: var(--font-mono);
+	font-size: 11px;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--ink-3);
+	font-weight: 500;
+}
+.admin-empty {
+	padding: 48px 20px;
+	text-align: center;
+	color: var(--ink-3);
+	font-size: 13.5px;
+	border: 1px dashed var(--line-strong);
+	border-radius: var(--radius-sm);
+}
+.admin-login {
+	min-height: 100vh;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+}
+.admin-login .card {
+	width: 100%;
+	max-width: 380px;
+	padding: 32px;
+}
+
+/* BUGFIX: the admin overview's stat-card grid had an inline
+   style={{ gridTemplateColumns: "repeat(3,1fr)" }} -- the exact same
+   anti-pattern found and fixed on ServicesPage, AboutPage, and
+   elsewhere throughout this refactor: it forced 3 columns at every
+   viewport width, cramping the 3 stat cards on narrow phones. Scoped
+   under the already-existing .admin-main wrapper (from
+   admin/(dashboard)/layout.tsx) so it wins deterministically over
+   .cap-grid's own bare rule in globals.css, same technique as
+   .about-page .cap-grid. min-height:auto now comes from the shared
+   .cap-card-auto modifier (globals.css) instead of an inline style. */
+.admin-main .admin-cards-grid {
+	grid-template-columns: repeat(3, 1fr);
+}
+@media (max-width: 640px) {
+	.admin-main .admin-cards-grid {
+		grid-template-columns: 1fr;
+	}
+}

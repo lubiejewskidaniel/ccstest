@@ -1,0 +1,12 @@
+.paragraph {
+	font-family: var(--font-body);
+	font-size: var(--insights-prose-size, 1.0625rem);
+	line-height: var(--insights-prose-line, 1.75);
+	color: var(--ink-1);
+	margin: 0 0 1.4em;
+	max-width: var(--insights-measure, 68ch);
+}
+
+.paragraph:last-child {
+	margin-bottom: 0;
+}

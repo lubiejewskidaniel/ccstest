@@ -1,0 +1,77 @@
+/* ==========================================================================
+   Cookie consent banner
+   ==========================================================================
+   Moved out of globals.css. Every "cookie-*" class confirmed exclusive
+   to src/components/consent/CookieConsent.tsx via full-app grep -- a
+   genuinely global, site-wide component (rendered on every page), so
+   it lives in components/ rather than under any one page or section.
+   No inline styles exist in the component, so this needed no
+   responsiveness fixes or class renaming, just relocation.
+
+   Uses the shared @keyframes fade-up for its entrance animation --
+   still defined in globals.css since home/hero.css's .trust and
+   several other rules also reference it by name; CSS doesn't care
+   which file a @keyframes rule lives in.
+*/
+
+.cookie-panel {
+	position: fixed;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 400;
+	background: var(--glass-bg-strong);
+	backdrop-filter: blur(10px);
+	-webkit-backdrop-filter: blur(10px);
+	border-top: 1px solid var(--line);
+	box-shadow: var(--edge-shadow-top);
+	animation: fade-up 0.35s var(--ease);
+}
+.cookie-panel-inner {
+	padding-block: 18px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 24px;
+	flex-wrap: wrap;
+}
+.cookie-message {
+	font-size: 13.5px;
+	color: var(--ink-2);
+	max-width: 56ch;
+	line-height: 1.5;
+}
+.cookie-message a {
+	color: var(--spark);
+	font-weight: 600;
+}
+.cookie-actions {
+	display: flex;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+.cookie-options {
+	display: flex;
+	gap: 22px;
+	flex-wrap: wrap;
+}
+.cookie-option {
+	display: flex;
+	align-items: flex-start;
+	gap: 9px;
+	max-width: 26ch;
+	cursor: pointer;
+}
+.cookie-option input {
+	margin-top: 4px;
+	accent-color: var(--signal);
+}
+.cookie-option b {
+	font-size: 13px;
+	display: block;
+}
+.cookie-option small {
+	font-size: 11.5px;
+	color: var(--ink-3);
+	line-height: 1.4;
+}

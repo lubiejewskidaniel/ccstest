@@ -1,0 +1,145 @@
+/* ==========================================================================
+   Home — Mentoring
+   ==========================================================================
+   Moved out of globals.css. .mentor-grid's own display/grid-template-
+   columns/gap + breakpoints reflect Home's specific 3-item ratio
+   (0.85fr 0.85fr 1.3fr, tuned for its 2 cards + feature canvas). Three
+   other pages also carry the .mentor-grid class (needed for
+   motion.css's shared tilt-perspective rule) but supply their own
+   column overrides: GrowthPage/ProductsPage use the
+   .mentor-grid-2col modifier below (equal 2-column layout for their
+   simpler comparisons), and MentoringPage uses
+   .mentoring-page .mentor-grid (equal 3-column, see pages/mentoring.css)
+   -- so none of them actually depend on this file's base ratio.
+
+   .mentor-card/.mentor-ic/.mentor-feature are the shared shell, reused
+   identically by all three other pages -- verified via full-app grep.
+   .mentor-card is additionally a MotionSystem.tsx tilt target
+   (will-change set in motion.css) -- kept exactly as-is.
+*/
+
+.mentor-grid {
+	display: grid;
+	grid-template-columns: 0.85fr 0.85fr 1.3fr;
+	gap: 16px;
+	align-items: stretch;
+}
+/* CONSOLIDATION: an identical "style={{ gridTemplateColumns: '1fr 1fr' }}"
+   inline override was repeated on GrowthPage and ProductsPage -- both
+   use .mentor-grid for a simpler 2-item comparison layout, distinct
+   from Home/MentoringPage's usage above. This modifier replaces both
+   inline styles and adds a mobile collapse the inline version never
+   had. Self-contained media query rather than relying on .mentor-grid's
+   own 640px collapse below, since this compound selector's higher
+   specificity would otherwise block that shared rule from applying
+   here too. */
+.mentor-grid.mentor-grid-2col {
+	grid-template-columns: 1fr 1fr;
+}
+@media (max-width: 640px) {
+	.mentor-grid.mentor-grid-2col {
+		grid-template-columns: 1fr;
+	}
+}
+.mentor-card {
+	padding: 22px;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+.mentor-ic {
+	width: 38px;
+	height: 38px;
+	border-radius: 10px;
+	background: var(--surface-2);
+	border: 1px solid var(--line-strong);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--spark);
+}
+.mentor-ic svg {
+	width: 17px;
+	height: 17px;
+}
+.mentor-card b {
+	font-size: 14.5px;
+	font-weight: 600;
+}
+.mentor-card p {
+	font-size: 12.5px;
+	color: var(--ink-3);
+	line-height: 1.4;
+}
+.mentor-feature {
+	/* Deliberately always dark, independent of the site-wide theme toggle -
+	   same reasoning as .hero (see that comment): MentorCanvas paints
+	   light cyan particles that assume a dark backdrop, so the background
+	   itself was never going to become theme-aware. But without a matching
+	   local --ink-1 override, its text WAS inheriting the page's real
+	   theme value - meaning dark-on-dark, illegible text the moment
+	   someone switched to light mode. Re-declaring ink here fixes that. */
+	--ink-1: #f5f8ff;
+	--ink-2: #8c98aa;
+	--ink-3: #5f6a80;
+	color-scheme: dark;
+	position: relative;
+	overflow: hidden;
+	padding: 32px;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: 16px;
+}
+/* BUGFIX (found by the standard cascade-order re-scan): .mentor-feature
+   is always rendered as "<div className='mentor-feature card'>",
+   overlapping .card's own background. Same root cause and fix as
+   .why-card's in home/insights.css -- .mentor-feature used to win this
+   tie by sitting later in globals.css than .card; after the @import
+   move it lost that tie, so the gradient background is scoped as a
+   compound selector here instead, winning deterministically by
+   specificity regardless of import order. */
+.card.mentor-feature {
+	background:
+		radial-gradient(
+			90% 120% at 100% 0%,
+			rgba(59, 130, 246, 0.25),
+			transparent 55%
+		),
+		linear-gradient(160deg, #0d1730, #060a15 70%);
+}
+.mentor-feature canvas {
+	position: absolute;
+	inset: 0;
+	opacity: 0.55;
+}
+.mentor-feature .content {
+	position: relative;
+	z-index: 2;
+	max-width: 34ch;
+}
+.mentor-feature h3 {
+	font-size: 1.1rem;
+	font-weight: 600;
+	line-height: 1.4;
+}
+.mentor-feature .btn {
+	align-self: flex-start;
+	position: relative;
+	z-index: 2;
+}
+
+@media (max-width: 1080px) {
+	.mentor-grid {
+		grid-template-columns: 1fr 1fr;
+	}
+	.mentor-feature {
+		grid-column: 1 / -1;
+	}
+}
+
+@media (max-width: 640px) {
+	.mentor-grid {
+		grid-template-columns: 1fr;
+	}
+}

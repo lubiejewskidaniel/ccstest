@@ -17,21 +17,10 @@ export function LegalNotice({ locale }: { locale: Locale }) {
 
 	return (
 		<div
-			className="prose-toc"
+			className="prose-toc prose-notice"
 			role="note"
-			style={{
-				borderColor: "rgba(251,191,36,.35)",
-				background: "rgba(251,191,36,.06)",
-			}}
 		>
-			<p
-				style={{
-					fontSize: 12.5,
-					color: "var(--ink-2)",
-					lineHeight: 1.6,
-					margin: 0,
-				}}
-			>
+			<p className="prose-notice-text">
 				<strong>{t.label}</strong> {t.text}
 			</p>
 		</div>

@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getAdminSession } from "@/lib/supabase/adminAuth";
 
 type Row = Record<string, unknown>;
 
@@ -20,6 +22,11 @@ function fmt(v: unknown) {
 }
 
 export default async function AdminLeadsPage() {
+	// Admin-only (docs/INSIGHTS_ARCHITECTURE.md §9) — same reasoning as
+	// the overview page.
+	const session = await getAdminSession();
+	if (!session?.isAdmin) redirect("/admin/insights");
+
 	const [projectLeads, marketingLeads, mentoringLeads] = await Promise.all([
 		fetchRecent("project_leads"),
 		fetchRecent("marketing_enquiries"),

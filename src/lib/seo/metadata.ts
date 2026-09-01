@@ -8,6 +8,8 @@ import {
 } from "@/lib/routes";
 
 import type { Project } from "@/features/work/projects";
+import type { Article } from "@/features/insights/types/article";
+import { articlePath } from "@/features/insights/seo/paths";
 
 export const siteUrl =
 	process.env.NEXT_PUBLIC_SITE_URL ?? "https://codeconsultingstudio.com";
@@ -105,6 +107,67 @@ export function buildPageMetadata({
 			title: fullTitle,
 			description,
 			images: ["/og-image.png"],
+		},
+	};
+}
+
+export type ArticleMetadataInput = {
+	article: Article;
+	locale: Locale;
+	/** The resolved translation's canonical path, when one exists — passed
+	 * in by the page (it already resolves this for the UI's language
+	 * switch link) rather than looked up again here, since this function
+	 * stays synchronous like its siblings. Omit when no translation exists
+	 * yet; hreflang for that locale is simply not emitted rather than
+	 * pointing at a page that doesn't exist. */
+	translatedPath?: string;
+};
+
+/**
+ * Generates metadata for an individual Insights article — the third
+ * dynamic-content variant alongside `buildPageMetadata` (static hubs) and
+ * `buildProjectMetadata` (case studies). `seoTitle`/`seoDescription`
+ * override the on-page `title`/`excerpt` when an editor has set them
+ * (docs/INSIGHTS_DATABASE.md §2.3), matching how the CMS is expected to
+ * let a title be tuned for search without changing the on-page headline.
+ */
+export function buildArticleMetadata({ article, locale, translatedPath }: ArticleMetadataInput): Metadata {
+	const canonicalPath = articlePath(article.slug, locale);
+	const title = article.seoTitle ?? article.title;
+	const description = article.seoDescription ?? article.excerpt;
+	const fullTitle = `${title} · ${siteName}`;
+
+	const languages: Record<string, string> | undefined = translatedPath
+		? { [locale]: canonicalPath, [locale === "en" ? "pl" : "en"]: translatedPath }
+		: undefined;
+
+	return {
+		title,
+		description,
+
+		alternates: {
+			canonical: canonicalPath,
+			languages,
+		},
+
+		openGraph: {
+			type: "article",
+			url: canonicalPath,
+			title: fullTitle,
+			description,
+			siteName,
+			locale: locale === "pl" ? "pl_PL" : "en_GB",
+			images: article.coverImageUrl ? [{ url: article.coverImageUrl, alt: article.coverImageAlt ?? title }] : [ogImage],
+			publishedTime: article.publishedAt ?? undefined,
+			modifiedTime: article.updatedAt,
+			authors: [article.authorName],
+		},
+
+		twitter: {
+			card: "summary_large_image",
+			title: fullTitle,
+			description,
+			images: [article.coverImageUrl ?? "/og-image.png"],
 		},
 	};
 }

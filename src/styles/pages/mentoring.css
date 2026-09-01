@@ -1,0 +1,68 @@
+/* ==========================================================================
+   Mentoring page
+   ========================================================================== */
+
+/*
+   MentoringPage's 3 audience cards want equal thirds, distinct from
+   Home's Mentoring section which uses .mentor-grid's own base ratio
+   (0.85fr 0.85fr 1.3fr, tuned for its specific 3 items incl. the
+   feature canvas). Scoped under .mentoring-page so Home's usage of the
+   same .mentor-grid class is unaffected.
+
+   Self-contained breakpoints (not relying on .mentor-grid's own further
+   down) because this compound selector's higher specificity would
+   otherwise block that shared rule from applying here too -- same
+   reasoning as .work-page-grid and .mentor-grid-2col.
+*/
+.mentoring-page .mentor-grid {
+	grid-template-columns: repeat(3, 1fr);
+	margin-bottom: 16px;
+}
+@media (max-width: 1080px) {
+	.mentoring-page .mentor-grid {
+		grid-template-columns: 1fr 1fr;
+	}
+}
+@media (max-width: 640px) {
+	.mentoring-page .mentor-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+/*
+   The feature/canvas card sits alone below the grid here (not stretched
+   to match sibling grid items like Home's usage), so without an
+   explicit height the canvas animation could collapse to just its text
+   content's height. Home doesn't need this.
+*/
+.mentoring-page .mentor-feature {
+	min-height: 220px;
+}
+
+/*
+   This page's 3-step "how it works" process wants equal columns at
+   every width from desktop down -- distinct from Home/Services' 6-step
+   process-row, whose *base* rule is repeat(6,1fr) (collapsing to 3 only
+   at the 860px breakpoint). Since this page only ever has 3 steps,
+   repeat(3,1fr) already matches what the shared 860px breakpoint would
+   produce anyway, so no extra breakpoint is needed here -- consistent
+   with how the 6-item version already behaves once collapsed (it also
+   doesn't get a narrower phone-specific breakpoint).
+*/
+.mentoring-page .process-row {
+	grid-template-columns: repeat(3, 1fr);
+}
+
+/*
+   Academic-integrity note card -- exclusive to this page (Home's
+   why-card, from Insights.tsx, is a checklist with no paragraph at
+   all, so .why-card p has no existing base rule to reuse).
+*/
+.mentoring-page .why-card {
+	max-width: 640px;
+}
+.mentoring-page .why-card p {
+	font-size: 13.5px;
+	color: var(--ink-2);
+	line-height: 1.6;
+}

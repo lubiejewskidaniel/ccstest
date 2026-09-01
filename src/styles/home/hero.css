@@ -7,15 +7,22 @@
    NOT included here even though visually part of the hero:
    - .hero-actions -- used by Hero.tsx AND the shared PageHero.tsx
      component, so it lives in styles/components/page-hero.css instead.
-   - .eyebrow, .trust, .trust-row, .trust-item, .stars, .mode-cards,
-     .mark-connectors, .trace-lines -- shared/global or out of this
-     round's agreed scope (hero, cap, work, spotlight, growth, process,
-     mentor, insight, page-hero prefixes only). Left untouched in
+   - .eyebrow -- genuinely global (18 usages across the app), stays in
      globals.css.
-   - @keyframes fade-up -- still used by .trust (globals.css) and other
-     non-hero rules, so it stays defined in globals.css. .hero-copy
-     p.lede and .hero-actions (in page-hero.css) both still reference it
-     by name; CSS doesn't care which file a @keyframes rule lives in.
+   - .badge-new -- shared with Header.tsx, MobileMenu.tsx, and
+     Capabilities.tsx/ServicesPage.tsx's "NEW" pill, stays in
+     globals.css.
+   - @keyframes fade-up -- still used by .trust below AND other
+     non-hero rules elsewhere (globals.css, mobile menu), so it stays
+     defined in globals.css. CSS doesn't care which file a @keyframes
+     rule lives in.
+
+   .trust/.trust-row/.trust-item/.stars and .mark-connectors/
+   .trace-lines/.mode-cards/.mode-card/.mode-ic (+ their exclusive
+   @keyframes connectors-in/trace-draw/card-in) were originally left in
+   globals.css's misleadingly-labeled "MOBILE MENU" section -- verified
+   via full-app grep that all of these are Hero.tsx-exclusive despite
+   sitting under that header, and moved here where they actually belong.
 */
 
 .hero {
@@ -171,5 +178,202 @@
 		top: auto;
 		transform: none;
 		width: clamp(220px, 70vw, 380px);
+	}
+}
+
+.trust {
+	margin-top: 40px;
+	opacity: 0;
+	animation: fade-up 0.8s var(--ease) forwards;
+	animation-delay: 0.95s;
+}
+.trust > p {
+	font-size: 12.5px;
+	color: var(--ink-3);
+	margin-bottom: 14px;
+}
+.trust-row {
+	display: flex;
+	gap: 26px;
+	flex-wrap: wrap;
+}
+.trust-item {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+.trust-item .t1 {
+	font-size: 13.5px;
+	font-weight: 600;
+	color: var(--ink-1);
+	display: flex;
+	align-items: center;
+	gap: 5px;
+}
+.trust-item .t2 {
+	font-size: 11.5px;
+	color: var(--ink-3);
+}
+.stars {
+	color: var(--rate);
+	letter-spacing: 1px;
+	font-size: 11px;
+}
+
+.mark-connectors {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	z-index: 1;
+	opacity: 0;
+	animation: connectors-in 0.6s var(--ease) forwards;
+	animation-delay: 0.85s;
+}
+@keyframes connectors-in {
+	to {
+		opacity: 1;
+	}
+}
+.trace-lines path {
+	stroke-dasharray: 230;
+	stroke-dashoffset: 230;
+	animation: trace-draw 1s var(--ease) forwards;
+	animation-delay: 0.95s;
+}
+@keyframes trace-draw {
+	to {
+		stroke-dashoffset: 0;
+	}
+}
+.mode-cards {
+	position: absolute;
+	right: 0;
+	top: 50%;
+	transform: translateY(-50%);
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	width: var(--cards-w);
+	z-index: 3;
+}
+.mode-card {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 13px 16px;
+	border-radius: 12px;
+	background: rgba(17, 26, 46, 0.72);
+	border: 1px solid var(--line);
+	backdrop-filter: blur(6px);
+	opacity: 0;
+	transform: translateX(14px);
+	animation: card-in 0.7s var(--ease) forwards;
+	transition:
+		border-color 0.3s,
+		transform 0.3s;
+}
+.mode-card:hover {
+	border-color: var(--line-strong);
+	transform: translateX(-2px);
+}
+.mode-card:nth-child(1) {
+	animation-delay: 1.05s;
+}
+.mode-card:nth-child(2) {
+	animation-delay: 1.2s;
+}
+.mode-card:nth-child(3) {
+	animation-delay: 1.35s;
+}
+@keyframes card-in {
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+.mode-ic {
+	width: 34px;
+	height: 34px;
+	border-radius: 9px;
+	background: var(--surface-2);
+	border: 1px solid var(--line-strong);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	color: var(--spark);
+}
+.mode-ic svg {
+	width: 16px;
+	height: 16px;
+}
+.mode-card b {
+	display: block;
+	font-size: 12.5px;
+	font-weight: 600;
+	letter-spacing: 0.03em;
+}
+.mode-card span {
+	font-size: 11.5px;
+	color: var(--ink-3);
+	line-height: 1.35;
+}
+
+@media (max-width: 975px) {
+	.mark-connectors {
+		display: none;
+	}
+	.mode-cards {
+		position: relative;
+		right: auto;
+		top: auto;
+		transform: none;
+		width: 100%;
+		flex-direction: row;
+		flex-wrap: wrap;
+	}
+	.mode-card {
+		flex: 1 1 150px;
+	}
+}
+
+@media (max-width: 640px) {
+	.trust-row {
+		gap: 16px 22px;
+	}
+}
+
+/* hero cursor-reactive glow -- despite living in globals.css's old
+   "BOOT / PROGRESS / SCROLLSPY / TILT / RIPPLE" section (implying a
+   generic site-wide effect), confirmed via full-app grep to be
+   exclusive to Hero.tsx. */
+.cursor-glow {
+	position: absolute;
+	width: 520px;
+	height: 520px;
+	border-radius: 50%;
+	background: radial-gradient(
+		circle,
+		rgba(10, 169, 255, 0.16),
+		rgba(10, 169, 255, 0) 68%
+	);
+	left: 0;
+	top: 0;
+	transform: translate(-9999px, -9999px);
+	pointer-events: none;
+	z-index: 1;
+	transition: opacity 0.4s ease;
+}
+
+@media (hover: none), (pointer: coarse) {
+	.cursor-glow {
+		display: none;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.cursor-glow {
+		display: none;
 	}
 }

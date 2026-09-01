@@ -1,0 +1,146 @@
+/* ==========================================================================
+   Legal pages
+   ==========================================================================
+   Moved out of globals.css. Every "prose*" class confirmed exclusive to
+   src/features/legal/* (Terms, Privacy, Cookies, Academic Integrity,
+   Accessibility, Legal Notice -- 6 files, verified via full-app grep,
+   no sharing with any other page).
+
+   .prose-notice is new here, replacing an inline style on
+   LegalNotice.tsx (rendered by 5 of the 6 legal pages): it reused
+   .prose-toc's layout (flex/padding/border/border-radius) but
+   overrode border-color and background to an amber tint via
+   style={{ borderColor: "rgba(251,191,36,.35)", background:
+   "rgba(251,191,36,.06)" }} to signal "important note" rather than
+   its usual gray table-of-contents look. Dual-classed with .prose-toc
+   rather than replacing it, so the shared layout isn't duplicated.
+   .prose-notice-text replaces that component's second inline style
+   (a plain paragraph with fixed font-size/color/line-height/margin).
+
+   BUGFIX (found by the standard before/after cascade-order re-scan,
+   same as .page-hero-inner/.wrap and .case-study-head/.wrap earlier in
+   this refactor): .prose is always rendered as
+   "<div className='wrap prose'>" across all 5 legal pages, overlapping
+   .wrap's own max-width. In the original globals.css it sat near the
+   end of the file and won that tie by source order; pulling it in via
+   @import (which must sit at the top of globals.css) flipped the
+   winner to .wrap, silently widening the legal-text reading column to
+   the full page edge. Fixed by adding a ".legal-page" wrapper class to
+   each of the 5 pages' <main> (none had a distinguishing class before)
+   and scoping the selector as ".legal-page .prose", which wins
+   deterministically by specificity regardless of import order.
+*/
+
+.legal-page .prose {
+	max-width: 72ch;
+}
+.prose h2 {
+	font-size: 1.35rem;
+	font-weight: 600;
+	margin-top: 44px;
+	margin-bottom: 14px;
+}
+.prose h2:first-child {
+	margin-top: 0;
+}
+.prose h3 {
+	font-size: 1.05rem;
+	font-weight: 600;
+	margin-top: 26px;
+	margin-bottom: 10px;
+	color: var(--ink-1);
+}
+.prose p {
+	font-size: 14.5px;
+	line-height: 1.75;
+	color: var(--ink-2);
+	margin-bottom: 14px;
+}
+.prose ul {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin: 14px 0 18px;
+}
+.prose li {
+	font-size: 14.5px;
+	line-height: 1.65;
+	color: var(--ink-2);
+	padding-left: 20px;
+	position: relative;
+}
+.prose li::before {
+	content: "";
+	position: absolute;
+	left: 2px;
+	top: 9px;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--spark);
+}
+.prose strong {
+	color: var(--ink-1);
+	font-weight: 600;
+}
+.prose a {
+	color: var(--spark);
+	font-weight: 600;
+}
+.prose table {
+	width: 100%;
+	border-collapse: collapse;
+	margin: 16px 0 22px;
+	font-size: 13.5px;
+}
+.prose th,
+.prose td {
+	text-align: left;
+	padding: 10px 12px;
+	border-bottom: 1px solid var(--line);
+	color: var(--ink-2);
+	vertical-align: top;
+}
+.prose th {
+	color: var(--ink-1);
+	font-family: var(--font-mono);
+	font-size: 11px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	font-weight: 500;
+}
+.prose-meta {
+	font-family: var(--font-mono);
+	font-size: 11.5px;
+	color: var(--ink-3);
+	margin-bottom: 36px;
+}
+.prose-toc {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 18px;
+	margin-bottom: 40px;
+	padding: 16px 18px;
+	border: 1px solid var(--line);
+	border-radius: var(--radius-sm);
+	background: var(--surface);
+}
+.prose-toc a {
+	font-size: 12.5px;
+	color: var(--ink-2);
+}
+.prose-toc a:hover {
+	color: var(--spark);
+}
+
+.prose-toc.prose-notice {
+	border-color: rgba(251, 191, 36, 0.35);
+	background: rgba(251, 191, 36, 0.06);
+}
+.prose-notice-text {
+	font-size: 12.5px;
+	color: var(--ink-2);
+	line-height: 1.6;
+	margin: 0;
+}
+

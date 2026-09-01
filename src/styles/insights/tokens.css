@@ -1,0 +1,24 @@
+/* ============================================================
+   INSIGHTS — scoped tokens
+
+   Additive on top of src/styles/tokens.css (Decision 4 — never
+   redefines the --ink, --surface, --signal, or --spark token families,
+   only reads them).
+   Loaded only on Insights routes via src/app/insights/layout.tsx and
+   src/app/pl/wiedza/layout.tsx, not the site-wide globals.css
+   (master instruction §7, "do not pollute the main CCS global CSS").
+   ============================================================ */
+
+:root {
+	/* Reading measure for body copy — the classic 60-75ch editorial
+	   range, tuned slightly narrow for the body font's average character
+	   width (Hanken Grotesk). */
+	--insights-measure: 68ch;
+
+	/* Wider box for the article shell itself (image/code/callout blocks
+	   are allowed to be a little wider than the text measure). */
+	--insights-content-width: 780px;
+
+	--insights-prose-size: 1.0625rem;
+	--insights-prose-line: 1.75;
+}

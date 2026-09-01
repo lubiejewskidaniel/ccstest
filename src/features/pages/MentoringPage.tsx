@@ -190,7 +190,7 @@ export function MentoringPage({ locale }: { locale: Locale }) {
 	const t = COPY[locale];
 
 	return (
-		<main>
+		<main className="mentoring-page">
 			<FireViewEvent event="mentoringView" />
 
 			<PageHero
@@ -212,13 +212,7 @@ export function MentoringPage({ locale }: { locale: Locale }) {
 
 			<section className="tight">
 				<div className="wrap">
-					<div
-						className="mentor-grid reveal-stagger"
-						style={{
-							gridTemplateColumns: "repeat(3,1fr)",
-							marginBottom: 16,
-						}}
-					>
+					<div className="mentor-grid reveal-stagger">
 						{AUDIENCES.map((a) => (
 							<div className="mentor-card card" key={a.title.en}>
 								<span className="mentor-ic">{a.icon}</span>
@@ -228,10 +222,7 @@ export function MentoringPage({ locale }: { locale: Locale }) {
 						))}
 					</div>
 
-					<div
-						className="mentor-feature card reveal"
-						style={{ minHeight: 220 }}
-					>
+					<div className="mentor-feature card reveal">
 						<MentorCanvas />
 
 						<div className="content">
@@ -253,17 +244,14 @@ export function MentoringPage({ locale }: { locale: Locale }) {
 
 			<section>
 				<div className="wrap">
-					<div className="section-head reveal" style={{ marginBottom: 24 }}>
+					<div className="section-head section-head-tight reveal">
 						<div>
 							<span className="eyebrow">{t.howEyebrow}</span>
 							<h2>{t.howTitle}</h2>
 						</div>
 					</div>
 
-					<div
-						className="process-row reveal-stagger"
-						style={{ gridTemplateColumns: "repeat(3,1fr)" }}
-					>
+					<div className="process-row reveal-stagger">
 						{HOW.map((step, i) => (
 							<div className="process-step" key={step.t.en}>
 								<span className="process-num">
@@ -280,18 +268,10 @@ export function MentoringPage({ locale }: { locale: Locale }) {
 
 			<section>
 				<div className="wrap">
-					<div className="why-card card reveal" style={{ maxWidth: 640 }}>
+					<div className="why-card card reveal">
 						<b>{t.integrityTitle}</b>
 
-						<p
-							style={{
-								fontSize: 13.5,
-								color: "var(--ink-2)",
-								lineHeight: 1.6,
-							}}
-						>
-							{t.integrityDesc}
-						</p>
+						<p>{t.integrityDesc}</p>
 
 						<Link
 							href={routeFor("academicIntegrity", locale)}

@@ -1,0 +1,103 @@
+.card {
+	display: flex;
+	flex-direction: column;
+	background: var(--surface);
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	overflow: hidden;
+	transition: border-color 0.2s var(--ease), transform 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.card:hover {
+	border-color: var(--line-strong);
+	transform: translateY(-3px);
+	background: var(--surface-2);
+}
+
+.coverLink {
+	display: block;
+	position: relative;
+	aspect-ratio: 16 / 10;
+	background: var(--surface-2);
+}
+
+.coverImage {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+.coverFallback {
+	width: 100%;
+	height: 100%;
+	background: linear-gradient(160deg, var(--surface-3), var(--surface));
+}
+
+.coverFallback[data-category="build"] {
+	background: radial-gradient(120% 140% at 20% 20%, color-mix(in srgb, var(--signal) 30%, transparent), var(--surface) 70%);
+}
+.coverFallback[data-category="grow"] {
+	background: radial-gradient(120% 140% at 80% 20%, color-mix(in srgb, var(--go) 25%, transparent), var(--surface) 70%);
+}
+.coverFallback[data-category="learn"] {
+	background: radial-gradient(120% 140% at 50% 80%, color-mix(in srgb, var(--spark) 30%, transparent), var(--surface) 70%);
+}
+
+.body {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 20px;
+	flex: 1;
+}
+
+.categoryTag {
+	align-self: flex-start;
+	font-family: var(--font-mono);
+	font-size: 0.72rem;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--spark);
+}
+
+.categoryTag:hover {
+	text-decoration: underline;
+}
+
+.title {
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: 1.15rem;
+	font-weight: 600;
+	line-height: 1.35;
+	letter-spacing: -0.005em;
+}
+
+.title a {
+	color: var(--ink-1);
+}
+
+.title a:hover {
+	color: var(--spark);
+}
+
+.excerpt {
+	margin: 0;
+	font-family: var(--font-body);
+	font-size: 0.9rem;
+	line-height: 1.6;
+	color: var(--ink-2);
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.meta {
+	margin-top: auto;
+	padding-top: 6px;
+	font-family: var(--font-mono);
+	font-size: 0.75rem;
+	color: var(--ink-3);
+}

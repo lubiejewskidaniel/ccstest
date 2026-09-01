@@ -1,13 +1,19 @@
 /* ==========================================================================
    Home — Insights
    ==========================================================================
-   Moved out of globals.css. Scope: only .insight-grid, used exclusively
-   by src/features/home/Insights.tsx (verified against the full app
-   source).
+   Moved out of globals.css.
 
-   NOT included here: .insight-card, .insight-body, .insight-meta,
-   .insight-visual — shared with src/features/pages/InsightsPage.tsx and
-   deferred to a later round. Left untouched in globals.css.
+   .insight-card/.insight-visual/.insight-body/.insight-meta are the
+   shared card shell, reused by src/features/pages/InsightsPage.tsx,
+   which supplies its own scoped overrides for the wider 3-column
+   layout (padding/type-scale, see pages/insights.css) rather than
+   depending on this file's compact 4-column values.
+
+   .why-card/.why-list back the "Why work with CCS" panel -- .why-list
+   is Home-exclusive; .why-card is also reused by MentoringPage.tsx's
+   academic-integrity notice, which supplies its own scoped
+   max-width/type override (.mentoring-page .why-card, see
+   pages/mentoring.css).
 */
 
 .insight-grid {
@@ -15,6 +21,92 @@
 	grid-template-columns: 1fr 1fr 1fr 1fr;
 	gap: 16px;
 	align-items: stretch;
+}
+.insight-card {
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+.insight-visual {
+	height: 130px;
+	position: relative;
+	overflow: hidden;
+	border-bottom: 1px solid var(--line);
+}
+.insight-body {
+	padding: 16px 18px 18px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	flex: 1;
+}
+.insight-body b {
+	font-size: 13.5px;
+	font-weight: 600;
+	line-height: 1.4;
+}
+.insight-meta {
+	font-family: var(--font-mono);
+	font-size: 10.5px;
+	color: var(--ink-3);
+	margin-top: auto;
+}
+.why-card {
+	padding: 22px;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+/* BUGFIX (found by the standard cascade-order re-scan): .why-card is
+   always rendered as "<div className='why-card card'>", overlapping
+   .card's own background. In the original globals.css .why-card sat
+   later in the file than .card and won that tie by source order;
+   pulling it in via @import (which must sit at the top of globals.css,
+   while .card stays in globals.css's own body, part of "section
+   scaffolding" that's genuinely global and hasn't been extracted)
+   flipped the winner to .card's plain background, hiding .why-card's
+   gradient. Scoped as ".card.why-card" (compound selector, both
+   classes always present on the same element) so it wins
+   deterministically by specificity, independent of import order --
+   same fix as .page-hero-inner/.wrap and others earlier in this
+   refactor. */
+.card.why-card {
+	background: linear-gradient(
+		165deg,
+		rgba(59, 130, 246, 0.08),
+		transparent 60%
+	);
+}
+.why-card b {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--spark);
+	font-family: var(--font-mono);
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	font-size: 11px;
+}
+.why-list {
+	display: flex;
+	flex-direction: column;
+	gap: 11px;
+}
+.why-list li {
+	display: flex;
+	align-items: flex-start;
+	gap: 9px;
+	font-size: 13px;
+	color: var(--ink-1);
+}
+.why-list svg {
+	width: 14px;
+	height: 14px;
+	color: var(--go);
+	margin-top: 2px;
+	flex: 0 0 auto;
+}
+.why-card .case-link {
+	margin-top: 4px;
 }
 
 @media (max-width: 1080px) {

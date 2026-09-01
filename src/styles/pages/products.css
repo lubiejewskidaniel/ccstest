@@ -1,0 +1,13 @@
+/* ==========================================================================
+   Products page
+   ========================================================================== */
+
+/*
+   Spacing above the closing CTA button, below the 2-column "what's next"
+   grid. Previously an inline style={{ marginTop: 32 }} with no class at
+   all -- exclusive to this page's layout, so it lives here rather than
+   globals.css.
+*/
+.products-cta {
+	margin-top: 32px;
+}

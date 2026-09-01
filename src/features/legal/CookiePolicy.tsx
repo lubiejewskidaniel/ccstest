@@ -180,7 +180,7 @@ export function CookiePolicy({ locale }: { locale: Locale }) {
 	const t = COPY[locale];
 
 	return (
-		<main>
+		<main className="legal-page">
 			<PageHero eyebrow={t.heroEyebrow} title={t.heroTitle} />
 
 			<section className="tight">

@@ -1,0 +1,84 @@
+/* ==========================================================================
+   Insights page
+   ========================================================================== */
+
+/*
+   The /insights article grid is visually a 3-column card grid, distinct
+   from the homepage's own 4-column .insight-grid (3 article cards + 1
+   "why work with us" card). Previously borrowed .work-grid purely for
+   its column CSS -- but insight-card is never a target of
+   MotionSystem.tsx's magnetic-tilt querySelector (unlike .work-card),
+   so unlike /work there's no shared-behaviour reason to keep that
+   class name here. A fully independent grid class is cleaner and more
+   honest about what it actually is.
+
+   This must live in CSS rather than inline JSX styles so responsive
+   breakpoints can change the column count normally -- the previous
+   inline gridTemplateColumns forced 3 columns at every width.
+*/
+.insights-page .insights-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 18px;
+}
+
+@media (max-width: 1080px) {
+	.insights-page .insights-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+@media (max-width: 640px) {
+	.insights-page .insights-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+/*
+   The homepage's .insight-card/.insight-visual/.insight-body are reused
+   as-is for the shared chrome (border, overflow, flex structure), but
+   this page's wider 3-column cards read better with more breathing room
+   than Home's compact 4-column ones -- so padding and type scale are
+   tuned here, scoped under .insights-page so they only apply on this
+   page and don't affect the homepage's own usage of the same classes.
+*/
+.insights-page .insight-body {
+	padding: 18px 20px 22px;
+}
+.insights-page .insight-body b {
+	font-size: 15px;
+}
+.insights-page .insight-body p {
+	font-size: 13px;
+	color: var(--ink-2);
+	line-height: 1.6;
+}
+
+/*
+   Centers the tag label inside the (per-post, so still inline)
+   background visual. Home doesn't need this -- its three homepage
+   preview cards each have their own custom SVG/icon visual rather than
+   a plain centered text tag.
+*/
+.insights-page .insight-visual {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.insights-tag-label {
+	font-family: var(--font-mono);
+	font-size: 20px;
+	letter-spacing: 0.1em;
+	color: var(--spark);
+}
+
+/*
+   "More articles are coming" note below the grid -- exclusive to this
+   page (Home's version links out to the full index instead).
+*/
+.insights-coming-soon {
+	margin-top: 40px;
+	text-align: center;
+	color: var(--ink-3);
+	font-size: 13.5px;
+}

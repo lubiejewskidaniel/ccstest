@@ -85,7 +85,7 @@ export function Process({ locale }: { locale: Locale }) {
 	return (
 		<section id="process">
 			<div className="wrap">
-				<div className="section-head reveal" style={{ marginBottom: 24 }}>
+				<div className="section-head section-head-tight reveal">
 					<div>
 						<span className="eyebrow">{t.eyebrow}</span>
 						<h2>{t.title}</h2>

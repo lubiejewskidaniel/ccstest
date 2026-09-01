@@ -131,7 +131,7 @@ const COPY = {
 export function AboutPage({ locale }: { locale: Locale }) {
 	const t = COPY[locale];
 	return (
-		<main>
+		<main className="about-page">
 			<PageHero
 				eyebrow={t.eyebrow}
 				title={t.title}
@@ -148,23 +148,19 @@ export function AboutPage({ locale }: { locale: Locale }) {
 
 			<section className="tight">
 				<div className="wrap">
-					<div className="section-head reveal" style={{ marginBottom: 24 }}>
+					<div className="section-head section-head-tight reveal">
 						<div>
 							<span className="eyebrow">{t.modesEyebrow}</span>
 							<h2>{t.modesTitle}</h2>
 						</div>
 					</div>
-					<div
-						className="cap-grid reveal-stagger"
-						style={{ gridTemplateColumns: "repeat(4,1fr)" }}
-					>
+					<div className="cap-grid reveal-stagger">
 						{MODES.map((m) => (
 							<div
-								className="cap-card card"
+								className="cap-card cap-card-auto card"
 								key={m.k}
-								style={{ minHeight: "auto" }}
 							>
-								<span className="flagship" style={{ alignSelf: "flex-start" }}>
+								<span className="flagship">
 									{m.k}
 								</span>
 								<b>{m.t[locale]}</b>
@@ -177,21 +173,17 @@ export function AboutPage({ locale }: { locale: Locale }) {
 
 			<section>
 				<div className="wrap">
-					<div className="section-head reveal" style={{ marginBottom: 24 }}>
+					<div className="section-head section-head-tight reveal">
 						<div>
 							<span className="eyebrow">{t.valuesEyebrow}</span>
 							<h2>{t.valuesTitle}</h2>
 						</div>
 					</div>
-					<div
-						className="cap-grid reveal-stagger"
-						style={{ gridTemplateColumns: "repeat(4,1fr)" }}
-					>
+					<div className="cap-grid reveal-stagger">
 						{VALUES.map((v) => (
 							<div
-								className="cap-card card"
+								className="cap-card cap-card-auto card"
 								key={v.t.en}
-								style={{ minHeight: "auto" }}
 							>
 								<svg
 									viewBox="0 0 24 24"

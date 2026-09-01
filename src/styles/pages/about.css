@@ -1,0 +1,44 @@
+/* ==========================================================================
+   About page
+   ========================================================================== */
+
+/*
+   Both grids on this page (the 4 "modes" and the 4 "values") want an
+   even 4-column layout -- distinct from Home's .cap-grid, which has 6
+   items and its own base rule (repeat(6,1fr), collapsing 3 then 1 via
+   globals.css's breakpoints for the homepage's Capabilities section).
+   min-height:auto comes from the shared .cap-card-auto modifier in
+   globals.css instead of being redefined here (the same override
+   ServicesPage needs, so it lives once, shared).
+
+   Self-contained breakpoints (not relying on .cap-grid's own further
+   down) because this compound selector's higher specificity would
+   otherwise block that shared rule from applying here too -- same
+   reasoning as .work-page-grid, .mentor-grid-2col, and
+   .mentoring-page .mentor-grid.
+*/
+.about-page .cap-grid {
+	grid-template-columns: repeat(4, 1fr);
+}
+@media (max-width: 1080px) {
+	.about-page .cap-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+@media (max-width: 640px) {
+	.about-page .cap-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+/*
+   .flagship is normally laid out inside .flag-row (a flex row, where
+   this isn't an issue) or, on the Products page, on its own. Here it's
+   a direct child of .cap-card, which is a column flex container --
+   without this, .cap-card's default align-items:stretch would stretch
+   the badge to the card's full width instead of leaving it as a
+   compact, left-aligned pill.
+*/
+.about-page .cap-card > .flagship {
+	align-self: flex-start;
+}

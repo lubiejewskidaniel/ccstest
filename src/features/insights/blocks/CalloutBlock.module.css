@@ -1,0 +1,57 @@
+.callout {
+	display: flex;
+	gap: 12px;
+	align-items: flex-start;
+	margin: 1.8em 0;
+	padding: 14px 18px;
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--line);
+	max-width: var(--insights-content-width, 780px);
+	background: var(--surface-2);
+}
+
+.icon {
+	flex: none;
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-family: var(--font-mono);
+	font-size: 0.75rem;
+	font-weight: 600;
+	margin-top: 2px;
+}
+
+.text {
+	margin: 0;
+	font-family: var(--font-body);
+	font-size: 0.95rem;
+	line-height: 1.65;
+	color: var(--ink-1);
+}
+
+.info {
+	border-color: color-mix(in srgb, var(--signal) 40%, var(--line));
+}
+.info .icon {
+	background: color-mix(in srgb, var(--signal) 22%, transparent);
+	color: var(--spark);
+}
+
+.warning {
+	border-color: color-mix(in srgb, var(--rate) 45%, var(--line));
+}
+.warning .icon {
+	background: color-mix(in srgb, var(--rate) 22%, transparent);
+	color: var(--rate);
+}
+
+.tip {
+	border-color: color-mix(in srgb, var(--go) 40%, var(--line));
+}
+.tip .icon {
+	background: color-mix(in srgb, var(--go) 20%, transparent);
+	color: var(--go);
+}

@@ -397,7 +397,7 @@ export function ServicesPage({ locale }: { locale: Locale }) {
 				<div className="wrap">
 					<div className="services-grid">
 						{CAPS.map((item) => (
-							<div className="cap-card services-card card" key={item.key}>
+							<div className="cap-card cap-card-auto card" key={item.key}>
 								<span className="cap-ic">
 									{item.icon}
 
@@ -435,7 +435,7 @@ export function ServicesPage({ locale }: { locale: Locale }) {
 
 			<section>
 				<div className="wrap">
-					<div className="section-head services-process-head reveal">
+					<div className="section-head section-head-tight reveal">
 						<div>
 							<span className="eyebrow">{t.processEyebrow}</span>
 

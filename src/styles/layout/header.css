@@ -1,0 +1,230 @@
+/* ==========================================================================
+   Layout — Header
+   ==========================================================================
+   Moved out of globals.css. Site header bar: the sticky <header
+   className="site">, its inner flex row, brand mark, primary nav links,
+   and the header-right cluster (language switch, theme toggle, contact
+   button, mobile menu-open button).
+
+   .brand / .brand-logo / .brand-word are also used by Footer.tsx (its
+   own logo+tagline block reuses the same brand mark styling) -- kept
+   here rather than split into a separate file since both consumers are
+   layout-level chrome. .brand-mark is NOT included -- despite the
+   similar name it's a completely different, admin-exclusive text-badge
+   fallback logo (src/app/admin/(dashboard)/layout.tsx), left in
+   globals.css for a future admin-focused round.
+
+   .lang-switch and .theme-toggle are each owned by their own small
+   component (LanguageSwitch.tsx, ThemeToggle.tsx) but only ever render
+   inside the header, so their styling lives here too.
+
+   .site-inner is dual-classed with the shared .wrap
+   ("<div className='wrap site-inner'>") but only sets display/
+   align-items/gap/height -- no max-width or margin -- so there is no
+   property overlap with .wrap and therefore no cascade-order risk from
+   moving it into an @import'd file (verified against the same check
+   that caught the earlier .page-hero-inner and .case-study-head bugs).
+*/
+
+header.site {
+	position: sticky;
+	top: 0;
+	z-index: 100;
+	background: var(--glass-bg);
+	backdrop-filter: blur(14px) saturate(140%);
+	-webkit-backdrop-filter: blur(14px) saturate(140%);
+	border-bottom: 1px solid transparent;
+	transition:
+		border-color 0.4s var(--ease),
+		background 0.4s var(--ease),
+		box-shadow 0.4s var(--ease);
+}
+header.site.scrolled {
+	border-bottom-color: var(--line);
+	background: var(--glass-bg-strong);
+	box-shadow: var(--edge-shadow);
+}
+.site-inner {
+	display: flex;
+	align-items: center;
+	gap: 32px;
+	height: 76px;
+}
+.brand {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-right: auto;
+}
+.brand-logo {
+	height: 34px;
+	width: auto;
+	display: block;
+	flex: 0 0 auto;
+}
+.brand-word {
+	font-family: var(--font-mono);
+	font-size: 10.5px;
+	line-height: 1.35;
+	letter-spacing: 0.14em;
+	color: var(--ink-2);
+}
+.brand-word b {
+	color: var(--ink-1);
+	display: block;
+	font-weight: 500;
+}
+
+nav.primary {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+nav.primary a {
+	position: relative;
+	padding: 9px 14px;
+	border-radius: 999px;
+	font-size: 14px;
+	color: var(--ink-2);
+	font-weight: 500;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	transition:
+		color 0.25s var(--ease),
+		background 0.25s var(--ease);
+}
+nav.primary a:hover {
+	color: var(--ink-1);
+	background: rgba(255, 255, 255, 0.05);
+}
+
+.head-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+.lang-switch {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	font-family: var(--font-mono);
+	font-size: 12px;
+}
+.lang-switch button,
+.lang-switch a {
+	padding: 7px 9px;
+	border-radius: 8px;
+	color: var(--ink-3);
+	transition:
+		color 0.2s,
+		background 0.2s;
+}
+.lang-switch button.active,
+.lang-switch a.active {
+	color: var(--ink-1);
+	background: var(--surface-2);
+}
+.lang-switch button:hover,
+.lang-switch a:hover {
+	color: var(--ink-1);
+}
+
+.theme-toggle {
+	width: 34px;
+	height: 34px;
+	border-radius: 9px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--ink-2);
+	transition:
+		background 0.2s,
+		color 0.2s;
+}
+.theme-toggle:hover {
+	background: var(--surface-2);
+	color: var(--ink-1);
+}
+.theme-toggle svg {
+	width: 16px;
+	height: 16px;
+}
+
+.menu-btn {
+	display: none;
+	width: 38px;
+	height: 38px;
+	border-radius: 9px;
+	align-items: center;
+	justify-content: center;
+}
+.menu-btn:hover {
+	background: var(--surface-2);
+}
+
+@media (max-width: 1180px) {
+	nav.primary {
+		display: none;
+	}
+	.menu-btn {
+		display: flex;
+	}
+}
+
+/* Animated underline on hover/focus/active -- uses the shared
+   @keyframes underline-flow, still defined in globals.css since
+   .foot-col a and .legal-links a (footer link hovers) also reference
+   it by name. CSS doesn't care which file a @keyframes rule lives in. */
+nav.primary a {
+	position: relative;
+}
+nav.primary a::after {
+	content: "";
+	position: absolute;
+	left: 14px;
+	right: 14px;
+	bottom: 4px;
+	height: 2px;
+	background: linear-gradient(
+		90deg,
+		var(--spark),
+		var(--spark-2),
+		var(--spark)
+	);
+	background-size: 220% 100%;
+	border-radius: 2px;
+	box-shadow: 0 0 10px 1px rgba(10, 169, 255, 0.6);
+	transform: scaleX(0);
+	transform-origin: left;
+	opacity: 0;
+	transition:
+		transform 0.45s var(--ease),
+		opacity 0.45s var(--ease);
+}
+nav.primary a:hover::after,
+nav.primary a:focus-visible::after,
+nav.primary a.active::after {
+	transform: scaleX(1);
+	opacity: 1;
+	animation: underline-flow 1.8s linear infinite;
+}
+nav.primary a.active {
+	color: var(--ink-1);
+}
+
+@media (max-width: 640px) {
+	.head-actions .btn-header {
+		display: none;
+	}
+}
+
+/* Hides the "CODE CONSULTING STUDIO" wordmark on the narrowest phones,
+   keeping just the logo icon -- applies to both Header.tsx's and
+   Footer.tsx's .brand-word usage since the selector isn't scoped to
+   either. */
+@media (max-width: 420px) {
+	.brand-word {
+		display: none;
+	}
+}

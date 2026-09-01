@@ -1,0 +1,133 @@
+/* ==========================================================================
+   Home — Process
+   ==========================================================================
+   Moved out of globals.css. .process-row's own display/grid-template-
+   columns/gap + breakpoints are Home-owned in effect: ServicesPage
+   (.services-page .services-process-grid) and MentoringPage
+   (.mentoring-page .process-row) both carry the .process-row class
+   (needed for the shared connector-line pseudo-elements and reveal
+   animation below) but supply their own scoped column overrides, so
+   neither actually relies on this file's base column count.
+
+   .process-step/.process-num are the shared step shell, reused
+   identically by both other pages.
+
+   Includes both connector-line mechanisms: ::before (static gray
+   baseline) and ::after (animated gradient "signal" line that draws in
+   via .process-row.in, added by a scroll-reveal observer). The 860px
+   breakpoint hides both when the row wraps to 2 rows of 3, since a
+   single absolutely-positioned line can only ever align with one row --
+   this was a real bug (::after was originally left visible, see the
+   BUGFIX note below) already fixed earlier in this refactor.
+*/
+
+.process-row {
+	display: grid;
+	grid-template-columns: repeat(6, 1fr);
+	gap: 8px;
+	position: relative;
+	margin-top: 8px;
+}
+.process-row::before {
+	content: "";
+	position: absolute;
+	top: 22px;
+	left: 9%;
+	right: 9%;
+	height: 1px;
+	background: var(--line);
+	z-index: 0;
+}
+.process-step {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	gap: 12px;
+	padding: 0 6px;
+}
+.process-num {
+	width: 44px;
+	height: 44px;
+	border-radius: 50%;
+	background: var(--surface);
+	border: 1px solid var(--line-strong);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-family: var(--font-mono);
+	font-size: 13px;
+	color: var(--ink-1);
+	transition:
+		border-color 0.3s,
+		box-shadow 0.3s;
+}
+.process-step:hover .process-num {
+	border-color: var(--spark);
+	box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.14);
+}
+.process-step b {
+	font-size: 13.5px;
+	font-weight: 600;
+}
+.process-step p {
+	font-size: 11.8px;
+	color: var(--ink-3);
+	line-height: 1.4;
+	max-width: 20ch;
+}
+
+/* process signal line draws in on reveal */
+.process-row::after {
+	content: "";
+	position: absolute;
+	top: 22px;
+	left: 9%;
+	right: 9%;
+	height: 1px;
+	z-index: 0;
+	background: linear-gradient(
+		90deg,
+		var(--spark-2),
+		var(--spark),
+		var(--signal)
+	);
+	transform: scaleX(0);
+	transform-origin: left;
+	transition: transform 1.15s var(--ease);
+	box-shadow: 0 0 6px rgba(10, 169, 255, 0.5);
+}
+.process-row.in::after {
+	transform: scaleX(1);
+}
+
+@media (max-width: 860px) {
+	.process-row {
+		grid-template-columns: repeat(3, 1fr);
+		row-gap: 28px;
+	}
+	.process-row::before {
+		display: none;
+	}
+	/* BUGFIX: pre-existing gap, confirmed present before this session's
+	   refactor. .process-row has TWO overlaid line pseudo-elements at the
+	   same position (top:22px, left/right:9%): ::before is the static
+	   gray baseline, ::after is the animated gradient "signal" line that
+	   draws in on scroll-reveal (.process-row.in::after). This block
+	   already hid ::before when the row wraps to 2 rows of 3 (since a
+	   single absolutely-positioned line can only ever align with one row)
+	   but forgot ::after, so the animated line was still rendered and
+	   only visually reached the first row (01-02-03), leaving 04-05-06
+	   with no line -- exactly the asymmetry reported. */
+	.process-row::after {
+		display: none;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.process-row::after {
+		transform: scaleX(1) !important;
+	}
+}

@@ -1,0 +1,81 @@
+.panel {
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	padding: 20px;
+	background: var(--surface);
+	margin-bottom: 28px;
+}
+
+.statusRow {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 16px;
+}
+
+.label {
+	font-family: var(--font-mono);
+	font-size: 11px;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--ink-3);
+}
+
+.badge {
+	font-family: var(--font-mono);
+	font-size: 11.5px;
+	padding: 4px 10px;
+	border-radius: 999px;
+	border: 1px solid var(--line-strong);
+	color: var(--ink-2);
+}
+
+.badge[data-status="published"] {
+	color: var(--go);
+	border-color: color-mix(in srgb, var(--go) 45%, var(--line-strong));
+}
+.badge[data-status="scheduled"] {
+	color: var(--rate);
+	border-color: color-mix(in srgb, var(--rate) 45%, var(--line-strong));
+}
+.badge[data-status="archived"] {
+	color: var(--ink-3);
+}
+
+.error {
+	font-size: 12.5px;
+	color: #ff6b6b;
+	margin: 0 0 12px;
+}
+
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-bottom: 18px;
+}
+
+.scheduleRow {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	align-items: center;
+	padding-top: 16px;
+	border-top: 1px solid var(--line);
+}
+
+.scheduleInput {
+	padding: 9px 12px;
+	border-radius: 9px;
+	border: 1px solid var(--line-strong);
+	background: var(--surface-2);
+	color: var(--ink-1);
+	font: inherit;
+	font-size: 13.5px;
+}
+
+.scheduleInput:focus {
+	outline: none;
+	border-color: var(--spark);
+	box-shadow: 0 0 0 3px rgba(10, 169, 255, 0.16);
+}

@@ -1,0 +1,38 @@
+.form {
+	display: flex;
+	gap: 8px;
+	max-width: 420px;
+}
+
+.input {
+	flex: 1;
+	padding: 11px 14px;
+	border-radius: 9px;
+	border: 1px solid var(--line-strong);
+	background: var(--surface-2);
+	color: var(--ink-1);
+	font: inherit;
+	font-size: 14px;
+}
+
+.input:focus {
+	outline: none;
+	border-color: var(--spark);
+	box-shadow: 0 0 0 3px rgba(10, 169, 255, 0.16);
+}
+
+.button {
+	font-family: var(--font-mono);
+	font-size: 0.82rem;
+	padding: 0 18px;
+	border-radius: 9px;
+	border: 1px solid var(--line-strong);
+	background: var(--surface);
+	color: var(--ink-2);
+	transition: border-color 0.15s var(--ease), color 0.15s var(--ease);
+}
+
+.button:hover {
+	border-color: var(--spark);
+	color: var(--spark);
+}

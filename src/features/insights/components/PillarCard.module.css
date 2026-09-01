@@ -1,0 +1,65 @@
+.card {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 26px 24px;
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	background: var(--surface);
+	transition: border-color 0.2s var(--ease), transform 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.card:hover {
+	border-color: var(--line-strong);
+	transform: translateY(-3px);
+	background: var(--surface-2);
+}
+
+.card:hover .arrow {
+	transform: translateX(4px);
+	color: var(--spark);
+}
+
+.key {
+	font-family: var(--font-mono);
+	font-size: 0.72rem;
+	letter-spacing: 0.1em;
+	color: var(--ink-3);
+}
+
+.card[data-pillar="build"] .key {
+	color: var(--signal);
+}
+.card[data-pillar="grow"] .key {
+	color: var(--go);
+}
+.card[data-pillar="learn"] .key {
+	color: var(--spark);
+}
+.card[data-pillar="studio"] .key {
+	color: var(--rate);
+}
+
+.name {
+	margin: 0;
+	font-family: var(--font-display);
+	font-size: 1.3rem;
+	font-weight: 600;
+	color: var(--ink-1);
+}
+
+.description {
+	margin: 0;
+	font-family: var(--font-body);
+	font-size: 0.9rem;
+	line-height: 1.55;
+	color: var(--ink-2);
+}
+
+.arrow {
+	margin-top: 10px;
+	font-family: var(--font-mono);
+	color: var(--ink-3);
+	transition: transform 0.2s var(--ease), color 0.2s var(--ease);
+}
