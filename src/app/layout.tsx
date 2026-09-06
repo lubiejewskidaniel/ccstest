@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { SiteChrome } from "@/components/navigation/SiteChrome";
 import { MotionSystem } from "@/components/MotionSystem";
 import { SectionReveal } from "@/components/SectionReveal";
+import { PublicChrome } from "@/components/PublicChrome";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 import { AttributionCapture } from "@/features/attribution";
 import { PageViewTracker } from "@/lib/analytics/PageViewTracker";
@@ -97,29 +98,37 @@ export default async function RootLayout({
 					Skip to content
 				</a>
 
-				<div className="progress-rail" aria-hidden="true">
-					<i id="progressFill" />
-				</div>
+				<PublicChrome>
+					<div className="progress-rail" aria-hidden="true">
+						<i id="progressFill" />
+					</div>
+				</PublicChrome>
 
-				<div className="boot-curtain" id="bootCurtain" aria-hidden="true">
-					<svg viewBox="0 0 100 100">
-						<defs>
-							<linearGradient id="bootGrad" x1="0" y1="0" x2="1" y2="1">
-								<stop offset="0%" stopColor="#0aa9ff" />
-								<stop offset="100%" stopColor="#1267e8" />
-							</linearGradient>
-						</defs>
+				<PublicChrome>
+					<div className="boot-curtain" id="bootCurtain" aria-hidden="true">
+						<svg viewBox="0 0 100 100">
+							<defs>
+								<linearGradient id="bootGrad" x1="0" y1="0" x2="1" y2="1">
+									<stop offset="0%" stopColor="#0aa9ff" />
+									<stop offset="100%" stopColor="#1267e8" />
+								</linearGradient>
+							</defs>
 
-						<path d="M64 20c-16 0-30 13-30 30s14 30 30 30" />
-					</svg>
-				</div>
+							<path d="M64 20c-16 0-30 13-30 30s14 30 30 30" />
+						</svg>
+					</div>
+				</PublicChrome>
 
 				<ThemeProvider>
-					<div className="spine" aria-hidden="true" />
+					<PublicChrome>
+						<div className="spine" aria-hidden="true" />
+					</PublicChrome>
 
 					<SiteChrome>{children}</SiteChrome>
 
-					<BackToTop locale={lang} />
+					<PublicChrome>
+						<BackToTop locale={lang} />
+					</PublicChrome>
 				</ThemeProvider>
 
 				<MotionSystem />

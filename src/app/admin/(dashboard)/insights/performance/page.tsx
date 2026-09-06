@@ -98,7 +98,7 @@ export default async function InsightsPerformancePage() {
 				</div>
 			)}
 
-			<b style={{ display: "block", fontSize: 13.5, margin: "40px 0 12px" }}>Search performance by article (Checkpoint 9)</b>
+			<b style={{ display: "block", fontSize: 13.5, margin: "40px 0 12px" }}>Search performance by article</b>
 			<p style={{ color: "var(--ink-3)", fontSize: 12.5, marginBottom: 12 }}>
 				Joins each published article to its Google Search Console rows (page URL matched to the article&apos;s
 				canonical path) — needs Search Console ingested via{" "}

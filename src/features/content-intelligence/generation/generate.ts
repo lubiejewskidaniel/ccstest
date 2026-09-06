@@ -2,8 +2,8 @@ import { getAdminSession } from "@/lib/supabase/adminAuth";
 import { getBrief, updateBriefRow } from "../briefs/service";
 import { createAnthropicProvider } from "./AnthropicProvider";
 import { checkBudget, logUsage } from "./costGuard";
-import { slugify } from "./slugify";
-import { articleBodySchema, type ContentBlock } from "@/features/insights/types/blocks";
+import { slugify } from "@/lib/slugify";
+import { articleBodySchema, assignHeadingIds, type ContentBlock } from "@/features/insights/types/blocks";
 import type { StageResult } from "../types/contentAi";
 
 const SYSTEM_PROMPT = `You are a senior software engineer writing for a code consulting studio's engineering blog. Voice: calm, technical, honest, no hype, no invented statistics, no fake case studies, no fabricated quotes or named sources. If something would need a citation, describe it generally instead of inventing a specific number or source. Write like you're explaining it to a competent client, not writing SEO filler.
@@ -56,18 +56,10 @@ function stripCodeFences(text: string): string {
 /** Assigns a stable, unique anchor id to every heading block — never
  * trusts the model for this field (the system prompt explicitly tells it
  * not to provide one), so heading ids can't collide or contain invalid
- * characters regardless of model output quality. */
-function assignHeadingIds(blocks: ContentBlock[]): ContentBlock[] {
-	const seen = new Map<string, number>();
-	return blocks.map((block) => {
-		if (block.type !== "heading") return block;
-		const base = slugify(block.text) || "section";
-		const count = seen.get(base) ?? 0;
-		seen.set(base, count + 1);
-		const id = count === 0 ? base : `${base}-${count}`;
-		return { ...block, id };
-	});
-}
+ * characters regardless of model output quality. Reuses the same
+ * assignment logic the human visual block editor's bulk-import path
+ * would need (`@/features/insights/types/blocks`), rather than a private
+ * copy of the same slug-collision-handling logic. */
 
 /**
  * Stage 2: the actual draft. Parses the model's JSON response, strips

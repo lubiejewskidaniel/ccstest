@@ -18,8 +18,8 @@ export default async function ContentRefreshPage() {
 			<p style={{ color: "var(--ink-3)", fontSize: 13, marginBottom: 28 }}>
 				Published articles worth revisiting — flagged by age past the stale threshold (
 				<code>CONTENT_REFRESH_STALE_DAYS</code>, default 180 days) and/or a worsening 30-day search position
-				trend. Content refresh matters as much as new content (Decision 13) — this doesn&apos;t touch anything,
-				it only surfaces candidates for a human to act on.
+				trend. Refreshing existing content matters as much as publishing new content — this doesn&apos;t touch
+				anything, it only surfaces candidates for a human to act on.
 			</p>
 
 			{candidates.length === 0 ? (

@@ -21,6 +21,14 @@ export type AiCompletionResult = {
 	text: string;
 	inputTokens: number;
 	outputTokens: number;
+	/** Anthropic's `stop_reason` for the completion — in particular
+	 * `"max_tokens"`, which means the response was cut off mid-way rather
+	 * than finishing naturally. Optional and additive: existing callers
+	 * that don't check it (research/generation/ai-visibility) are
+	 * unaffected; localisation uses it to give a specific diagnostic
+	 * instead of a generic "not valid JSON" when a translation gets
+	 * truncated. */
+	stopReason?: string;
 };
 
 export type ContentAiProvider = {

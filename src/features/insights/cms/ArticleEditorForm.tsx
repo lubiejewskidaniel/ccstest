@@ -1,9 +1,13 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import type { Article, Category, Tag } from "../types/article";
+import type { Locale } from "@/lib/routes";
 import type { CmsFormState } from "@/lib/actions/insightsCms";
 import styles from "./ArticleEditorForm.module.css";
+
+import { BlockEditor } from "./blocks-editor/BlockEditor";
+import { TranslationPicker, type TranslationCandidate } from "./TranslationPicker";
 
 const idle: CmsFormState = { status: "idle" };
 
@@ -15,13 +19,23 @@ export function ArticleEditorForm({
 	mode,
 	categories,
 	tags,
+	translationCandidates,
 }: {
 	mode: Mode;
 	categories: Category[];
 	tags: Tag[];
+	translationCandidates: TranslationCandidate[];
 }) {
 	const [state, formAction, pending] = useActionState(mode.action, idle);
 	const article = mode.kind === "edit" ? mode.article : null;
+
+	const [locale, setLocale] = useState<Locale>(article?.locale ?? "en");
+	const [translationOf, setTranslationOf] = useState<string | null>(article?.translationOf ?? null);
+	const [title, setTitle] = useState(article?.title ?? "");
+	const [excerpt, setExcerpt] = useState(article?.excerpt ?? "");
+	const [coverImageUrl, setCoverImageUrl] = useState(article?.coverImageUrl ?? "");
+	const [seoTitle, setSeoTitle] = useState(article?.seoTitle ?? "");
+	const [seoDescription, setSeoDescription] = useState(article?.seoDescription ?? "");
 
 	const fieldError = (name: string) => state.fieldErrors?.[name];
 
@@ -41,7 +55,7 @@ export function ArticleEditorForm({
 			<div className="field-row">
 				<div className="field">
 					<label htmlFor="locale">Language</label>
-					<select id="locale" name="locale" defaultValue={article?.locale ?? "en"} required>
+					<select id="locale" name="locale" value={locale} onChange={(e) => setLocale(e.target.value as Locale)} required>
 						<option value="en">English</option>
 						<option value="pl">Polish</option>
 					</select>
@@ -57,13 +71,13 @@ export function ArticleEditorForm({
 
 			<div className="field">
 				<label htmlFor="title">Title</label>
-				<input id="title" name="title" type="text" defaultValue={article?.title} required />
+				<input id="title" name="title" type="text" value={title} onChange={(e) => setTitle(e.target.value)} required />
 				{fieldError("title") ? <span className="field-error">{fieldError("title")}</span> : null}
 			</div>
 
 			<div className="field">
 				<label htmlFor="excerpt">Excerpt</label>
-				<textarea id="excerpt" name="excerpt" defaultValue={article?.excerpt} required rows={3} />
+				<textarea id="excerpt" name="excerpt" value={excerpt} onChange={(e) => setExcerpt(e.target.value)} required rows={3} />
 				{fieldError("excerpt") ? <span className="field-error">{fieldError("excerpt")}</span> : null}
 			</div>
 
@@ -86,22 +100,24 @@ export function ArticleEditorForm({
 			</div>
 
 			<div className="field">
-				<label htmlFor="translationOf">
-					Translation of <span className="opt">optional — id of the counterpart article in the other language</span>
+				<label>
+					Translation of <span className="opt">optional — link to the counterpart article in the other language</span>
 				</label>
-				<input id="translationOf" name="translationOf" type="text" defaultValue={article?.translationOf ?? ""} />
+				<TranslationPicker
+					candidates={translationCandidates}
+					locale={locale}
+					excludeId={article?.id}
+					value={translationOf}
+					onChange={setTranslationOf}
+				/>
 				{fieldError("translationOf") ? <span className="field-error">{fieldError("translationOf")}</span> : null}
-				<p className={styles.hint}>
-					A lookup-by-slug picker is a good candidate for a later CMS iteration — pasting the other article&apos;s
-					id is Checkpoint 3&apos;s minimal v1 (find it in this article list&apos;s URL when editing it).
-				</p>
 			</div>
 
 			<div className={styles.tagGrid}>
 				<span className={styles.tagLabel}>Tags</span>
 				<div className={styles.tagOptions}>
 					{tags.length === 0 ? (
-						<span className={styles.tagEmpty}>No tags yet — create some from the database while the tag manager is still Checkpoint 3+.</span>
+						<span className={styles.tagEmpty}>No tags yet — create some from the database first.</span>
 					) : (
 						tags.map((tag) => (
 							<label key={tag.id} className={styles.tagOption}>
@@ -123,36 +139,43 @@ export function ArticleEditorForm({
 					<label htmlFor="coverImageUrl">
 						Cover image URL <span className="opt">optional</span>
 					</label>
-					<input id="coverImageUrl" name="coverImageUrl" type="text" defaultValue={article?.coverImageUrl ?? ""} />
+					<input
+						id="coverImageUrl"
+						name="coverImageUrl"
+						type="text"
+						value={coverImageUrl}
+						onChange={(e) => setCoverImageUrl(e.target.value)}
+					/>
 					{fieldError("coverImageUrl") ? <span className="field-error">{fieldError("coverImageUrl")}</span> : null}
 				</div>
 				<div className="field">
 					<label htmlFor="coverImageAlt">
-						Cover image alt text <span className="opt">optional</span>
+						Cover image alt text <span className="opt">recommended for accessibility</span>
 					</label>
 					<input id="coverImageAlt" name="coverImageAlt" type="text" defaultValue={article?.coverImageAlt ?? ""} />
 				</div>
 			</div>
 
+			{coverImageUrl ? (
+				<div className={styles.coverPreviewWrap}>
+					{/* eslint-disable-next-line @next/next/no-img-element -- editor-supplied URL on an unknown host */}
+					<img
+						src={coverImageUrl}
+						alt=""
+						className={styles.coverPreview}
+						onError={(e) => {
+							e.currentTarget.style.display = "none";
+						}}
+						onLoad={(e) => {
+							e.currentTarget.style.display = "block";
+						}}
+					/>
+				</div>
+			) : null}
+
 			<div className="field">
-				<label htmlFor="bodyJson">
-					Body <span className="opt">JSON array of content blocks</span>
-				</label>
-				<textarea
-					id="bodyJson"
-					name="bodyJson"
-					className={styles.bodyTextarea}
-					defaultValue={JSON.stringify(article?.body ?? [], null, 2)}
-					rows={16}
-					spellCheck={false}
-				/>
-				<p className={styles.hint}>
-					Each block is <code>{"{ type: \"paragraph\" | \"heading\" | \"image\" | \"code\" | \"callout\" | \"quote\" | \"list\", ... }"}</code>.
-					See <code>src/features/insights/types/blocks.ts</code> for the exact shape of each type. A visual block
-					editor is a good candidate for a later CMS iteration — this raw-JSON editor is Checkpoint 3&apos;s
-					deliberately minimal v1.
-				</p>
-				{fieldError("body") ? <span className="field-error">{fieldError("body")}</span> : null}
+				<label>Body</label>
+				<BlockEditor initialBlocks={article?.body ?? []} fieldError={fieldError("body")} />
 			</div>
 
 			<div className="field-row">
@@ -171,14 +194,42 @@ export function ArticleEditorForm({
 			</div>
 
 			<fieldset className={styles.seoFieldset}>
-				<legend>SEO overrides (optional)</legend>
+				<legend>Search appearance (optional)</legend>
+				<p className={styles.seoLede}>
+					Only for how this article looks in search results — it never changes the on-page title or intro. Leave
+					either field blank to use the article&apos;s own title/excerpt instead.
+				</p>
 				<div className="field">
-					<label htmlFor="seoTitle">Search title</label>
-					<input id="seoTitle" name="seoTitle" type="text" defaultValue={article?.seoTitle ?? ""} />
+					<label htmlFor="seoTitle">
+						Search title <span className="opt">optional — falls back to the article title</span>
+					</label>
+					<input
+						id="seoTitle"
+						name="seoTitle"
+						type="text"
+						value={seoTitle}
+						onChange={(e) => setSeoTitle(e.target.value)}
+						placeholder={title || "Untitled"}
+					/>
+					<span className={`${styles.charCount} ${seoTitle.length > 60 ? styles.charCountOver : ""}`}>
+						{seoTitle.length} / ~60 characters shown in search results
+					</span>
 				</div>
 				<div className="field">
-					<label htmlFor="seoDescription">Search description</label>
-					<textarea id="seoDescription" name="seoDescription" defaultValue={article?.seoDescription ?? ""} rows={2} />
+					<label htmlFor="seoDescription">
+						Search description <span className="opt">optional — falls back to the article excerpt</span>
+					</label>
+					<textarea
+						id="seoDescription"
+						name="seoDescription"
+						value={seoDescription}
+						onChange={(e) => setSeoDescription(e.target.value)}
+						placeholder={excerpt || "No excerpt written yet"}
+						rows={2}
+					/>
+					<span className={`${styles.charCount} ${seoDescription.length > 155 ? styles.charCountOver : ""}`}>
+						{seoDescription.length} / ~155 characters shown in search results
+					</span>
 				</div>
 			</fieldset>
 

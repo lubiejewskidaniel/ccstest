@@ -20,8 +20,8 @@ export default async function AiVisibilityPage() {
 				Asks the configured AI provider a representative question and checks whether it mentions the studio.
 				This is a proxy signal for one specific provider, not a measurement of Google AI Overviews, ChatGPT
 				search, or any other real-world AI product — treat a &quot;mentioned&quot; result as encouraging, not as
-				proof of visibility elsewhere. Uses the same AI provider and monthly budget as the Checkpoint 7
-				editorial pipeline.
+				proof of visibility elsewhere. Uses the same AI provider and monthly budget as the AI editorial
+				pipeline.
 			</p>
 
 			<AiVisibilityCheckForm />

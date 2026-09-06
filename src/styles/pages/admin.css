@@ -89,6 +89,20 @@
 	color: var(--ink-3);
 	font-weight: 500;
 }
+/* A table row's primary link (e.g. an article title that opens the
+   editor) previously had no interactive affordance beyond the cursor
+   change -- same color/weight as static text in an adjacent column, so
+   it didn't read as clickable. Resting appearance is unchanged
+   (var(--ink-1), 500 weight, matching every page's existing inline
+   style), this only adds the hover state that was missing. */
+.admin-table a {
+	color: var(--ink-1);
+	font-weight: 500;
+}
+.admin-table a:hover {
+	color: var(--spark);
+	text-decoration: underline;
+}
 .admin-empty {
 	padding: 48px 20px;
 	text-align: center;
@@ -103,11 +117,63 @@
 	align-items: center;
 	justify-content: center;
 	padding: 24px;
+	position: relative;
+	background: var(--void);
+	/* Static radial glow, not animated -- Checkpoint 1 explicitly asks to
+	   avoid unnecessary animation. Reuses the same signal/spark tokens as
+	   the public site's hero treatment so the admin entry point reads as
+	   "the same product" rather than a bare internal tool, without
+	   competing with the form for attention. */
+	background-image: radial-gradient(
+		600px circle at 50% -10%,
+		color-mix(in srgb, var(--signal) 16%, transparent),
+		transparent 60%
+	);
 }
 .admin-login .card {
+	position: relative;
 	width: 100%;
-	max-width: 380px;
-	padding: 32px;
+	max-width: 400px;
+	padding: 36px 32px 32px;
+}
+.admin-login .card:hover {
+	/* .card's shared hover state (lift + border glow) is meant for
+	   clickable grid items -- this container is a static form shell, so
+	   the lift is switched off rather than duplicating .card's other
+	   rules into a new class name. */
+	transform: none;
+	border-color: var(--line);
+	background: var(--surface);
+	box-shadow: none;
+}
+.admin-login-brand {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 22px;
+}
+.admin-login-header {
+	margin-bottom: 26px;
+}
+.admin-login-header h1 {
+	font-size: 1.5rem;
+	font-weight: 600;
+	margin-top: 10px;
+}
+.admin-login-lede {
+	margin-top: 8px;
+	font-size: 13px;
+	color: var(--ink-3);
+	line-height: 1.5;
+}
+.admin-login-back {
+	display: inline-block;
+	margin-top: 22px;
+	font-size: 12.5px;
+	color: var(--ink-3);
+}
+.admin-login-back:hover {
+	color: var(--spark);
 }
 
 /* BUGFIX: the admin overview's stat-card grid had an inline

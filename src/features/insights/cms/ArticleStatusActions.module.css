@@ -21,31 +21,43 @@
 	color: var(--ink-3);
 }
 
-.badge {
-	font-family: var(--font-mono);
-	font-size: 11.5px;
-	padding: 4px 10px;
-	border-radius: 999px;
-	border: 1px solid var(--line-strong);
+.previewLink {
+	margin-left: auto;
+	font-size: 12.5px;
 	color: var(--ink-2);
 }
-
-.badge[data-status="published"] {
-	color: var(--go);
-	border-color: color-mix(in srgb, var(--go) 45%, var(--line-strong));
-}
-.badge[data-status="scheduled"] {
-	color: var(--rate);
-	border-color: color-mix(in srgb, var(--rate) 45%, var(--line-strong));
-}
-.badge[data-status="archived"] {
-	color: var(--ink-3);
+.previewLink:hover {
+	color: var(--spark);
 }
 
 .error {
 	font-size: 12.5px;
 	color: #ff6b6b;
 	margin: 0 0 12px;
+}
+
+.confirmBox {
+	background: var(--surface-2);
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-sm);
+	padding: 16px;
+	margin-bottom: 4px;
+}
+.confirmBox p {
+	margin: 0 0 14px;
+	font-size: 13.5px;
+	color: var(--ink-1);
+	line-height: 1.6;
+}
+.confirmBox strong {
+	font-family: var(--font-mono);
+	font-size: 13px;
+	color: var(--spark);
+}
+
+.confirmActions {
+	display: flex;
+	gap: 10px;
 }
 
 .actions {
@@ -78,4 +90,27 @@
 	outline: none;
 	border-color: var(--spark);
 	box-shadow: 0 0 0 3px rgba(10, 169, 255, 0.16);
+}
+
+.dangerRow {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px;
+	margin-top: 18px;
+	padding-top: 16px;
+	border-top: 1px solid var(--line);
+}
+
+.dangerLabel {
+	font-size: 12.5px;
+	color: var(--ink-2);
+}
+
+.deleteTrigger {
+	font-size: 12.5px;
+	color: #ff6b6b;
+}
+.deleteTrigger:hover {
+	text-decoration: underline;
 }

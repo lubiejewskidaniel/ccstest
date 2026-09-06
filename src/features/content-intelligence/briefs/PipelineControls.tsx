@@ -21,9 +21,21 @@ const STAGE_ORDER: { key: string; label: string; run: (id: string) => Promise<St
 /** Which stage buttons make sense to show for the brief's current
  * status — not a hard lock (an editor can re-run an earlier stage after
  * a failure), just a sensible default ordering so the UI doesn't show
- * six buttons at once for a freshly created brief. */
-function relevantStageKeys(status: BriefStatus): string[] {
-	if (status === "draft" || status === "failed") return ["research", "generation"];
+ * six buttons at once for a freshly created brief.
+ *
+ * `status === "failed"` can come from research, generation, OR
+ * localisation throwing — the status column alone can't tell which.
+ * Inferring it from what data already exists on the brief (rather than
+ * always resetting to "research") is what makes a failed localisation
+ * retryable without wastefully (and confusingly) re-running generation
+ * or research that already succeeded. */
+function relevantStageKeys(status: BriefStatus, hasResearch: boolean, hasGenerated: boolean): string[] {
+	if (status === "draft") return ["research", "generation"];
+	if (status === "failed") {
+		if (hasGenerated) return ["localisation", "generation", "quality"];
+		if (hasResearch) return ["generation", "research"];
+		return ["research"];
+	}
 	if (status === "researching" || status === "researched") return ["research", "generation"];
 	if (status === "generating" || status === "generated") return ["generation", "localisation", "quality"];
 	if (status === "localising" || status === "localised") return ["localisation", "quality"];
@@ -31,12 +43,22 @@ function relevantStageKeys(status: BriefStatus): string[] {
 	return ["research", "generation", "localisation", "quality"];
 }
 
-export function PipelineControls({ briefId, status }: { briefId: string; status: BriefStatus }) {
+export function PipelineControls({
+	briefId,
+	status,
+	hasResearch,
+	hasGenerated,
+}: {
+	briefId: string;
+	status: BriefStatus;
+	hasResearch: boolean;
+	hasGenerated: boolean;
+}) {
 	const [message, setMessage] = useState<string | null>(null);
 	const [pending, startTransition] = useTransition();
 	const router = useRouter();
 
-	const visibleStages = STAGE_ORDER.filter((stage) => relevantStageKeys(status).includes(stage.key));
+	const visibleStages = STAGE_ORDER.filter((stage) => relevantStageKeys(status, hasResearch, hasGenerated).includes(stage.key));
 	const canPromote = status === "quality_passed";
 
 	function run(stage: { label: string; run: (id: string) => Promise<StageResult> }) {

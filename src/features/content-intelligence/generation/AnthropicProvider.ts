@@ -20,6 +20,7 @@ const API_VERSION = "2023-06-01";
 type AnthropicResponse = {
 	content?: { type: string; text?: string }[];
 	usage?: { input_tokens?: number; output_tokens?: number };
+	stop_reason?: string;
 	error?: { message?: string };
 };
 
@@ -72,6 +73,7 @@ export function createAnthropicProvider(): ContentAiProvider {
 				text,
 				inputTokens: data.usage?.input_tokens ?? 0,
 				outputTokens: data.usage?.output_tokens ?? 0,
+				stopReason: data.stop_reason,
 			};
 		},
 	};

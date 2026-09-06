@@ -1,0 +1,134 @@
+.root {
+	position: relative;
+	display: inline-block;
+}
+
+.trigger {
+	width: 30px;
+	height: 30px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 8px;
+	border: 1px solid var(--line-strong);
+	background: var(--surface-2);
+	color: var(--ink-2);
+	font-size: 16px;
+	line-height: 1;
+}
+.trigger:hover {
+	border-color: var(--spark);
+	color: var(--spark);
+}
+
+.menu {
+	/* position/top/right are now set inline per-instance (fixed, computed
+	   from the trigger button's own bounding rect) since the menu renders
+	   through a portal into document.body — see ArticleRowActions.tsx for
+	   why (the table's horizontal-scroll wrapper clips absolutely
+	   positioned children, including vertically). */
+	z-index: 200;
+	min-width: 180px;
+	background: var(--surface);
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-sm);
+	box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.65);
+	padding: 6px;
+	display: flex;
+	flex-direction: column;
+}
+
+.item {
+	display: block;
+	width: 100%;
+	text-align: left;
+	padding: 8px 10px;
+	border-radius: 7px;
+	font-size: 13px;
+	color: var(--ink-1);
+	background: transparent;
+}
+.item:hover {
+	background: var(--surface-2);
+}
+.item:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.itemDanger {
+	display: block;
+	width: 100%;
+	text-align: left;
+	padding: 8px 10px;
+	border-radius: 7px;
+	font-size: 13px;
+	color: #ff6b6b;
+	background: transparent;
+}
+.itemDanger:hover {
+	background: rgba(255, 107, 107, 0.1);
+}
+
+.divider {
+	height: 1px;
+	background: var(--line);
+	margin: 6px 2px;
+}
+
+.confirmRow {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 8px 10px;
+	font-size: 12.5px;
+	color: var(--ink-2);
+}
+.confirmYes {
+	padding: 6px 10px;
+	border-radius: 7px;
+	background: rgba(255, 107, 107, 0.14);
+	color: #ff6b6b;
+	font-size: 12.5px;
+	text-align: left;
+}
+.confirmYes:hover {
+	background: rgba(255, 107, 107, 0.22);
+}
+.confirmYes:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+.confirmYesNeutral {
+	padding: 6px 10px;
+	border-radius: 7px;
+	background: color-mix(in srgb, var(--spark) 16%, transparent);
+	color: var(--spark);
+	font-size: 12.5px;
+	text-align: left;
+}
+.confirmYesNeutral:hover {
+	background: color-mix(in srgb, var(--spark) 26%, transparent);
+}
+.confirmYesNeutral:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+.confirmNo {
+	padding: 6px 10px;
+	border-radius: 7px;
+	color: var(--ink-3);
+	font-size: 12.5px;
+	text-align: left;
+}
+.confirmNo:hover {
+	background: var(--surface-2);
+	color: var(--ink-1);
+}
+
+.error {
+	margin: 6px 2px 0;
+	padding: 6px 8px;
+	font-size: 11.5px;
+	color: #ff6b6b;
+}

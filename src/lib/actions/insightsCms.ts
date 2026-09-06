@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { createArticle, updateArticle, transitionArticleStatus } from "@/features/insights/cms/service";
+import { createArticle, updateArticle, transitionArticleStatus, deleteArticle } from "@/features/insights/cms/service";
 import { routes } from "@/lib/routes";
 import { articlePath } from "@/features/insights/seo/paths";
 
@@ -113,6 +113,14 @@ export async function setArticleStatusAction(
 	scheduledAt?: string,
 ) {
 	const result = await transitionArticleStatus({ id: args.id, status, scheduledAt });
+	if (result.ok) revalidateInsightsSurfaces(args.locale, args.slug);
+	return result;
+}
+
+/** Admin-only hard delete, bound the same way as `setArticleStatusAction`.
+ * Also revalidates the Insights hub in case the deleted article was live. */
+export async function deleteArticleAction(args: { id: string; locale: "en" | "pl"; slug: string }) {
+	const result = await deleteArticle(args.id);
 	if (result.ok) revalidateInsightsSurfaces(args.locale, args.slug);
 	return result;
 }

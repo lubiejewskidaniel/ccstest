@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getArticleForAdmin } from "@/features/insights/cms/queries";
+import { getArticleForAdmin, listArticlesForAdmin } from "@/features/insights/cms/queries";
 import { listCategories, listTags } from "@/features/insights/data/queries";
+import { getAdminSession } from "@/lib/supabase/adminAuth";
 import { ArticleEditorForm } from "@/features/insights/cms/ArticleEditorForm";
 import { ArticleStatusActions } from "@/features/insights/cms/ArticleStatusActions";
 import { updateArticleAction } from "@/lib/actions/insightsCms";
@@ -12,10 +13,15 @@ export const metadata: Metadata = { title: "Edit article" };
 
 export default async function EditArticlePage({ params }: { params: Promise<Params> }) {
 	const { id } = await params;
-	const article = await getArticleForAdmin(id);
+	const [article, session] = await Promise.all([getArticleForAdmin(id), getAdminSession()]);
 	if (!article) notFound();
 
-	const [categories, tags] = await Promise.all([listCategories(article.locale), listTags(article.locale)]);
+	const [categories, tags, allArticles] = await Promise.all([
+		listCategories(article.locale),
+		listTags(article.locale),
+		listArticlesForAdmin(),
+	]);
+	const translationCandidates = allArticles.map((a) => ({ id: a.id, title: a.title, slug: a.slug, locale: a.locale }));
 	const boundUpdateAction = updateArticleAction.bind(null, id);
 
 	return (
@@ -25,12 +31,16 @@ export default async function EditArticlePage({ params }: { params: Promise<Para
 				/{article.locale}/{article.slug}
 			</p>
 
-			<ArticleStatusActions article={article} locale={article.locale} />
+			<ArticleStatusActions article={article} locale={article.locale} isAdmin={session?.isAdmin ?? false} />
 
+			<p style={{ fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--ink-3)", marginBottom: 12 }}>
+				Content
+			</p>
 			<ArticleEditorForm
 				mode={{ kind: "edit", article, action: boundUpdateAction }}
 				categories={categories}
 				tags={tags}
+				translationCandidates={translationCandidates}
 			/>
 		</div>
 	);

@@ -55,7 +55,12 @@ export default async function BriefDetailPage({ params }: { params: Promise<Para
 				Primary language: {brief.primaryLocale.toUpperCase()} · Status: {brief.status.replace(/_/g, " ")}
 			</p>
 
-			<PipelineControls briefId={brief.id} status={brief.status} />
+			<PipelineControls
+				briefId={brief.id}
+				status={brief.status}
+				hasResearch={Boolean(brief.researchNotes)}
+				hasGenerated={Boolean(brief.generated)}
+			/>
 
 			{brief.errorMessage ? (
 				<div style={{ background: "rgba(255,107,107,0.1)", border: "1px solid rgba(255,107,107,0.35)", color: "#ff6b6b", borderRadius: "var(--radius-sm)", padding: "12px 16px", fontSize: 13, marginBottom: 24 }}>

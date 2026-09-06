@@ -44,7 +44,7 @@ export default async function AdminOverviewPage() {
       {projectCount === null && (
         <p style={{ marginTop: 24, fontSize: 13, color: "var(--ink-3)" }}>
           Supabase isn&apos;t configured in this environment, so counts can&apos;t be loaded. This is expected in
-          local/dev without production credentials (doc 11 §3 &quot;safe development fallback&quot;).
+          local/dev without production credentials.
         </p>
       )}
     </div>

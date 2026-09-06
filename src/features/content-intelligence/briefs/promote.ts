@@ -1,6 +1,7 @@
 import { getAdminSession } from "@/lib/supabase/adminAuth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createArticle } from "@/features/insights/cms/service";
+import type { CmsResult } from "@/features/insights/cms/service";
 import { getBrief, updateBriefRow } from "./service";
 import type { StageResult, GeneratedDraft } from "../types/contentAi";
 import type { Locale } from "@/lib/routes";
@@ -18,6 +19,20 @@ function estimateReadingMinutes(draft: GeneratedDraft): number {
 		return total;
 	}, 0);
 	return Math.max(1, Math.round(words / WORDS_PER_MINUTE));
+}
+
+/** Turns a failed `createArticle()` result into a message that names the
+ * actual invalid field for a validation failure, instead of just Zod's
+ * generic per-field text (e.g. a union mismatch's default message is
+ * literally "Invalid input" with no indication of which field or why —
+ * this is what made the original promotion bug so hard to diagnose from
+ * the UI alone). */
+function formatCreateArticleError(result: Extract<CmsResult, { ok: false }>): string {
+	if (result.kind === "validation") {
+		const [field, message] = Object.entries(result.fieldErrors)[0] ?? ["field", "Invalid input"];
+		return `${field}: ${message}`;
+	}
+	return result.message;
 }
 
 /**
@@ -49,40 +64,64 @@ export async function promoteToArticles(briefId: string): Promise<StageResult> {
 		return { ok: false, kind: "validation", message: "No generated draft to promote." };
 	}
 
-	const primaryResult = await createArticle({
-		locale: brief.primaryLocale,
-		slug: brief.generated.slug,
-		translationOf: null,
-		categoryId: brief.categoryId,
-		tagIds: [],
-		title: brief.generated.title,
-		excerpt: brief.generated.excerpt,
-		coverImageUrl: "",
-		coverImageAlt: "",
-		body: brief.generated.body,
-		readingMinutes: estimateReadingMinutes(brief.generated),
-		authorName: AI_AUTHOR_NAME,
-		status: "in_review",
-		scheduledAt: "",
-		seoTitle: "",
-		seoDescription: "",
-		featured: false,
-		source: "ai_generated",
-	});
+	// Retry safety: if a previous attempt already created the primary
+	// article (e.g. the localized half failed afterwards, or a prior bug
+	// caused a failure after this row existed), reuse that id instead of
+	// creating a second one. `brief.primaryArticleId` is read fresh from
+	// the database on every call via getBrief() above, so this reflects
+	// reality even across separate promotion attempts.
+	let primaryArticleId = brief.primaryArticleId;
 
-	if (!primaryResult.ok) {
-		const message = primaryResult.kind === "validation" ? Object.values(primaryResult.fieldErrors)[0] : primaryResult.message;
-		await updateBriefRow(briefId, { status: "failed", error_message: `Promoting primary-locale article failed: ${message}` });
-		return { ok: false, kind: "persistence", message: message ?? "Unknown error." };
+	if (!primaryArticleId) {
+		const primaryResult = await createArticle({
+			locale: brief.primaryLocale,
+			slug: brief.generated.slug,
+			// "" (not null) - matches what the CMS form itself would send
+			// for "no linked translation yet" (TranslationPicker's hidden
+			// input defaults to ""). articleInputSchema's translationOf is
+			// `z.union([uuidSchema, z.literal("")]).optional()`, which never
+			// accepts `null` - passing null here was the original bug:
+			// Zod's union validation rejected it with its generic
+			// "Invalid input" message, unrelated to any real field content.
+			translationOf: "",
+			categoryId: brief.categoryId,
+			tagIds: [],
+			title: brief.generated.title,
+			excerpt: brief.generated.excerpt,
+			coverImageUrl: "",
+			coverImageAlt: "",
+			body: brief.generated.body,
+			readingMinutes: estimateReadingMinutes(brief.generated),
+			authorName: AI_AUTHOR_NAME,
+			status: "in_review",
+			scheduledAt: "",
+			seoTitle: "",
+			seoDescription: "",
+			featured: false,
+			source: "ai_generated",
+		});
+
+		if (!primaryResult.ok) {
+			const message = formatCreateArticleError(primaryResult);
+			await updateBriefRow(briefId, { status: "failed", error_message: `Promoting primary-locale article failed: ${message}` });
+			return { ok: false, kind: "persistence", message };
+		}
+
+		primaryArticleId = primaryResult.id;
+		// Persisted immediately (not deferred to the final update at the
+		// bottom of this function) so that if the localized half fails
+		// next, the brief already remembers this id and a retry won't
+		// recreate it.
+		await updateBriefRow(briefId, { primary_article_id: primaryArticleId });
 	}
 
-	let localizedArticleId: string | null = null;
+	let localizedArticleId: string | null = brief.localizedArticleId;
 
-	if (brief.localized && brief.localizedLocale) {
+	if (brief.localized && brief.localizedLocale && !localizedArticleId) {
 		const localizedResult = await createArticle({
 			locale: brief.localizedLocale as Locale,
 			slug: brief.localized.slug,
-			translationOf: primaryResult.id,
+			translationOf: primaryArticleId,
 			categoryId: brief.categoryId,
 			tagIds: [],
 			title: brief.localized.title,
@@ -101,19 +140,18 @@ export async function promoteToArticles(briefId: string): Promise<StageResult> {
 		});
 
 		if (!localizedResult.ok) {
-			// The primary article already exists and is a perfectly valid
-			// in_review draft on its own - a failed localisation write
-			// doesn't roll that back, it just means this brief needs a
-			// retry on the localized half (the brief keeps
-			// primary_article_id set below, so it's clear one half
-			// succeeded).
-			const message = localizedResult.kind === "validation" ? Object.values(localizedResult.fieldErrors)[0] : localizedResult.message;
+			// The primary article already exists (and is already persisted
+			// on the brief above) and is a perfectly valid in_review draft
+			// on its own - a failed localized write doesn't roll that back,
+			// it just means a retry needs to (and, per the check above,
+			// will) skip straight to re-attempting the localized half.
+			const message = formatCreateArticleError(localizedResult);
 			await updateBriefRow(briefId, {
 				status: "failed",
-				primary_article_id: primaryResult.id,
+				primary_article_id: primaryArticleId,
 				error_message: `Primary article created, but promoting the localized article failed: ${message}`,
 			});
-			return { ok: false, kind: "persistence", message: message ?? "Unknown error." };
+			return { ok: false, kind: "persistence", message };
 		}
 
 		localizedArticleId = localizedResult.id;
@@ -121,7 +159,7 @@ export async function promoteToArticles(briefId: string): Promise<StageResult> {
 
 	await updateBriefRow(briefId, {
 		status: "promoted",
-		primary_article_id: primaryResult.id,
+		primary_article_id: primaryArticleId,
 		localized_article_id: localizedArticleId,
 		error_message: null,
 	});
@@ -144,7 +182,7 @@ export async function promoteToArticles(briefId: string): Promise<StageResult> {
 			if (opportunity && opportunity.score_at_promotion === null) {
 				await supabase
 					.from("content_opportunities")
-					.update({ resulting_article_id: primaryResult.id, score_at_promotion: opportunity.opportunity_score })
+					.update({ resulting_article_id: primaryArticleId, score_at_promotion: opportunity.opportunity_score })
 					.eq("id", brief.opportunityId);
 			}
 		}

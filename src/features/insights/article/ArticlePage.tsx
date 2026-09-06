@@ -28,18 +28,29 @@ export function ArticlePage({
 	article,
 	locale,
 	alternateHref,
+	trackAnalytics = true,
 }: {
 	article: Article;
 	locale: Locale;
 	alternateHref: string | null;
+	/** Set to false when rendering outside the real public route (the
+	 * admin preview at /admin/insights/[id]/preview) so a draft an
+	 * editor is checking doesn't count as a real page view or generate
+	 * read-progress events. Defaults to true so every existing caller
+	 * (the actual public article route) is unaffected. */
+	trackAnalytics?: boolean;
 }) {
 	const headings = extractHeadings(article.body);
 	const cta = CTA_COPY[locale];
 
 	return (
 		<main className={styles.page}>
-			<ArticleViewTracker slug={article.slug} category={article.category.key} />
-			<ReadProgressTracker slug={article.slug} />
+			{trackAnalytics ? (
+				<>
+					<ArticleViewTracker slug={article.slug} category={article.category.key} />
+					<ReadProgressTracker slug={article.slug} />
+				</>
+			) : null}
 			<ArticleHero article={article} locale={locale} alternateHref={alternateHref} />
 
 			<div className={styles.body}>

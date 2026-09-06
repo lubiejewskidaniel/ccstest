@@ -1,20 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { listArticlesForAdmin } from "@/features/insights/cms/queries";
-import type { ArticleStatus } from "@/features/insights/types/article";
+import { getAdminSession } from "@/lib/supabase/adminAuth";
+import { StatusBadge } from "@/features/insights/cms/StatusBadge";
+import { ArticleRowActions } from "@/features/insights/cms/ArticleRowActions";
 
 export const metadata: Metadata = { title: "Insights" };
 
-const STATUS_LABEL: Record<ArticleStatus, string> = {
-	draft: "Draft",
-	in_review: "In review",
-	scheduled: "Scheduled",
-	published: "Published",
-	archived: "Archived",
-};
-
 export default async function AdminInsightsListPage() {
-	const articles = await listArticlesForAdmin();
+	const [articles, session] = await Promise.all([listArticlesForAdmin(), getAdminSession()]);
+	const isAdmin = session?.isAdmin ?? false;
 
 	return (
 		<div>
@@ -57,20 +52,30 @@ export default async function AdminInsightsListPage() {
 								<th>Category</th>
 								<th>Status</th>
 								<th>Updated</th>
+								<th style={{ textAlign: "right" }}>Actions</th>
 							</tr>
 						</thead>
 						<tbody>
 							{articles.map((article) => (
 								<tr key={article.id}>
 									<td>
-										<Link href={`/admin/insights/${article.id}/edit`} style={{ color: "var(--ink-1)", fontWeight: 500 }}>
-											{article.title}
-										</Link>
+										<Link href={`/admin/insights/${article.id}/edit`}>{article.title}</Link>
 									</td>
 									<td>{article.locale.toUpperCase()}</td>
 									<td>{article.category.name}</td>
-									<td>{STATUS_LABEL[article.status]}</td>
+									<td>
+										<StatusBadge status={article.status} />
+									</td>
 									<td>{new Date(article.updatedAt).toLocaleDateString()}</td>
+									<td style={{ textAlign: "right" }}>
+										<ArticleRowActions
+											id={article.id}
+											locale={article.locale}
+											slug={article.slug}
+											status={article.status}
+											isAdmin={isAdmin}
+										/>
+									</td>
 								</tr>
 							))}
 						</tbody>

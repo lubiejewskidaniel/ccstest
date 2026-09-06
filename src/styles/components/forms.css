@@ -123,6 +123,11 @@
 	color: var(--ink-3);
 	font-size: 11.5px;
 }
+.field label .req {
+	font-weight: 600;
+	color: #ff6b6b;
+	font-size: 11.5px;
+}
 .field input[type="text"],
 .field input[type="email"],
 .field select,

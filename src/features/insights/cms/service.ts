@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabasePrivilegedClient } from "@/lib/supabase/privileged";
 import { getAdminSession } from "@/lib/supabase/adminAuth";
 import { articleInputSchema, statusTransitionSchema, type ArticleInput } from "./schema";
 
@@ -156,6 +157,32 @@ export async function transitionArticleStatus(raw: unknown): Promise<CmsResult> 
 
 	const { error } = await supabase.from("insights_articles").update(patch).eq("id", id);
 	if (error) return { ok: false, kind: "persistence", message: describeWriteError(error.message) };
+
+	return { ok: true, id };
+}
+
+/**
+ * Hard delete — admin-only, not editor. `insights_articles` has no RLS
+ * delete policy for the ordinary session-aware client at all (by
+ * design: archiving is how content is normally retired), so this goes
+ * through the service-role client instead, the same pattern already
+ * used for the cron scheduler's writes
+ * (`src/features/insights/publishing/scheduler.ts`) — not a new
+ * privilege boundary, just the one path this app already uses whenever
+ * an action needs to bypass RLS outright. Related rows (tag links,
+ * brief/opportunity back-references) are already `on delete cascade`/
+ * `on delete set null` at the schema level, so no manual cleanup is
+ * needed here.
+ */
+export async function deleteArticle(id: string): Promise<CmsResult> {
+	const session = await getAdminSession();
+	if (!session?.isAdmin) return { ok: false, kind: "auth", message: "Only an admin can permanently delete an article." };
+
+	const supabase = createSupabasePrivilegedClient();
+	if (!supabase) return { ok: false, kind: "persistence", message: "Supabase isn't configured in this environment." };
+
+	const { error } = await supabase.from("insights_articles").delete().eq("id", id);
+	if (error) return { ok: false, kind: "persistence", message: "We couldn't delete this article. Please try again." };
 
 	return { ok: true, id };
 }

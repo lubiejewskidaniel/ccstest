@@ -2,7 +2,7 @@ import { getAdminSession } from "@/lib/supabase/adminAuth";
 import { getBrief, updateBriefRow } from "../briefs/service";
 import { createAnthropicProvider } from "../generation/AnthropicProvider";
 import { checkBudget, logUsage } from "../generation/costGuard";
-import { slugify } from "../generation/slugify";
+import { slugify } from "@/lib/slugify";
 import { articleBodySchema } from "@/features/insights/types/blocks";
 import type { Locale } from "@/lib/routes";
 import type { StageResult } from "../types/contentAi";
@@ -62,7 +62,16 @@ export async function runLocalisation(briefId: string): Promise<StageResult> {
 		const result = await provider.complete({
 			system: SYSTEM_PROMPT,
 			prompt: buildPrompt(LOCALE_NAME[targetLocale], brief.generated.title, brief.generated.excerpt, brief.generated.body),
-			maxTokens: 3500,
+			// Translating a full body echoes back the whole block structure
+			// (not just the human-readable text), and translated text is
+			// often longer than the English source (Polish especially) — a
+			// full ~20-block article can exceed generation's own 3000-token
+			// request. This is a per-call increase, not a change to the
+			// shared DEFAULT_MAX_OUTPUT_TOKENS in AnthropicProvider.ts, so
+			// research/generation/ai-visibility are unaffected. Still capped
+			// by CONTENT_AI_MAX_OUTPUT_TOKENS if that env var is set lower
+			// than this — raise it if localisation keeps truncating.
+			maxTokens: 6000,
 		});
 
 		await logUsage({
@@ -74,10 +83,22 @@ export async function runLocalisation(briefId: string): Promise<StageResult> {
 			outputTokens: result.outputTokens,
 		});
 
+		if (result.stopReason === "max_tokens") {
+			throw new Error(
+				"Translation response was cut off before completing (hit the output token limit) — the article is likely too long for the current CONTENT_AI_MAX_OUTPUT_TOKENS setting. Raise it and retry; research and the English draft are unaffected.",
+			);
+		}
+
 		let parsed: unknown;
 		try {
-			const cleaned = result.text.trim().replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
-			parsed = JSON.parse(cleaned);
+			// Tolerates the model wrapping its JSON in a ```/```json code
+			// fence despite being told not to — matches the same
+			// full-string fenced-block pattern generation already handles
+			// (extract the inner content when the ENTIRE trimmed response is
+			// one fenced block; otherwise fall back to parsing it as-is).
+			const trimmed = result.text.trim();
+			const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/.exec(trimmed);
+			parsed = JSON.parse(fenced?.[1] ?? trimmed);
 		} catch {
 			throw new Error("Translation response was not valid JSON.");
 		}

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { slugify } from "@/lib/slugify";
 
 /**
  * Structured content block schema (docs/INSIGHTS_ARCHITECTURE.md §4 —
@@ -99,4 +100,53 @@ export function parseArticleBody(raw: unknown): ContentBlock[] {
  * can never drift apart. */
 export function extractHeadings(blocks: ContentBlock[]): HeadingBlock[] {
   return blocks.filter((block): block is HeadingBlock => block.type === "heading");
+}
+
+/**
+ * Assigns a stable, unique anchor id to every heading block from its
+ * text — the one rule both authoring paths (the AI editorial pipeline
+ * and the human visual block editor) must follow identically, so it
+ * lives here rather than being reimplemented by each caller:
+ *
+ * - The id is derived from the heading's current text via `slugify()`.
+ * - Collisions within the same article get a numeric suffix (`-1`,
+ *   `-2`, ...) rather than silently overwriting an earlier heading's id.
+ * - Non-heading blocks pass through unchanged.
+ *
+ * Callers that need "don't overwrite a manually-stabilised id" (the
+ * visual editor, where an id already exists and shouldn't drift every
+ * time the editor tweaks the wording) should only call this for a
+ * heading that doesn't have an id yet — see `BlockEditor.tsx`'s
+ * `addBlock`, which only ever creates a heading without one.
+ */
+export function assignHeadingIds(blocks: ContentBlock[]): ContentBlock[] {
+  const seen = new Map<string, number>();
+  return blocks.map((block) => {
+    if (block.type !== "heading") return block;
+    const base = slugify(block.text) || "section";
+    const count = seen.get(base) ?? 0;
+    seen.set(base, count + 1);
+    const id = count === 0 ? base : `${base}-${count}`;
+    return { ...block, id };
+  });
+}
+
+/**
+ * Generates one new, unique heading id for a single freshly-created
+ * heading block — used by the visual block editor when a heading is
+ * added, so an existing heading's id is never touched by this call (it
+ * only ever looks at `existingIds` to avoid a collision, never mutates
+ * another block). This is the piece that actually satisfies "do not
+ * continuously overwrite a manually stabilised id on every edit" for a
+ * long-lived editing session: `assignHeadingIds()` above recomputes
+ * every heading's id from scratch (right for a one-shot AI generation
+ * pass), this recomputes exactly one.
+ */
+export function generateUniqueHeadingId(text: string, existingIds: Iterable<string>): string {
+  const taken = new Set(existingIds);
+  const base = slugify(text) || "section";
+  if (!taken.has(base)) return base;
+  let n = 1;
+  while (taken.has(`${base}-${n}`)) n++;
+  return `${base}-${n}`;
 }

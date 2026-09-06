@@ -18,6 +18,7 @@
 	white-space: nowrap;
 
 	overflow: hidden;
+
 	isolation: isolate;
 
 	transition:
@@ -27,6 +28,24 @@
 		box-shadow 260ms var(--ease),
 		color 220ms var(--ease);
 }
+
+/* No .btn:disabled rule existed anywhere in this file -- every button
+   here is custom-styled (gradients/backgrounds), so the browser's
+   native disabled look never actually showed through. Needed for
+   Checkpoint 1's "button states" requirement (the login submit button
+   during sign-in) but scoped to the shared .btn class, since every
+   pending/loading button in the app (leads forms, CMS editor, admin
+   status actions) has the same gap. */
+.btn:disabled {
+	cursor: not-allowed;
+	opacity: 0.55;
+	transform: none !important;
+}
+.btn:disabled::after,
+.btn:disabled .spark-ripple {
+	display: none;
+}
+
 
 .btn > * {
 	position: relative;

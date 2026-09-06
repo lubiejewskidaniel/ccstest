@@ -17,7 +17,7 @@ export default async function ConversionsPage() {
 			</div>
 			<p style={{ color: "var(--ink-3)", fontSize: 13, marginBottom: 28 }}>
 				Leads (last 90 days) whose first-touch landing page was an Insights article — traffic alone doesn&apos;t
-				determine success (Decision 12), this is the conversion half. Admin-only: lead data spans all three
+				determine success on its own, this is the conversion half. Admin-only: lead data spans all three
 				business lines, same boundary as <code>/admin/leads</code>.
 			</p>
 

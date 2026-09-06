@@ -22,7 +22,7 @@ export default async function OpportunitiesPage() {
 			<p style={{ color: "var(--ink-3)", fontSize: 13, marginBottom: 20 }}>
 				Search queries with unrealized potential — high demand relative to current position, scored by{" "}
 				<code>scoreOpportunity()</code>. Not traffic alone: a query already ranking well or getting clicks in line with
-				its position won&apos;t surface highly here (Decision 12 — success isn&apos;t traffic alone).
+				its position won&apos;t surface highly here.
 			</p>
 
 			{!configured ? (

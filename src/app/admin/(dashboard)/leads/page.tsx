@@ -39,8 +39,7 @@ export default async function AdminLeadsPage() {
 				Leads
 			</h1>
 			<p style={{ color: "var(--ink-3)", fontSize: 13, marginBottom: 28 }}>
-				Most recent 15 per table. Full filtering, status and assignment are
-				Phase 2 (doc 15 §2).
+				Most recent 15 per table. Full filtering, status and assignment are coming in a future update.
 			</p>
 
 			<Section

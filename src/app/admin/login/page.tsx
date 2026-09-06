@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { AdminLoginForm } from "@/features/admin/AdminLoginForm";
+import { routes } from "@/lib/routes";
 
 export const metadata: Metadata = {
   title: "Admin sign-in",
@@ -10,11 +12,18 @@ export default function AdminLoginPage() {
   return (
     <div className="admin-login">
       <div className="card">
-        <div style={{ marginBottom: 24 }}>
+        <div className="admin-login-brand">
+          <span className="brand-mark">CC</span>
           <span className="eyebrow">CCS Admin</span>
-          <h1 style={{ fontSize: "1.5rem", fontWeight: 600, marginTop: 10 }}>Sign in</h1>
+        </div>
+        <div className="admin-login-header">
+          <h1>Sign in</h1>
+          <p className="admin-login-lede">Manage Insights, leads and publishing.</p>
         </div>
         <AdminLoginForm />
+        <Link href={routes.home.en} className="admin-login-back">
+          ← Back to codeconsultingstudio.com
+        </Link>
       </div>
     </div>
   );

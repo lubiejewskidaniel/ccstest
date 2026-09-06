@@ -1,0 +1,40 @@
+.banner {
+	position: sticky;
+	top: 0;
+	z-index: 100;
+	background: var(--surface);
+	border-bottom: 1px solid var(--line-strong);
+}
+
+.inner {
+	max-width: var(--edge);
+	margin: 0 auto;
+	padding: 12px var(--pad);
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 12px;
+}
+
+.label {
+	font-family: var(--font-mono);
+	font-size: 11px;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--spark);
+	font-weight: 600;
+}
+
+.note {
+	font-size: 12.5px;
+	color: var(--ink-3);
+}
+
+.back {
+	margin-left: auto;
+	font-size: 12.5px;
+	color: var(--ink-2);
+}
+.back:hover {
+	color: var(--spark);
+}
