@@ -3,8 +3,7 @@ import { revalidatePath } from "next/cache";
 import { publishDueScheduledArticles } from "@/features/insights/publishing/scheduler";
 import { pingIndexNow } from "@/features/insights/seo/indexNow";
 import { routes } from "@/lib/routes";
-import { articlePath } from "@/features/insights/seo/paths";
-import { siteUrl } from "@/lib/seo/metadata";
+import { articlePath, articleUrl } from "@/features/insights/seo/paths";
 
 /**
  * Insights Checkpoint 8 (Automation) — the scheduler. Triggered by an
@@ -42,7 +41,7 @@ export async function GET(request: NextRequest) {
 		revalidatePath("/sitemap.xml");
 		for (const item of published) revalidatePath(articlePath(item.slug, item.locale));
 
-		await pingIndexNow(published.map((item) => new URL(articlePath(item.slug, item.locale), siteUrl).toString()));
+		await pingIndexNow(published.map((item) => articleUrl(item.slug, item.locale)));
 	}
 
 	return NextResponse.json({ status: "ok", publishedCount: published.length, published });

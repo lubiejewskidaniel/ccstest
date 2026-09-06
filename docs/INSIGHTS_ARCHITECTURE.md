@@ -385,6 +385,25 @@ preserves maintainability/correctness/... and document the deviation").
   reference EN/PL (§9 item — no change here; still correct that guessing
   a pairing at the sitemap level without checking `translation_of` would
   risk pointing at a URL that doesn't exist).
+- **IndexNow fires from three places, all inside
+  `src/features/insights/cms/service.ts` / the scheduler's publish
+  route, never from a fourth parallel implementation:** the scheduler's
+  cron-driven auto-publish (`src/app/api/v1/scheduler/publish/route.ts`),
+  a manual publish via `transitionArticleStatus` (any non-`published`
+  status transitioning to `published` — an archive-then-republish does
+  not re-fire, since it was already published before), and a content
+  edit to an already-`published` article via `updateArticle` (a
+  draft/in_review/scheduled/archived save never does). All three build
+  the submitted URL through the one shared `articleUrl()` helper in
+  `src/features/insights/seo/paths.ts` and submit through the one
+  existing `pingIndexNow()` in `seo/indexNow.ts` — no separate provider,
+  no duplicated URL construction. A submission failure is swallowed
+  entirely inside `pingIndexNow` (logged, never thrown) and can never
+  block or roll back the publish/edit that triggered it; the ping only
+  ever runs after that database write has already succeeded. Draft,
+  in_review, scheduled, archived, preview (`/admin/insights/[id]/
+  preview`, itself `noindex`/session-gated) and admin/API URLs are
+  never reachable through any of the three triggers.
 
 ## 12. Checkpoint 5 (Analytics foundation) implementation notes
 

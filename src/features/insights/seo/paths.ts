@@ -1,4 +1,5 @@
 import { routes, type Locale } from "@/lib/routes";
+import { siteUrl } from "@/lib/seo/metadata";
 
 /**
  * Builds Insights dynamic-segment URLs on top of the `insights` hub path
@@ -31,4 +32,13 @@ export function searchPath(locale: Locale, query?: string): string {
 
 export function feedPath(locale: Locale): string {
   return `${routes.insights[locale]}/feed.xml`;
+}
+
+/** Absolute, locale-correct URL for an article — the one place
+ * `new URL(articlePath(...), siteUrl)` is built, so every IndexNow
+ * caller (the scheduler's publish route, the CMS publish/update
+ * paths) submits through the same construction instead of
+ * re-deriving it at each call site. */
+export function articleUrl(slug: string, locale: Locale): string {
+  return new URL(articlePath(slug, locale), siteUrl).toString();
 }

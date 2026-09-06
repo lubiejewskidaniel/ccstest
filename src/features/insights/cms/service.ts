@@ -2,6 +2,9 @@ import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabasePrivilegedClient } from "@/lib/supabase/privileged";
 import { getAdminSession } from "@/lib/supabase/adminAuth";
+import type { Locale } from "@/lib/routes";
+import { pingIndexNow } from "../seo/indexNow";
+import { articleUrl } from "../seo/paths";
 import { articleInputSchema, statusTransitionSchema, type ArticleInput } from "./schema";
 
 /**
@@ -61,6 +64,21 @@ function toRow(input: ArticleInput) {
 	};
 }
 
+/** Fires a best-effort IndexNow submission for an article that just
+ * transitioned into "published", or that was already published and
+ * has just been re-saved — the two write paths below
+ * (`transitionArticleStatus` and `updateArticle`) that can make a
+ * public URL newly live or meaningfully changed. Reuses the exact
+ * `pingIndexNow()` / `articleUrl()` the scheduler's publish route
+ * already calls, so there is exactly one URL-building path and one
+ * submission implementation behind all three triggers.
+ * `pingIndexNow` already never throws (a submission failure is
+ * logged and swallowed inside it) — this call can never fail the
+ * write that has already succeeded by the time it runs. */
+async function notifyIndexNowOfPublish(locale: Locale, slug: string) {
+	await pingIndexNow([articleUrl(slug, locale)]);
+}
+
 async function requireEditorSession() {
 	const session = await getAdminSession();
 	if (!session?.isEditor) {
@@ -112,6 +130,19 @@ export async function updateArticle(id: string, raw: unknown): Promise<CmsResult
 
 	await syncTags(supabase, id, parsed.data.tagIds);
 
+	// IndexNow: ArticleEditorForm always resubmits the article's *current*
+	// status unchanged (its hidden `status` field mirrors `article.status`
+	// exactly — publishing/scheduling only ever happens through
+	// `transitionArticleStatus` above, never through this form). So
+	// `parsed.data.status === "published"` here means exactly one thing:
+	// an already-published article's content was just edited and saved,
+	// and its public URL should be resubmitted — never a brand-new
+	// publish (that's `transitionArticleStatus`'s job above) and never a
+	// draft/in_review/scheduled/archived save.
+	if (parsed.data.status === "published") {
+		await notifyIndexNowOfPublish(parsed.data.locale, parsed.data.slug);
+	}
+
 	return { ok: true, id };
 }
 
@@ -146,17 +177,45 @@ export async function transitionArticleStatus(raw: unknown): Promise<CmsResult> 
 	if (status === "scheduled") patch.scheduled_at = scheduledAt;
 	if (status !== "scheduled") patch.scheduled_at = null;
 
+	// Read the row's current status/locale/slug up front whenever this
+	// transition targets "published" — needed both for the existing
+	// published_at-set-once logic below and to know (a) whether this is
+	// actually a non-published -> published transition worth telling
+	// IndexNow about, and (b) the locale-correct URL to submit, without
+	// a second read after the write below.
+	let indexNowTarget: { locale: Locale; slug: string } | null = null;
+
 	if (status === "published") {
+		const { data: existing } = await supabase
+			.from("insights_articles")
+			.select("status, published_at, locale, slug")
+			.eq("id", id)
+			.maybeSingle();
+
 		// Only set published_at if it isn't already set (a re-publish after
 		// archiving keeps the original date) — a single UPDATE can express
 		// this with a raw SQL fragment, which the JS client doesn't support
 		// directly, so it's done as a read-then-conditionally-write pair.
-		const { data: existing } = await supabase.from("insights_articles").select("published_at").eq("id", id).maybeSingle();
 		if (!existing?.published_at) patch.published_at = new Date().toISOString();
+
+		// Never submit draft/in_review/scheduled/archived URLs, and never
+		// resubmit an article that was already published before this call
+		// (an archive-then-republish, or an unrelated field change made via
+		// this same transition) — only an actual non-published -> published
+		// transition is new discovery-worthy information for IndexNow.
+		if (existing && existing.status !== "published") {
+			indexNowTarget = { locale: existing.locale as Locale, slug: existing.slug as string };
+		}
 	}
 
 	const { error } = await supabase.from("insights_articles").update(patch).eq("id", id);
 	if (error) return { ok: false, kind: "persistence", message: describeWriteError(error.message) };
+
+	// Only after the database write above has already succeeded — an
+	// IndexNow outage must never block or roll back a publish.
+	if (indexNowTarget) {
+		await notifyIndexNowOfPublish(indexNowTarget.locale, indexNowTarget.slug);
+	}
 
 	return { ok: true, id };
 }
