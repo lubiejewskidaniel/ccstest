@@ -111,51 +111,302 @@
 	border: 1px dashed var(--line-strong);
 	border-radius: var(--radius-sm);
 }
-.admin-login {
-	min-height: 100vh;
+/* ---------------------------------------------------------------------
+   Admin login — premium two-column hero
+   ---------------------------------------------------------------------
+   Reuses .page-hero (public hero shell + radial glow) and .form-shell /
+   .form-side / .form-facts (the same copy-column + form-column pattern
+   ContactPage/MentoringEnquiryPage already ship) rather than duplicating
+   layout. Everything below is either (a) a full-height/centering
+   addition specific to a one-screen sign-in page, or (b) a targeted
+   override of that shared pattern's spacing/sizing for this context.
+   All overrides use compound selectors (e.g. ".form-shell.admin-login-
+   shell") so they win on specificity alone, independent of @import
+   order in globals.css. */
+
+.admin-login-page {
+	/* Same "fill the space #main-content leaves between Header and
+	   Footer" trick the old single-column layout used (see globals.css's
+	   sticky-footer comment), just relayed through the extra <main>
+	   wrapper this layout needs. */
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+}
+
+.page-hero.admin-login-hero {
+	flex: 1 0 auto;
 	display: flex;
 	align-items: center;
-	justify-content: center;
-	padding: 24px;
-	position: relative;
-	background: var(--void);
-	/* Static radial glow, not animated -- Checkpoint 1 explicitly asks to
-	   avoid unnecessary animation. Reuses the same signal/spark tokens as
-	   the public site's hero treatment so the admin entry point reads as
-	   "the same product" rather than a bare internal tool, without
-	   competing with the form for attention. */
-	background-image: radial-gradient(
-		600px circle at 50% -10%,
-		color-mix(in srgb, var(--signal) 16%, transparent),
-		transparent 60%
-	);
+	padding: 56px 0;
 }
-.admin-login .card {
+.page-hero.admin-login-hero::after {
+	/* A second, lower and cooler-toned glow than .page-hero's own
+	   top-right ::before, layered with a very faint vignette (darkening
+	   toward the far edges, clear through the middle) -- gives the hero
+	   some depth without a grid/noise texture or any extra DOM/pseudo-
+	   element. Static, pointer-events:none, same convention as
+	   .page-hero::before. */
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	pointer-events: none;
+	background:
+		radial-gradient(
+			640px circle at 8% 100%,
+			color-mix(in srgb, var(--spark) 14%, transparent),
+			transparent 65%
+		),
+		radial-gradient(
+			120% 120% at 50% 40%,
+			transparent 55%,
+			color-mix(in srgb, var(--void) 55%, transparent) 100%
+		);
+}
+@media (max-width: 900px) {
+	.page-hero.admin-login-hero {
+		/* Less atmosphere to scroll past before the card appears --
+		   the card is reordered first below, so this is what actually
+		   reduces decorative content above the fold on small screens. */
+		padding: 32px 0;
+	}
+}
+
+.form-shell.admin-login-shell {
+	/* Three top-level grid items now (intro / card / facts -- see
+	   page.tsx), positioned entirely by name rather than by DOM order,
+	   so the same three pieces of markup can be reflowed into a
+	   completely different reading shape per breakpoint with no
+	   duplication and no `order` juggling. The "card" area spans both
+	   rows here, so it still sits on the right, vertically centered
+	   against the stacked intro+facts column on the left -- unchanged
+	   from the previous two-item layout. */
+	grid-template-columns: minmax(0, 1.15fr) minmax(340px, 440px);
+	grid-template-areas:
+		"intro card"
+		"facts card";
+	gap: 40px;
+	align-items: center;
+}
+@media (max-width: 900px) {
+	.form-shell.admin-login-shell {
+		/* This is the actual tablet/mobile collapse. .form-shell's own
+		   shared @media (max-width: 900px) rule (forms.css) sets
+		   grid-template-columns at this breakpoint, but that rule's
+		   single-class selector always loses the specificity contest
+		   against this file's compound ".form-shell.admin-login-shell"
+		   selector -- @media guard or not, since a media query adds no
+		   specificity of its own -- so it never actually applied here.
+		   Restating both properties turns this into one true column,
+		   in hero-intro / card / benefits order, matching DOM order
+		   exactly at this breakpoint. */
+		grid-template-columns: 1fr;
+		grid-template-areas:
+			"intro"
+			"card"
+			"facts";
+		gap: 28px;
+	}
+	.admin-login-shell .form-facts {
+		/* Reduce the decorative footprint further on small screens, now
+		   that the headline above it is bigger/bolder. */
+		margin-top: 22px;
+		gap: 10px;
+	}
+}
+
+/* Medium desktop / tablet-landscape band -- the two-column composition
+   is still worth keeping here (unlike the <=900px collapse below), but
+   at these widths the grid column is meaningfully narrower than a full
+   desktop viewport while the desktop clamp()/gap don't know that. A
+   fluid gap (rather than one fixed value) keeps the low end of this
+   range from feeling as tight as a flat 60px would. Reuses 1180px, the
+   header's own nav-collapse breakpoint, rather than inventing a new
+   number. */
+@media (min-width: 901px) and (max-width: 1180px) {
+	.form-shell.admin-login-shell {
+		gap: clamp(36px, 4vw, 60px);
+	}
+	.form-side.admin-login-copy {
+		/* Without a cap here, the headline/copy stretch to fill the
+		   full (still fairly wide) 1.15fr column at these sizes, which
+		   is what was reading as crowded against the card. */
+		max-width: 46ch;
+	}
+	.form-side.admin-login-copy h1 {
+		/* Scales down sooner than the desktop clamp's vw term would on
+		   its own -- still clearly larger than the <=640px mobile size
+		   below, so the hero doesn't feel tiny, just better balanced. */
+		font-size: clamp(2.1rem, 4vw, 2.7rem);
+	}
+}
+
+.form-side.admin-login-copy {
+	/* A short, single-screen page has nothing for a sticky column to
+	   scroll past -- static keeps this simple and avoids any sticky
+	   edge cases the taller contact-form page doesn't have to worry
+	   about. */
+	position: static;
+	grid-area: intro;
+}
+.form-side.admin-login-copy .eyebrow {
+	margin-bottom: 10px;
+}
+.form-side.admin-login-copy h1 {
+	/* This is the dominant premium statement on the page -- bigger and
+	   bolder than the shared .form-side default (and than plain
+	   .page-hero h1), with more room above/below it, so "Built with
+	   purpose. / Managed with precision." reads as a genuine editorial
+	   headline rather than a form-side label. The <br/> in page.tsx
+	   forces the two-line break; line-height is tuned for that exact
+	   shape rather than for wrapped paragraph text. */
+	font-size: clamp(2.6rem, 5.4vw, 3.75rem);
+	font-weight: 600;
+	line-height: 1.08;
+	letter-spacing: -0.01em;
+	margin-top: 30px;
+	margin-bottom: 4px;
+}
+@media (max-width: 640px) {
+	.form-side.admin-login-copy h1 {
+		/* Keeps the two-line statement compact on small phones instead
+		   of scaling all the way up with clamp()'s vw term. */
+		font-size: clamp(1.9rem, 8vw, 2.35rem);
+	}
+	.form-side.admin-login-copy p {
+		margin-top: 14px;
+	}
+	.admin-login-rule {
+		margin-top: 20px;
+	}
+	.page-hero.admin-login-hero {
+		/* One more step down from the <=900px 32px -- the card is
+		   already first on screen, so there's no need to preserve as
+		   much atmosphere above/around it on a phone-width viewport. */
+		padding: 22px 0;
+	}
+}
+.form-side.admin-login-copy p {
+	margin-top: 18px;
+	max-width: 42ch;
+}
+.admin-login-shell .form-facts {
+	/* Tighter than the contact page's 32px/16px, and visually
+	   de-emphasised (slightly smaller icons/type, reduced opacity) so
+	   the headline above stays the hero and these read as secondary
+	   supporting detail rather than competing with it. Now a top-level
+	   grid item (see page.tsx) rather than nested inside
+	   .admin-login-copy, hence the selector root change -- the rules
+	   themselves are unchanged. */
+	grid-area: facts;
+	margin-top: 34px;
+	gap: 12px;
+	opacity: 0.82;
+}
+.admin-login-shell .form-fact-ic {
+	width: 28px;
+	height: 28px;
+}
+.admin-login-shell .form-fact-ic svg {
+	width: 13px;
+	height: 13px;
+}
+.admin-login-shell .form-fact b {
+	font-size: 12.5px;
+}
+.admin-login-shell .form-fact span {
+	font-size: 12px;
+}
+
+.admin-login-rule {
+	/* Single static accent below the supporting copy -- no hover state,
+	   no animation, matching the "avoid unnecessary animation" rule
+	   already applied elsewhere on this page. Same spark/spark-2 glow
+	   language as the public site's link-underline and button-highlight
+	   gradients, just always visible instead of hover-triggered. */
+	display: block;
+	width: 72px;
+	height: 3px;
+	margin-top: 26px;
+	border-radius: 3px;
+	background: linear-gradient(90deg, var(--spark), var(--spark-2));
+	box-shadow: 0 0 12px 1px color-mix(in srgb, var(--spark) 60%, transparent);
+}
+
+.admin-login-card-wrap {
+	width: 100%;
+	grid-area: card;
+}
+@media (max-width: 900px) {
+	.admin-login-card-wrap {
+		/* No `order` needed any more -- grid-template-areas above
+		   already places this in the "card" area at every breakpoint,
+		   including between "intro" and "facts" at <=900px. This block
+		   now only centers the card within its own single-column
+		   area. */
+		display: flex;
+		justify-content: center;
+	}
+}
+
+.card.admin-login-card {
 	position: relative;
 	width: 100%;
-	max-width: 400px;
-	padding: 36px 32px 32px;
+	max-width: 440px;
+	padding: 42px 38px 36px;
+	/* Translucent surface as asked for, deliberately without a
+	   backdrop-filter blur -- that's the "glassmorphism" look the
+	   brief asks to avoid, whereas a plain translucent background
+	   still reads as "premium surface" against the atmospheric hero
+	   behind it. The inset highlight adds a touch of surface depth
+	   (same idiom buttons.css's .btn-primary already uses), and the
+	   signal glow is nudged slightly for a bit more presence -- both
+	   still restrained, no added blur. Its own (rather than .card's
+	   shared 300ms) transition keeps the hover below snappier and
+	   scoped to only the properties that actually change here.
+	   `prefers-reduced-motion` needs no extra rule: globals.css already
+	   forces every transition-duration to 0.01ms under that setting, so
+	   the hover state still applies, just without perceptible motion. */
+	background: var(--glass-bg-strong);
+	border-color: var(--line-strong);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.05),
+		0 24px 60px -32px rgba(0, 0, 0, 0.6),
+		0 0 40px -14px color-mix(in srgb, var(--signal) 42%, transparent);
+	transition:
+		transform 200ms var(--ease),
+		border-color 200ms var(--ease),
+		box-shadow 200ms var(--ease);
 }
-.admin-login .card:hover {
-	/* .card's shared hover state (lift + border glow) is meant for
-	   clickable grid items -- this container is a static form shell, so
-	   the lift is switched off rather than duplicating .card's other
-	   rules into a new class name. */
-	transform: none;
-	border-color: var(--line);
-	background: var(--surface);
-	box-shadow: none;
+.card.admin-login-card:hover {
+	/* Restrained, deliberate hover (replacing the earlier "hover fully
+	   disabled" treatment): a small lift, a brighter border, a slightly
+	   stronger glow. No scale, no extra blur -- subtly interactive
+	   without reading as clickable. */
+	transform: translateY(-2px);
+	background: var(--glass-bg-strong);
+	border-color: color-mix(in srgb, var(--spark) 40%, var(--line-strong));
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.06),
+		0 28px 64px -30px rgba(0, 0, 0, 0.65),
+		0 0 48px -12px color-mix(in srgb, var(--spark) 48%, transparent);
 }
 .admin-login-brand {
+	/* A bottom hairline turns this into a proper card header strip
+	   instead of a logo+label pair that reads as floating above the
+	   rest of the card. */
 	display: flex;
 	align-items: center;
 	gap: 12px;
-	margin-bottom: 22px;
+	padding-bottom: 18px;
+	margin-bottom: 24px;
+	border-bottom: 1px solid var(--line);
 }
 .admin-login-header {
-	margin-bottom: 26px;
+	margin-bottom: 28px;
 }
-.admin-login-header h1 {
+.admin-login-header h2 {
 	font-size: 1.5rem;
 	font-weight: 600;
 	margin-top: 10px;
@@ -166,16 +417,147 @@
 	color: var(--ink-3);
 	line-height: 1.5;
 }
-.admin-login-back {
-	display: inline-block;
-	margin-top: 22px;
-	font-size: 12.5px;
-	color: var(--ink-3);
+@media (max-width: 640px) {
+	.card.admin-login-card {
+		/* Less padding once the card is full-width-of-content rather
+		   than a fixed 440px column -- keeps it from feeling like an
+		   oversized box on a phone screen. */
+		padding: 30px 22px 26px;
+	}
+	.admin-login-brand {
+		padding-bottom: 14px;
+		margin-bottom: 18px;
+	}
+	.admin-login-header {
+		margin-bottom: 20px;
+	}
 }
-.admin-login-back:hover {
-	color: var(--spark);
+@media (max-width: 420px) {
+	/* Verified specifically around 390-408px: with the grid-template-
+	   columns fix above, hero and card are already two ordinary stacked
+	   block-level grid rows (real gap, no overlap, no negative offsets
+	   or layout-affecting transforms anywhere on this page) -- this is
+	   just a little more of the same padding taper, not new structure. */
+	.card.admin-login-card {
+		padding: 26px 18px 22px;
+	}
+	.admin-login-shell .form-facts {
+		margin-top: 18px;
+	}
 }
 
+/* Field labels get a small mono/uppercase treatment scoped to this card
+   only, echoing this same file's .admin-table th convention rather than
+   inventing a new visual language. */
+.admin-login-card .field label {
+	font-family: var(--font-mono);
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--ink-3);
+	transition: color 200ms var(--ease);
+}
+.admin-login-card .field {
+	margin-bottom: 20px;
+}
+.field.admin-field:focus-within label {
+	/* :focus-within (not JS) -- brightens the label while its input is
+	   focused, whether that's email or password, since both share the
+	   same .field.admin-field structure. */
+	color: var(--ink-1);
+}
+
+/* Email/password icon wrapper (AdminLoginForm.tsx) -- purely decorative
+   (aria-hidden), auth/field markup (id/name/type/required/autoComplete)
+   is unchanged. Only .field.admin-field's own input gets the extra
+   left padding the icon needs; every other form's .field input in the
+   app is untouched. */
+.field.admin-field .admin-field-control {
+	position: relative;
+}
+.admin-field-icon {
+	position: absolute;
+	left: 14px;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 16px;
+	height: 16px;
+	color: var(--ink-3);
+	pointer-events: none;
+	transition: color 200ms var(--ease);
+}
+.field.admin-field:focus-within .admin-field-icon {
+	/* Same :focus-within trigger as the label above -- the icon turns
+	   signal-coloured while its input is focused. */
+	color: var(--spark);
+}
+.field.admin-field .admin-field-control input {
+	/* Slightly darker resting surface and a softer border than the
+	   shared default, plus room on the left for the icon and a touch
+	   more vertical padding. Height and radius are untouched, so email
+	   and password stay structurally identical. */
+	padding: 13px 14px 13px 40px;
+	background: var(--surface);
+	border-color: var(--line);
+}
+.field.admin-field .admin-field-control input:focus {
+	/* Builds on (doesn't replace) the shared .field input:focus rule
+	   (forms.css, still supplies border-color + the outer 3px ring):
+	   brightens the resting background a touch and adds a subtle inset
+	   glow, so focus reads as a bit more premium here specifically. */
+	background: var(--surface-2);
+	box-shadow:
+		inset 0 0 0 1px color-mix(in srgb, var(--spark) 30%, transparent),
+		0 0 0 3px color-mix(in srgb, var(--spark) 20%, transparent);
+}
+
+.admin-login-card .form-submit {
+	/* Taller than the shared 44px .btn, with one extra restrained
+	   signal-coloured glow layered under .btn-primary's own existing
+	   shadow (buttons.css) -- reuses that class's gradient/hover/active/
+	   focus-visible treatment (transform, ::after underline, focus
+	   ring) rather than inventing a new button style. The hover/active/
+	   focus-visible box-shadows below are pinned explicitly rather than
+	   left to a specificity tie against buttons.css's own :hover/
+	   :active/:focus-visible rules (both this rule and those are
+	   two-selector-equivalent specificity, so which one would "win" on
+	   its own depends on stylesheet import order). */
+	min-height: 48px;
+	margin-top: 10px;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.08),
+		0 10px 24px -18px rgba(0, 0, 0, 0.9),
+		0 8px 22px -14px color-mix(in srgb, var(--signal) 40%, transparent);
+}
+.admin-login-card .form-submit:hover {
+	/* transform: translateY(-1px) already comes from .btn-primary:hover
+	   (buttons.css) -- only the glow needs pinning here. */
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.09),
+		0 14px 32px -18px rgba(0, 0, 0, 0.95),
+		0 10px 30px -12px color-mix(in srgb, var(--signal) 55%, transparent);
+}
+.admin-login-card .form-submit:active {
+	/* Restates .btn-primary:active's own box-shadow (buttons.css)
+	   verbatim, so pressing the button visibly drops the extra glow and
+	   returns to a neutral pressed state instead of leaving that to the
+	   same specificity tie. transform: translateY(1px) scale(0.985)
+	   still comes from .btn-primary:active. */
+	box-shadow:
+		inset 0 2px 8px rgba(0, 0, 0, 0.32),
+		0 4px 12px -8px rgba(0, 0, 0, 0.8);
+}
+.admin-login-card .form-submit:focus-visible {
+	/* Restates .btn:focus-visible's own ring (buttons.css) verbatim,
+	   declared last so it also wins a simultaneous hover (keyboard
+	   focus followed by a mouse move over the same button) rather than
+	   the hover glow above silently masking the accessible focus ring. */
+	box-shadow:
+		0 0 0 1px var(--void),
+		0 0 0 3px var(--spark),
+		0 0 18px -4px var(--btn-glow);
+}
 /* BUGFIX: the admin overview's stat-card grid had an inline
    style={{ gridTemplateColumns: "repeat(3,1fr)" }} -- the exact same
    anti-pattern found and fixed on ServicesPage, AboutPage, and

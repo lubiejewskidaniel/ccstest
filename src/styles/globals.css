@@ -56,6 +56,24 @@ body {
 	line-height: 1.5;
 	-webkit-font-smoothing: antialiased;
 	overflow-x: hidden;
+	/* Sticky-footer pattern: every decorative/utility layer mounted in
+	   the root layout (boot curtain, progress rail, spine, skip-link,
+	   cookie consent, the page-texture ::before) is position: fixed or
+	   absolute, so it never participates in this flex column — the only
+	   in-flow children are Header, #main-content and Footer. On a page
+	   taller than the viewport (every page today except /admin/login)
+	   this is a no-op: #main-content already exceeds the available
+	   space, so flex-grow has nothing to do and the footer sits right
+	   after the content exactly as before. On a short page it makes
+	   #main-content fill the leftover space instead of leaving the
+	   footer stranded mid-screen. */
+	display: flex;
+	flex-direction: column;
+	min-height: 100dvh;
+}
+
+#main-content {
+	flex: 1 0 auto;
 }
 
 /* Scrollbar

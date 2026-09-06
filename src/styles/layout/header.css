@@ -130,7 +130,13 @@ nav.primary a:hover {
 	color: var(--ink-1);
 }
 
-.theme-toggle {
+/* .admin-access-btn (Header.tsx / MobileMenu.tsx) shares this rule set
+   verbatim with .theme-toggle -- same 34px icon-button box, same hover
+   treatment, same 16px svg -- so the new admin-access control reads as
+   equal visual weight to the theme toggle rather than a new, more
+   prominent control. */
+.theme-toggle,
+.admin-access-btn {
 	width: 34px;
 	height: 34px;
 	border-radius: 9px;
@@ -142,11 +148,13 @@ nav.primary a:hover {
 		background 0.2s,
 		color 0.2s;
 }
-.theme-toggle:hover {
+.theme-toggle:hover,
+.admin-access-btn:hover {
 	background: var(--surface-2);
 	color: var(--ink-1);
 }
-.theme-toggle svg {
+.theme-toggle svg,
+.admin-access-btn svg {
 	width: 16px;
 	height: 16px;
 }

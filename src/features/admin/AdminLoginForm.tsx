@@ -11,7 +11,7 @@ export function AdminLoginForm() {
   return (
     <form action={formAction} noValidate>
       {state.status === "error" && (
-        <div className="form-status err" role="alert" style={{ marginBottom: 18 }}>
+        <div className="form-status err" role="alert">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
             <circle cx="12" cy="12" r="9" />
             <path d="M12 8v5M12 16h.01" />
@@ -19,13 +19,45 @@ export function AdminLoginForm() {
           <span>{state.message}</span>
         </div>
       )}
-      <div className="field">
+      <div className="field admin-field">
         <label htmlFor="admin-email">Email</label>
-        <input id="admin-email" name="email" type="email" required autoComplete="email" />
+        <div className="admin-field-control">
+          <svg
+            className="admin-field-icon"
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+          >
+            <rect x="3" y="5" width="18" height="14" rx="3" />
+            <path d="m4 7 8 6 8-6" />
+          </svg>
+          <input id="admin-email" name="email" type="email" required autoComplete="email" />
+        </div>
       </div>
-      <div className="field">
+      <div className="field admin-field">
         <label htmlFor="admin-password">Password</label>
-        <input id="admin-password" name="password" type="password" required autoComplete="current-password" />
+        <div className="admin-field-control">
+          <svg
+            className="admin-field-icon"
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+          >
+            <rect x="5" y="10" width="14" height="10" rx="2.5" />
+            <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+          </svg>
+          <input
+            id="admin-password"
+            name="password"
+            type="password"
+            required
+            autoComplete="current-password"
+          />
+        </div>
       </div>
       <button type="submit" className="btn btn-primary form-submit" disabled={pending}>
         {pending ? "Signing in…" : "Sign in"}

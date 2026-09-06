@@ -69,6 +69,25 @@ export function Header({ locale }: { locale: Locale }) {
 				<div className="head-actions">
 					<LanguageSwitch locale={locale} />
 					<ThemeToggle />
+					<Link
+						href="/admin/login"
+						className="admin-access-btn"
+						aria-label="Admin"
+						title="Admin"
+					>
+						<svg
+							viewBox="0 0 24 24"
+							width="16"
+							height="16"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="1.8"
+						>
+							<path d="M12 3l7 4v5c0 4.5-3 8.5-7 9-4-.5-7-4.5-7-9V7l7-4Z" />
+							<circle cx="12" cy="10.3" r="1.6" />
+							<path d="M8.6 15c.7-1.6 1.9-2.4 3.4-2.4s2.7.8 3.4 2.4" />
+						</svg>
+					</Link>
 					<HoldNavLink
 						href={routeFor("contact", locale)}
 						className="btn btn-header"

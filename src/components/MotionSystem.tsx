@@ -1,8 +1,18 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { events, getBaseContext } from "@/lib/analytics";
+
+// `useLayoutEffect` is what the boot-curtain effect below needs (it must
+// run before paint -- see that effect's comment), but MotionSystem is part
+// of the server-rendered tree (it renders `null`, but the component
+// function itself still executes during SSR), and React warns when
+// `useLayoutEffect` is used somewhere that also renders on the server.
+// Falling back to `useEffect` there is a no-op difference: the server
+// render never runs effects at all, so this only changes which hook is
+// *registered*, not any server-visible behaviour.
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 /**
  * Site-wide "delight" layer: boot-in curtain, scroll-progress rail, header
@@ -19,36 +29,72 @@ import { events, getBaseContext } from "@/lib/analytics";
 export function MotionSystem() {
   const pathname = usePathname();
 
-  // Runs once: boot curtain, scroll progress/header state, back-to-top,
-  // and the click-ripple (delegated on `document`, so it keeps working for
-  // every button rendered on every future client-side navigation).
+  // Whether the tab has ever played the *real* boot animation. Sticks
+  // across every route change for the life of the tab (this component
+  // never unmounts) -- it's what tells "the genuine first boot" apart
+  // from "a curtain reappearing later".
+  const hasBootedRef = useRef(false);
+
+  // ---- boot curtain ----
+  // Keyed on pathname (not mount-only) because PublicChrome mounts a
+  // brand-new #bootCurtain node every time a route crosses back into
+  // public chrome from /admin/login or the dashboard (it was fully
+  // unmounted -- not just hidden -- on the way out, so React creates a
+  // fresh instance on the way back in). A mount-only effect can only ever
+  // see the very first such instance.
+  //
+  // React (via PublicChrome's conditional render) remains the only code
+  // that inserts or removes this node from the tree -- this effect only
+  // ever toggles a class on whichever instance currently exists, looked
+  // up fresh on every run, never a cached/stale reference, and never
+  // calls `.remove()`. That's what keeps this safe from the removeChild
+  // desync bug this file used to have: a class toggle can't put the real
+  // DOM and React's fiber tree at odds about whether the node exists.
+  //
+  // `useIsomorphicLayoutEffect` (not `useEffect`) matters here: it runs
+  // before the browser paints, so a reappearing or /admin/login curtain
+  // gets marked done before it's ever visible -- no flash, no perceived
+  // replay of the animation.
+  useIsomorphicLayoutEffect(() => {
+    const curtain = document.getElementById("bootCurtain");
+    if (!curtain || curtain.classList.contains("done")) return;
+
+    // The admin sign-in screen never gets the marketing-site boot
+    // animation, hard load or not.
+    if (pathname === "/admin/login") {
+      curtain.classList.add("done");
+      return;
+    }
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (!hasBootedRef.current) {
+      // The tab's one real boot: the first time a genuine (non-login)
+      // route ever hosts the curtain.
+      hasBootedRef.current = true;
+      if (reduceMotion) return; // CSS already hides it (motion.css).
+      document.documentElement.classList.add("boot-lock");
+      const t = window.setTimeout(() => {
+        curtain.classList.add("done");
+        document.documentElement.classList.remove("boot-lock");
+      }, 620);
+      return () => window.clearTimeout(t);
+    }
+
+    // The real boot already happened elsewhere in this tab -- complete
+    // this later instance instantly instead of replaying the animation.
+    curtain.classList.add("done");
+  }, [pathname]);
+
+  // Runs once: scroll progress/header state, back-to-top, and the
+  // click-ripple (delegated on `document`, so it keeps working for every
+  // button rendered on every future client-side navigation).
   useEffect(() => {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     // ---- boot curtain ----
-    // NB: this used to `return` a cleanup function straight from inside
-    // this block on a normal (non-reduced-motion) load - which exits the
-    // WHOLE effect right here. Everything wired up below (scroll progress,
-    // to-top, the click-spark listener, external-link tracking) never got
-    // wired up on a fresh page load - it only appeared to work when
-    // `reduceMotion` was true, which skips this branch entirely. Fixed by
-    // collecting this cleanup instead of returning it, so the rest of the
-    // effect always runs and everything's cleanup is merged at the end.
-    const curtain = document.getElementById("bootCurtain");
-    let curtainCleanup: (() => void) | undefined;
-    if (curtain) {
-      if (reduceMotion) {
-        curtain.remove();
-      } else {
-        document.documentElement.classList.add("boot-lock");
-        const t1 = window.setTimeout(() => {
-          curtain.classList.add("done");
-          document.documentElement.classList.remove("boot-lock");
-          window.setTimeout(() => curtain.remove(), 650);
-        }, 620);
-        curtainCleanup = () => window.clearTimeout(t1);
-      }
-    }
+    // Handled by its own effect below, keyed on pathname rather than
+    // mount-only -- see that effect's comment for why.
 
     // ---- scroll progress + header state + to-top ----
     const progressFill = document.getElementById("progressFill");
@@ -152,7 +198,6 @@ export function MotionSystem() {
     document.addEventListener("click", onExternalLinkClick);
 
     return () => {
-      curtainCleanup?.();
       window.removeEventListener("scroll", onScroll);
       toTop?.removeEventListener("click", onToTop);
       document.removeEventListener("click", onButtonClick);
