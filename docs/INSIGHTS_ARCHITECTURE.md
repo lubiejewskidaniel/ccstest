@@ -404,6 +404,16 @@ preserves maintainability/correctness/... and document the deviation").
   in_review, scheduled, archived, preview (`/admin/insights/[id]/
   preview`, itself `noindex`/session-gated) and admin/API URLs are
   never reachable through any of the three triggers.
+- **The IndexNow key verification file lives at the literal domain
+  root (`/{INDEXNOW_KEY}.txt`), not under `/api/`.** It was originally
+  served at `/api/indexnow-key.txt` (still schema-legal per IndexNow's
+  written spec), but Bing's real verifier rejected that `keyLocation`
+  with an HTTP 422 — in practice the key must be at the domain root.
+  `next.config.mjs` rewrites the one exact literal path computed from
+  `INDEXNOW_KEY` to `src/app/api/indexnow-key/route.ts` (a no-op when
+  the env var is unset) — never a dynamic `[key].txt` segment, which
+  would otherwise match every unmatched single-segment request at the
+  site root and interfere with normal 404 handling.
 
 ## 12. Checkpoint 5 (Analytics foundation) implementation notes
 

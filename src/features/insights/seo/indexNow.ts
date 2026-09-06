@@ -7,13 +7,19 @@ import { siteUrl } from "@/lib/seo/metadata";
  * same "safe without configuration" contract as every other optional
  * integration in this app (CRM, GSC, Bing Webmaster, the AI provider).
  *
- * `keyLocation` points at `/api/indexnow-key.txt`
- * (`src/app/api/indexnow-key.txt/route.ts`) rather than the protocol's
- * default `/​<key>.txt` at the domain root — IndexNow's spec explicitly
- * allows this, and hosting it under `/api/` avoids adding a top-level
- * dynamic route that would otherwise intercept every unmatched
- * single-segment path on the site (and would need to reimplement the
- * app's normal 404 page to avoid a regression there).
+ * `keyLocation` points at the domain root — `/{INDEXNOW_KEY}.txt` —
+ * which is the protocol's default file location. An earlier version of
+ * this hosted the key under `/api/indexnow-key.txt` instead (IndexNow's
+ * written spec nominally allows a custom `keyLocation`), but Bing's
+ * real verifier rejected that with an HTTP 422
+ * ("...URLs are not related to your site verified through the
+ * keylocation parameter") — in practice the key must live at the
+ * literal domain root. The root file itself is served by a
+ * `next.config.mjs` rewrite of the one exact, literal path computed
+ * from `INDEXNOW_KEY` to `src/app/api/indexnow-key/route.ts` — not a
+ * dynamic `[key].txt` segment, which would otherwise intercept every
+ * unmatched single-segment path on the site (and would need to
+ * reimplement the app's normal 404 page to avoid a regression there).
  */
 export async function pingIndexNow(urls: string[]): Promise<void> {
 	const key = process.env.INDEXNOW_KEY;
@@ -28,7 +34,7 @@ export async function pingIndexNow(urls: string[]): Promise<void> {
 			body: JSON.stringify({
 				host,
 				key,
-				keyLocation: new URL("/api/indexnow-key.txt", siteUrl).toString(),
+				keyLocation: new URL(`/${key}.txt`, siteUrl).toString(),
 				urlList: urls,
 			}),
 		});
