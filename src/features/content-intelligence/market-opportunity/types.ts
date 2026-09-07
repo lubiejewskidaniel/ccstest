@@ -90,3 +90,49 @@ export type BusinessRelevanceEvidence = {
 	level: BusinessRelevanceLevel;
 	matches: BusinessRelevanceMatch[];
 };
+
+// ============================================================
+// Phase 3C.1B — Content Coverage
+// ============================================================
+//
+// Added here because these four types are the approved cross-cutting
+// evidence contract for content coverage (mirrors how Phase 3C.1A's
+// BusinessRelevance* types live here). The article-candidate input
+// shape and the evaluator's parameter object are NOT added here — they
+// are implementation-scoped to contentCoverage.ts itself, not a shared
+// evidence contract, so they stay local to that module.
+
+/**
+ * "none" | "mention" | "title_match" — never a numeric score. See
+ * contentCoverage.ts's own doc comment for the exact deterministic
+ * rule that produces each level.
+ */
+export type ContentCoverageLevel = "none" | "mention" | "title_match";
+
+/**
+ * How confidently a single article can be pointed to as "the" coverage
+ * for a keyword — a SEPARATE concern from coverage strength (`level`).
+ * `null` only when `level === "none"` (there is nothing to be
+ * ambiguous about). See contentCoverage.ts for the exact rule.
+ */
+export type ContentMappingConfidence = "unambiguous" | "ambiguous" | null;
+
+/** One published article that matched, kept minimal — just enough to
+ * identify and link to it. */
+export type ContentCoverageMatch = {
+	articleId: string;
+	locale: "en" | "pl";
+	slug: string;
+};
+
+export type ContentCoverageEvidence = {
+	level: ContentCoverageLevel;
+	mapping: ContentMappingConfidence;
+	/** Every eligible published article whose TITLE contains the full
+	 * normalized keyword phrase. */
+	titleMatches: ContentCoverageMatch[];
+	/** Every eligible published article whose EXCERPT (but not title)
+	 * contains the full normalized keyword phrase — never contains an
+	 * article that is also in `titleMatches` (see contentCoverage.ts). */
+	excerptOnlyMatches: ContentCoverageMatch[];
+};
