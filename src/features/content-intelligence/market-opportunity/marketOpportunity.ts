@@ -114,8 +114,16 @@ export type EvaluateMarketOpportunityInput = {
 // ---------------------------------------------------------------------------
 // First-party query matching
 // ---------------------------------------------------------------------------
+// Exported (Phase 3C.1E) so the query-orchestration layer can run the
+// exact same matching decision once, before evaluateMarketOpportunity()
+// runs it again internally, to decide which single candidate (if any)
+// needs an opportunity_score_history fetch -- without a second,
+// competing implementation of this logic living in the query layer.
+// evaluateMarketOpportunity()'s own contract is unchanged: it always
+// recomputes the match itself from the raw candidates it's given,
+// rather than trusting a caller-supplied shortcut.
 
-function matchFirstPartyQuery(
+export function matchFirstPartyQuery(
 	keyword: string,
 	candidates: FirstPartyOpportunityCandidate[],
 ): FirstPartyQueryMatchEvidence {

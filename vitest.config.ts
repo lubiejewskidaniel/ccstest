@@ -11,10 +11,22 @@ import path from "node:path";
  * The `@/*` alias mirrors `tsconfig.json`'s `paths` mapping — Vitest
  * doesn't read `tsconfig.json` paths on its own without an extra plugin,
  * so it's duplicated here deliberately rather than adding a dependency.
+ *
+ * The `server-only` alias points `import "server-only"` at a local
+ * do-nothing shim (`test/shims/server-only.ts`) purely so Vitest can
+ * resolve that Next.js build-time marker package at all — Vite has no
+ * module resolution rule for it the way Next's webpack/Turbopack build
+ * does. This is test-infrastructure only: it's registered nowhere but
+ * here, so the real `server-only` package (and the server-only import
+ * boundary it enforces in application code) is completely untouched in
+ * `next build`/`next dev`.
  */
 export default defineConfig({
   resolve: {
-    alias: { "@": path.resolve(__dirname, "./src") },
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+      "server-only": path.resolve(__dirname, "./test/shims/server-only.ts"),
+    },
   },
   test: {
     environment: "jsdom",
