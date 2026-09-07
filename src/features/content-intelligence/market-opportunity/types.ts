@@ -160,7 +160,7 @@ export type ContentCoverageEvidence = {
 // content-coverage sections above remain fully independent of
 // market/opportunities, exactly as their own doc comments state.
 
-import type { TrendHistoryDepth } from "../opportunities/trend";
+import type { TrendHistoryDepth, TrendResult } from "../opportunities/trend";
 
 /**
  * Pairwise relationship between the strict and broad market-demand
@@ -234,4 +234,155 @@ export type EvidenceConfidenceEvidence = {
 	level: EvidenceConfidenceLevel;
 	factors: EvidenceConfidenceFactors;
 	limitingReasons: EvidenceConfidenceLimitingReason[];
+};
+
+// ============================================================
+// Phase 3C.1D — Market Opportunity Assembly & Evidence Classification
+// ============================================================
+//
+// Assembles market-demand, first-party visibility/trend, business
+// relevance, content coverage, and evidence confidence into one
+// explainable MarketOpportunityEvidence object for a single (keyword,
+// provider, market) subject. This layer MAY carry descriptive evidence
+// CLASSIFICATIONS (see MarketOpportunityClassification below) but must
+// never carry action recommendations ("write this", "publish that") —
+// those belong to a future Recommendation Engine, out of scope here.
+// See marketOpportunity.ts for the exact assembly algorithm (query
+// matching, per-channel latest-observation selection, classification
+// rules) — this file only declares the shapes.
+
+import type { MarketCode, MarketIntelligenceProviderId } from "../market/types";
+import type { MarketTrendResult } from "../market/trend";
+
+/**
+ * The unit of analysis: one keyword, tracked via one provider, in one
+ * explicit market. `market` is never inferred from `keyword` text, and
+ * gb/en-GB is never merged with pl/pl-PL — see MarketCode.
+ */
+export type MarketOpportunitySubject = {
+	/** Raw, as stored in market_keywords.keyword — never normalized or
+	 * reinterpreted at this layer. */
+	keyword: string;
+	provider: MarketIntelligenceProviderId;
+	market: MarketCode;
+};
+
+export type MarketDemandEvidence = {
+	/** Reused verbatim from evaluateMarketTrend() — never re-evaluated or
+	 * re-thresholded here. Scoped to the subject's provider (see
+	 * MarketOpportunitySubject.provider); this type does not repeat that
+	 * field itself, to avoid a second source of truth for provider
+	 * identity. */
+	trend: MarketTrendResult;
+	/**
+	 * This provider's own exact-match impression metric for the most
+	 * recently OBSERVED period — NOT a universal "search volume" figure,
+	 * and NOT necessarily from the same underlying row as `broad` (see
+	 * marketOpportunity.ts's independent per-channel selection). `null`/
+	 * `null` when no eligible observed row exists.
+	 */
+	strict: { latestObservedImpressions: number | null; latestObservedPeriod: string | null };
+	/**
+	 * This provider's own broad-match impression metric (Bing-specific
+	 * today — see BingObservationDetails in market/types.ts), selected
+	 * entirely independently of `strict`.
+	 */
+	broad: { latestObservedImpressions: number | null; latestObservedPeriod: string | null };
+};
+
+/**
+ * How a market keyword was matched against CCS's own tracked
+ * content_opportunities queries.
+ *   - "exact": raw string equality. Can never be ambiguous by
+ *     construction — content_opportunities.query carries a database
+ *     UNIQUE constraint.
+ *   - "normalized_exact": not raw-equal, but normalize() (reused from
+ *     businessRelevance.ts, never reimplemented) produces the same
+ *     string for exactly one candidate.
+ *   - "ambiguous": two or more distinct candidate queries normalize to
+ *     the same keyword — no candidate is chosen.
+ *   - "none": no candidate matches at either tier. No phrase
+ *     containment is attempted — see marketOpportunity.ts for why.
+ */
+export type QueryMatchKind = "exact" | "normalized_exact" | "ambiguous" | "none";
+
+export type FirstPartyQueryMatchEvidence =
+	| { kind: "none" }
+	| { kind: "exact" | "normalized_exact"; opportunityId: string; matchedQuery: string }
+	| {
+			kind: "ambiguous";
+			/** Deduplicated by id, then sorted lexically
+			 * (`a < b ? -1 : a > b ? 1 : 0`) — never caller input order.
+			 * See marketOpportunity.ts. */
+			candidateOpportunityIds: string[];
+	  };
+
+/**
+ * CCS's own first-party search-performance visibility for the matched
+ * query, or an explicit representation of "there is nothing to read yet"
+ * — `"no_match"` is NOT the same state as "matched with zero values",
+ * and `"ambiguous_match"` never blends or guesses between candidates.
+ */
+export type CcsVisibilityEvidence =
+	| { status: "no_match" }
+	| { status: "ambiguous_match"; candidateCount: number }
+	| {
+			status: "matched";
+			opportunityId: string;
+			matchedQuery: string;
+			matchKind: "exact" | "normalized_exact";
+			/** Read verbatim from the matched content_opportunities row —
+			 * never recomputed; scoreOpportunity() is never called here. */
+			totalImpressions: number;
+			totalClicks: number;
+			avgPosition: number | null;
+			googleImpressions: number;
+			bingImpressions: number;
+			opportunityScore: number;
+	  };
+
+/**
+ * CCS's own first-party trend for the matched query. `trend` is a
+ * `TrendResult` reused verbatim from evaluateOpportunityTrend() — never
+ * redeclared or recomputed. `"ambiguous_match"` deliberately does not
+ * select or aggregate a candidate's history — see marketOpportunity.ts.
+ */
+export type CcsTrendEvidence =
+	| { status: "no_match" }
+	| { status: "ambiguous_match"; candidateCount: number }
+	| { status: "matched"; opportunityId: string; trend: TrendResult };
+
+/**
+ * Small, deterministic, non-exclusive descriptive labels — evidence
+ * classifications, never action recommendations. See
+ * marketOpportunity.ts for the exact per-classification rule and the
+ * fixed evaluation order. `market_growth`/`market_decline` may both be
+ * present at once (e.g. strict rising, broad declining) — classifying
+ * what was observed is a different question from evaluating how much to
+ * trust it (that's evidenceConfidence's job, kept fully separate).
+ */
+export type MarketOpportunityClassification =
+	| "market_growth"
+	| "market_decline"
+	| "covered_market"
+	| "not_relevant"
+	| "weak_evidence"
+	| "insufficient_data";
+
+export type MarketOpportunityEvidence = {
+	subject: MarketOpportunitySubject;
+	marketDemand: MarketDemandEvidence;
+	firstPartyMatch: FirstPartyQueryMatchEvidence;
+	ccsVisibility: CcsVisibilityEvidence;
+	ccsTrend: CcsTrendEvidence;
+	/** Reused verbatim from evaluateContentCoverage(). */
+	contentCoverage: ContentCoverageEvidence;
+	/** Reused verbatim from evaluateBusinessRelevance(). */
+	businessRelevance: BusinessRelevanceEvidence;
+	/** Reused verbatim from evaluateEvidenceConfidence(). */
+	evidenceConfidence: EvidenceConfidenceEvidence;
+	/** Always in the fixed declared order (market_growth, market_decline,
+	 * covered_market, not_relevant, weak_evidence, insufficient_data),
+	 * filtered to whichever apply — never object/iteration order. */
+	classifications: MarketOpportunityClassification[];
 };
