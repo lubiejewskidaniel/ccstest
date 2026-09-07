@@ -386,3 +386,72 @@ export type MarketOpportunityEvidence = {
 	 * filtered to whichever apply — never object/iteration order. */
 	classifications: MarketOpportunityClassification[];
 };
+
+// ============================================================
+// Phase 3C.2 — Recommendation Engine
+// ============================================================
+//
+// Converts an already-assembled MarketOpportunityEvidence into a small,
+// deterministic, explainable next-step recommendation. This layer is
+// deliberately the ONLY place in the codebase that turns evidence into
+// an action-shaped verdict — marketOpportunity.ts's own classifications
+// (market_growth, not_relevant, etc.) remain purely descriptive, never
+// actionable, exactly as that module's own doc comment requires. See
+// recommendation.ts for the full decision tree, gates, and precedence.
+//
+// Recommendation STRENGTH is deliberately kept separate from EVIDENCE
+// CONFIDENCE (a safety gate, not an opportunity score) — see
+// recommendation.ts's own doc comment for the worked example this
+// principle is built to satisfy.
+
+/**
+ * Five, deliberately non-overlapping next-step kinds. No numeric score
+ * exists anywhere in this type or its evaluator — see recommendation.ts.
+ */
+export type RecommendationKind = "create_content" | "refresh_content" | "research_further" | "monitor" | "no_action";
+
+/**
+ * Small, finite, deterministic explainability vocabulary — never a
+ * free-form/AI-generated explanation. A single reason may appear in
+ * either `supportingReasons` or `blockingReasons` depending on whether,
+ * for that specific result, it argued FOR the chosen recommendation or
+ * AGAINST a stronger one that was considered and rejected — see
+ * recommendation.ts for exactly which reasons are used where.
+ * `confidence_medium`/`confidence_low` are this layer's OWN coarse
+ * codes, not a re-export of EvidenceConfidenceLimitingReason — a caller
+ * wanting the granular "why" behind confidence itself drills into
+ * `RecommendationEvidence.evidence.evidenceConfidence.limitingReasons`
+ * directly, since the full evidence object is retained by reference
+ * (see RecommendationEvidence below), never duplicated here.
+ */
+export type RecommendationReason =
+	| "business_none"
+	| "business_core"
+	| "business_adjacent"
+	| "market_growth"
+	| "market_decline"
+	| "market_signal_unclear"
+	| "content_missing"
+	| "content_partial_mention"
+	| "content_covered_unambiguous"
+	| "content_mapping_ambiguous"
+	| "existing_content_declining"
+	| "first_party_ambiguous_match"
+	| "first_party_no_match"
+	| "confidence_medium"
+	| "confidence_low";
+
+export type RecommendationEvidence = {
+	recommendation: RecommendationKind;
+	/** Passed through verbatim from `evidence.evidenceConfidence.level` —
+	 * never recomputed here. */
+	confidence: EvidenceConfidenceLevel;
+	/** Fixed declared order (see recommendation.ts's REASON_ORDER),
+	 * deduplicated — never object/Set/Map iteration order. */
+	supportingReasons: RecommendationReason[];
+	blockingReasons: RecommendationReason[];
+	/** The exact MarketOpportunityEvidence this recommendation was
+	 * derived from, kept by reference (never cloned or partially
+	 * duplicated) — see recommendation.ts's evaluateRecommendation. */
+	evidence: MarketOpportunityEvidence;
+};
