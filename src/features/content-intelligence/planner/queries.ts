@@ -1,5 +1,14 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
+// "both" when the opportunity has impressions from Google and Bing;
+// "none" only for a theoretical all-zero row (recompute.ts never
+// produces one in practice, since a query only enters
+// content_opportunities because at least one source reported it).
+// Deliberately NOT a persisted column — see the migration's own comment
+// on why this is derived instead of stored as a redundant
+// "primary_source" field that could drift from the real numbers.
+export type OpportunitySource = "google" | "bing" | "both" | "none";
+
 export type OpportunityRow = {
 	id: string;
 	query: string;
@@ -11,6 +20,15 @@ export type OpportunityRow = {
 	status: "new" | "reviewing" | "briefed" | "dismissed";
 	matchedArticleId: string | null;
 	updatedAt: string;
+	googleImpressions: number;
+	googleClicks: number;
+	bingImpressions: number;
+	bingClicks: number;
+	// Derived, not stored — see OpportunitySource.
+	source: OpportunitySource;
+	// Derived, not stored — safe from a zero-impressions row (no
+	// division by zero surfaced to the caller as NaN).
+	ctr: number | null;
 };
 
 type RawOpportunity = {
@@ -24,7 +42,18 @@ type RawOpportunity = {
 	status: string;
 	matched_article_id: string | null;
 	updated_at: string;
+	google_impressions: number;
+	google_clicks: number;
+	bing_impressions: number;
+	bing_clicks: number;
 };
+
+function deriveSource(googleImpressions: number, bingImpressions: number): OpportunitySource {
+	if (googleImpressions > 0 && bingImpressions > 0) return "both";
+	if (googleImpressions > 0) return "google";
+	if (bingImpressions > 0) return "bing";
+	return "none";
+}
 
 function mapOpportunity(row: RawOpportunity): OpportunityRow {
 	return {
@@ -38,6 +67,12 @@ function mapOpportunity(row: RawOpportunity): OpportunityRow {
 		status: row.status as OpportunityRow["status"],
 		matchedArticleId: row.matched_article_id,
 		updatedAt: row.updated_at,
+		googleImpressions: row.google_impressions,
+		googleClicks: row.google_clicks,
+		bingImpressions: row.bing_impressions,
+		bingClicks: row.bing_clicks,
+		source: deriveSource(row.google_impressions, row.bing_impressions),
+		ctr: row.total_impressions > 0 ? row.total_clicks / row.total_impressions : null,
 	};
 }
 

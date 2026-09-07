@@ -35,7 +35,13 @@ export function OpportunitiesToolbar() {
 				setMessage(result.message);
 				return;
 			}
-			setMessage(`Recomputed scores for ${result.opportunitiesUpdated} queries.`);
+			// Scores/source attribution are already saved at this point even
+			// if `historyWarning` is set below — see recompute.ts's own
+			// comment on why a history-insert failure doesn't roll back or
+			// hide a successful recompute, just gets surfaced rather than
+			// silently swallowed.
+			const base = `Recomputed scores for ${result.opportunitiesUpdated} queries.`;
+			setMessage(result.historyWarning ? `${base} ${result.historyWarning}` : base);
 			router.refresh();
 		});
 	}
