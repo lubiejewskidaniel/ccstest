@@ -11,9 +11,10 @@ vi.mock("@/lib/supabase/server", () => ({
 	createSupabaseServerClient: () => mockCreateSupabaseServerClient(),
 }));
 
-const { findMarketKeywordId, listMarketKeywordObservationsById, listMarketKeywordObservations } = await import("../queries");
+const { findMarketKeywordId, listMarketKeywordObservationsById, listMarketKeywordObservations, listTrackedMarketKeywords } = await import("../queries");
 
 const GB = { country: "gb" as const, language: "en-GB" as const };
+const PL = { country: "pl" as const, language: "pl-PL" as const };
 
 type Result = { data: unknown; error: { message: string } | null };
 
@@ -35,6 +36,13 @@ function queryResult(data: unknown, error: { message: string } | null = null) {
 	return builder;
 }
 
+/** `keywordResult` stands in for the `market_keywords` table for every
+ * caller that hits it — `findMarketKeywordId` (a `.select("id")` +
+ * `.eq(...)` + `.maybeSingle()` chain) and `listTrackedMarketKeywords`
+ * (a `.select(...)` + `.order(...)` chain) alike; the fake router below
+ * only distinguishes by table name, not by which columns/chain a given
+ * call used, since no single test exercises both against the same
+ * builder. */
 function fakeSupabase(opts: { keywordResult?: ReturnType<typeof queryResult>; observationsResult?: ReturnType<typeof queryResult> }) {
 	const from = vi.fn((table: string) => {
 		if (table === "market_keywords") return opts.keywordResult;
@@ -143,5 +151,96 @@ describe("listMarketKeywordObservations — Phase 3B.1 backward-compatible wrapp
 		);
 		const rows = await listMarketKeywordObservations("bing", "seo agency", GB);
 		expect(rows).toEqual([]);
+	});
+});
+
+describe("listTrackedMarketKeywords", () => {
+	it("returns ok with an empty array when nothing is tracked", async () => {
+		mockCreateSupabaseServerClient.mockResolvedValue(fakeSupabase({ keywordResult: queryResult([]) }));
+		const result = await listTrackedMarketKeywords();
+		expect(result).toEqual({ status: "ok", rows: [] });
+	});
+
+	it("maps a single row into a TrackedMarketKeyword", async () => {
+		mockCreateSupabaseServerClient.mockResolvedValue(
+			fakeSupabase({
+				keywordResult: queryResult([{ id: "kw-1", provider: "bing", keyword: "seo agency", country: "gb", language: "en-GB" }]),
+			}),
+		);
+		const result = await listTrackedMarketKeywords();
+		expect(result).toEqual({
+			status: "ok",
+			rows: [{ id: "kw-1", provider: "bing", keyword: "seo agency", market: GB }],
+		});
+	});
+
+	it("keeps GB and PL rows distinct — never conflated into one market", async () => {
+		mockCreateSupabaseServerClient.mockResolvedValue(
+			fakeSupabase({
+				keywordResult: queryResult([
+					{ id: "kw-1", provider: "bing", keyword: "seo agency", country: "gb", language: "en-GB" },
+					{ id: "kw-2", provider: "bing", keyword: "seo agency", country: "pl", language: "pl-PL" },
+				]),
+			}),
+		);
+		const result = await listTrackedMarketKeywords();
+		expect(result).toEqual({
+			status: "ok",
+			rows: [
+				{ id: "kw-1", provider: "bing", keyword: "seo agency", market: GB },
+				{ id: "kw-2", provider: "bing", keyword: "seo agency", market: PL },
+			],
+		});
+	});
+
+	it("preserves the row's own provider verbatim", async () => {
+		mockCreateSupabaseServerClient.mockResolvedValue(
+			fakeSupabase({
+				keywordResult: queryResult([{ id: "kw-1", provider: "bing", keyword: "seo agency", country: "gb", language: "en-GB" }]),
+			}),
+		);
+		const result = await listTrackedMarketKeywords();
+		expect(result.status === "ok" && result.rows[0]?.provider).toBe("bing");
+	});
+
+	it("orders deterministically by keyword asc, country asc, id asc", async () => {
+		const keywordBuilder = queryResult([]);
+		mockCreateSupabaseServerClient.mockResolvedValue(fakeSupabase({ keywordResult: keywordBuilder }));
+		await listTrackedMarketKeywords();
+		expect((keywordBuilder.order as ReturnType<typeof vi.fn>).mock.calls).toEqual([
+			["keyword", { ascending: true }],
+			["country", { ascending: true }],
+			["id", { ascending: true }],
+		]);
+	});
+
+	it("returns error when Supabase isn't configured", async () => {
+		mockCreateSupabaseServerClient.mockResolvedValue(null);
+		const result = await listTrackedMarketKeywords();
+		expect(result.status).toBe("error");
+	});
+
+	it("surfaces a genuine query error distinctly from an empty list", async () => {
+		mockCreateSupabaseServerClient.mockResolvedValue(fakeSupabase({ keywordResult: queryResult(null, { message: "connection reset" }) }));
+		const result = await listTrackedMarketKeywords();
+		expect(result).toEqual({ status: "error", message: "connection reset" });
+	});
+
+	it("skips a row whose country/language don't form one of MarketCode's two valid pairs, without erroring or fabricating a market", async () => {
+		mockCreateSupabaseServerClient.mockResolvedValue(
+			fakeSupabase({
+				keywordResult: queryResult([
+					{ id: "kw-1", provider: "bing", keyword: "seo agency", country: "gb", language: "en-GB" },
+					// Malformed: no MarketCode member has this pair — must never be
+					// fabricated into a MarketCode, and must not fail the whole list.
+					{ id: "kw-2", provider: "bing", keyword: "web development", country: "us", language: "en-US" },
+				]),
+			}),
+		);
+		const result = await listTrackedMarketKeywords();
+		expect(result).toEqual({
+			status: "ok",
+			rows: [{ id: "kw-1", provider: "bing", keyword: "seo agency", market: GB }],
+		});
 	});
 });

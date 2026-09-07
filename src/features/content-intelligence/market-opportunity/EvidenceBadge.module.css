@@ -1,0 +1,29 @@
+.badge {
+	display: inline-flex;
+	align-items: center;
+	font-family: var(--font-mono);
+	font-size: 11.5px;
+	padding: 4px 10px;
+	border-radius: 999px;
+	border: 1px solid var(--line-strong);
+	color: var(--ink-2);
+	white-space: nowrap;
+}
+
+.badge[data-tone="positive"] {
+	color: var(--go);
+	border-color: color-mix(in srgb, var(--go) 45%, var(--line-strong));
+}
+
+.badge[data-tone="attention"] {
+	color: var(--rate);
+	border-color: color-mix(in srgb, var(--rate) 45%, var(--line-strong));
+}
+
+.badge[data-tone="neutral"] {
+	color: var(--ink-2);
+}
+
+.badge[data-tone="muted"] {
+	color: var(--ink-3);
+}

@@ -153,3 +153,91 @@ export async function listMarketKeywordObservations(
 	const observations = await listMarketKeywordObservationsById(lookup.id);
 	return observations.status === "ok" ? observations.rows : [];
 }
+
+// ---------------------------------------------------------------------------
+// Phase 3C.1F — tracked-keyword listing (admin inspection UI)
+// ---------------------------------------------------------------------------
+
+/** One `market_keywords` row, with `country`/`language` already folded
+ * into the same `MarketCode` union every other function in this module
+ * uses — never a raw `{country, language}` pair that could disagree with
+ * it. */
+export type TrackedMarketKeyword = {
+	id: string;
+	provider: MarketIntelligenceProviderId;
+	keyword: string;
+	market: MarketCode;
+};
+
+export type ListTrackedMarketKeywordsResult = { status: "ok"; rows: TrackedMarketKeyword[] } | { status: "error"; message: string };
+
+type RawTrackedMarketKeyword = {
+	id: string;
+	provider: string;
+	keyword: string;
+	country: string;
+	language: string;
+};
+
+/** The only two valid (country, language) pairs `MarketCode` can
+ * represent — see that type's own doc comment on why this is a
+ * discriminated union rather than two independent fields. Anything else
+ * found in the database is a malformed row, not a market this function
+ * can honestly report. */
+function toMarketCode(country: string, language: string): MarketCode | null {
+	if (country === "gb" && language === "en-GB") return { country: "gb", language: "en-GB" };
+	if (country === "pl" && language === "pl-PL") return { country: "pl", language: "pl-PL" };
+	return null;
+}
+
+/**
+ * Every tracked `market_keywords` row, for the admin inspection UI's
+ * keyword-selection list (Phase 3C.1F) — a listing concern, not an
+ * orchestration one, so it stays in this file alongside every other
+ * `market_keywords` read rather than in `market-opportunity/queries.ts`
+ * (which assembles evidence for one already-chosen subject, never
+ * discovers subjects itself).
+ *
+ * A row whose `country`/`language` don't form one of `MarketCode`'s two
+ * valid pairs is skipped rather than fabricating an invalid `MarketCode`
+ * or failing the whole listing — the same "never manufacture a
+ * misleading value" principle this module already applies elsewhere
+ * (e.g. `no_data` vs. a false zero). This should never happen against
+ * real data (009_market_intelligence.sql's own check constraint already
+ * pins the valid pairs at the database level), so it is not expected to
+ * ever actually filter a row in production; it exists purely so a
+ * genuinely malformed row is dropped visibly (via a caller inspecting
+ * the returned count against what they expect) rather than surfacing an
+ * invented market. A genuine query/configuration failure is still
+ * reported as `"error"`, never silently downgraded to an empty list —
+ * that distinction matters here exactly as much as it does for
+ * `findMarketKeywordId`/`listMarketKeywordObservationsById` above.
+ *
+ * Ordered `keyword asc, country asc, id asc` — a stable, boring listing;
+ * `id` is a final tie-break for the (rare) case of the same keyword
+ * tracked for both markets under the same provider.
+ */
+export async function listTrackedMarketKeywords(): Promise<ListTrackedMarketKeywordsResult> {
+	const supabase = await createSupabaseServerClient();
+	if (!supabase) {
+		return { status: "error", message: "Supabase isn't configured in this environment." };
+	}
+
+	const { data, error } = await supabase
+		.from("market_keywords")
+		.select("id, provider, keyword, country, language")
+		.order("keyword", { ascending: true })
+		.order("country", { ascending: true })
+		.order("id", { ascending: true });
+
+	if (error) return { status: "error", message: error.message };
+
+	const rows: TrackedMarketKeyword[] = [];
+	for (const row of (data ?? []) as RawTrackedMarketKeyword[]) {
+		const market = toMarketCode(row.country, row.language);
+		if (!market) continue;
+		rows.push({ id: row.id, provider: row.provider as MarketIntelligenceProviderId, keyword: row.keyword, market });
+	}
+
+	return { status: "ok", rows };
+}

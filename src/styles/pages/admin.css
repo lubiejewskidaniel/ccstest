@@ -576,3 +576,27 @@
 		grid-template-columns: 1fr;
 	}
 }
+
+/* Phase 3C.1F -- compact label/value grid for the market opportunities
+   evidence inspector (MarketOpportunityInspector.tsx). auto-fit/minmax
+   collapses to a single column on narrow viewports without a dedicated
+   media query -- same responsive technique as .cap-grid/.admin-cards-
+   grid above, kept as its own rule since these are label/value pairs
+   (<dl><dt><dd>), not stat tiles. No fixed-width columns. */
+.admin-definition-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: 10px 20px;
+	margin: 0;
+}
+.admin-definition-grid dt {
+	font-size: 11.5px;
+	color: var(--ink-3);
+	margin-bottom: 2px;
+}
+.admin-definition-grid dd {
+	margin: 0;
+	font-size: 13.5px;
+	color: var(--ink-1);
+	word-break: break-word;
+}

@@ -22,6 +22,9 @@ export default async function AdminInsightsListPage() {
 					<Link href="/admin/insights/opportunities" className="btn btn-ghost">
 						Opportunities
 					</Link>
+					<Link href="/admin/insights/market-opportunities" className="btn btn-ghost">
+						Market opportunities
+					</Link>
 					<Link href="/admin/insights/briefs" className="btn btn-ghost">
 						AI briefs
 					</Link>
