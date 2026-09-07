@@ -182,15 +182,78 @@ export async function transitionArticleStatus(raw: unknown): Promise<CmsResult> 
 	// published_at-set-once logic below and to know (a) whether this is
 	// actually a non-published -> published transition worth telling
 	// IndexNow about, and (b) the locale-correct URL to submit, without
-	// a second read after the write below.
+	// a second read after the write below. The same read also carries
+	// the three cover-image columns the Phase 3C.4A publication gate
+	// checks immediately below — deliberately the row's CURRENT stored
+	// state, read fresh from the database right before this mutation,
+	// never anything the client submitted on this same request:
+	// `statusTransitionSchema` only ever accepts `id`/`status`/
+	// `scheduledAt` (see ./schema.ts), so there is no `coverImageStatus`
+	// field on `parsed.data` a caller could set to "approved" to bypass
+	// review even if it tried.
 	let indexNowTarget: { locale: Locale; slug: string } | null = null;
 
 	if (status === "published") {
-		const { data: existing } = await supabase
+		const { data: existing, error: existingError } = await supabase
 			.from("insights_articles")
-			.select("status, published_at, locale, slug")
+			.select("status, published_at, locale, slug, cover_image_status, cover_image_url, cover_image_alt")
 			.eq("id", id)
 			.maybeSingle();
+
+		// A failure to even READ the current row (connection error, RLS
+		// surprise, etc.) is a storage/persistence problem, not "the
+		// cover image is missing" — must not be folded into the gate's
+		// validation failure below, which would misreport a database
+		// outage as "you forgot to add a cover image".
+		if (existingError) {
+			return { ok: false, kind: "persistence", message: describeWriteError(existingError.message) };
+		}
+
+		// Phase 3C.4A — universal publication gate (docs: Phase 3C.4
+		// design report). Applies to every article regardless of origin
+		// (manually created, AI-promoted, recommendation-originated,
+		// future workflows) because this is the one shared path every one
+		// of those flows already goes through to reach "published" — see
+		// promote.ts, which only ever creates "in_review" articles and
+		// never calls this function itself.
+		//
+		// Gated on isNewPublish, NOT on the requested target status
+		// alone: the approved design is explicit that existing published
+		// articles are never demoted or retroactively invalidated, and
+		// the invariant applies to a *future transition into* published,
+		// not to "the row happens to already be published and is being
+		// resaved/re-transitioned with the same status". Without this
+		// distinction, a published -> published call (a legitimate,
+		// pre-existing case this same function already handles below via
+		// the indexNowTarget/published_at logic) would incorrectly
+		// re-reject a legacy article whose cover_image_status defaulted
+		// to "missing" from migration 010, even though it is already
+		// live and this call changes nothing about that.
+		const isNewPublish = existing?.status !== "published";
+
+		// All three checks are mandatory; none is trusted alone:
+		//   - cover_image_status alone doesn't prove a URL/alt exist,
+		//   - cover_image_url alone doesn't prove a human reviewed it,
+		//   - cover_image_alt alone doesn't prove either of the above.
+		// `.trim().length > 0` (not a plain truthiness check) so a
+		// whitespace-only value set by any future editor UI is treated
+		// the same as empty, not as "present". A missing row (`existing`
+		// null -- e.g. an id that no longer exists) counts as a new
+		// publish attempt and also fails this check rather than silently
+		// proceeding, since there is nothing to have approved a cover
+		// image for.
+		if (
+			isNewPublish &&
+			(existing?.cover_image_status !== "approved" ||
+				!(typeof existing.cover_image_url === "string" && existing.cover_image_url.trim().length > 0) ||
+				!(typeof existing.cover_image_alt === "string" && existing.cover_image_alt.trim().length > 0))
+		) {
+			return {
+				ok: false,
+				kind: "validation",
+				fieldErrors: { coverImage: "Add and approve a cover image with alt text before publishing." },
+			};
+		}
 
 		// Only set published_at if it isn't already set (a re-publish after
 		// archiving keeps the original date) — a single UPDATE can express

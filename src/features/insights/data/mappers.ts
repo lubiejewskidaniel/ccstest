@@ -39,6 +39,7 @@ type RawArticle = {
   excerpt: string;
   cover_image_url: string | null;
   cover_image_alt: string | null;
+  cover_image_status: string | null;
   body: unknown;
   reading_minutes: number | null;
   author_name: string;
@@ -101,6 +102,15 @@ export function mapArticle(raw: RawArticle): Article | null {
     excerpt: raw.excerpt,
     coverImageUrl: raw.cover_image_url,
     coverImageAlt: raw.cover_image_alt,
+    // Same trust-the-DB-CHECK-constraint cast already used for
+    // `status`/`source` below -- never defaulted to "approved" for a
+    // missing/unrecognized value. `?? "missing"` only guards a raw value
+    // of null/undefined (e.g. a row read before this migration's
+    // `not null default` backfilled it in a given environment); it is
+    // not a general fallback for arbitrary unexpected strings, which
+    // would fail the database's own CHECK constraint before ever
+    // reaching here.
+    coverImageStatus: (raw.cover_image_status ?? "missing") as Article["coverImageStatus"],
     body: parseArticleBody(raw.body),
     readingMinutes: raw.reading_minutes,
     authorName: raw.author_name,

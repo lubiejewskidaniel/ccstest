@@ -57,7 +57,33 @@ const ARTICLE_ID = "11111111-1111-4111-8111-111111111111";
 const CATEGORY_ID = "22222222-2222-4222-8222-222222222222";
 const FUTURE_ISO = new Date(Date.now() + 86_400_000).toISOString();
 
-type ExistingRow = { status: string; published_at: string | null; locale: string; slug: string } | null;
+// Phase 3C.4A -- cover_image_status/url/alt are optional here (default
+// undefined) because most of these fixtures exercise a target status
+// OTHER than "published" (draft/in_review/scheduled/archived), or a
+// published -> published no-op, neither of which the publication gate
+// evaluates. Only fixtures that exercise an actual NEW publish (a
+// non-published -> published transition) need to supply a fully
+// approved, non-empty cover image -- see PUBLISHABLE_COVER below.
+type ExistingRow = {
+  status: string;
+  published_at: string | null;
+  locale: string;
+  slug: string;
+  cover_image_status?: string;
+  cover_image_url?: string | null;
+  cover_image_alt?: string | null;
+} | null;
+
+/** A satisfied Phase 3C.4A publication gate, spread into any fixture
+ * that represents a genuine non-published -> published transition --
+ * this file proves IndexNow behaviour still works AFTER the universal
+ * publication invariant is satisfied, not by bypassing or mocking away
+ * the gate. */
+const PUBLISHABLE_COVER = {
+  cover_image_status: "approved",
+  cover_image_url: "https://example.com/cover.webp",
+  cover_image_alt: "A descriptive alt text for this article's cover image",
+};
 
 /** A minimal fake of the one Supabase surface these two functions touch:
  * `.from("insights_articles").select(...).eq(...).maybeSingle()`,
@@ -125,8 +151,11 @@ afterEach(() => {
 
 describe("transitionArticleStatus -> IndexNow (manual publish)", () => {
   it("submits the article's public URL on a non-published -> published transition", async () => {
+    // Phase 3C.4A: a real new publish now also requires a satisfied
+    // cover-image gate -- this fixture represents a publishable
+    // article, proving IndexNow still fires once the invariant holds.
     mockCreateSupabaseServerClient.mockResolvedValue(
-      fakeSupabase({ existing: { status: "draft", published_at: null, locale: "en", slug: "my-article" } })
+      fakeSupabase({ existing: { status: "draft", published_at: null, locale: "en", slug: "my-article", ...PUBLISHABLE_COVER } })
     );
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 200 }));
 
@@ -139,8 +168,10 @@ describe("transitionArticleStatus -> IndexNow (manual publish)", () => {
   });
 
   it("builds the /pl/wiedza/{slug} URL for a Polish article", async () => {
+    // Phase 3C.4A: same reasoning as above -- a real new publish
+    // requires the gate to be satisfied first.
     mockCreateSupabaseServerClient.mockResolvedValue(
-      fakeSupabase({ existing: { status: "in_review", published_at: null, locale: "pl", slug: "moj-artykul" } })
+      fakeSupabase({ existing: { status: "in_review", published_at: null, locale: "pl", slug: "moj-artykul", ...PUBLISHABLE_COVER } })
     );
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 200 }));
 
@@ -183,9 +214,14 @@ describe("transitionArticleStatus -> IndexNow (manual publish)", () => {
   });
 
   it("never pings IndexNow when the database update itself fails", async () => {
+    // Phase 3C.4A: this fixture must satisfy the publication gate so the
+    // failure this test actually exercises is the database update
+    // failing -- not the gate rejecting the request first (which would
+    // also produce `ok: false` and no fetch call, but for the wrong
+    // reason, silently no longer testing the DB-failure path at all).
     mockCreateSupabaseServerClient.mockResolvedValue(
       fakeSupabase({
-        existing: { status: "draft", published_at: null, locale: "en", slug: "my-article" },
+        existing: { status: "draft", published_at: null, locale: "en", slug: "my-article", ...PUBLISHABLE_COVER },
         updateError: { message: "db exploded" },
       })
     );
@@ -194,12 +230,17 @@ describe("transitionArticleStatus -> IndexNow (manual publish)", () => {
     const result = await transitionArticleStatus({ id: ARTICLE_ID, status: "published" });
 
     expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.kind).toBe("persistence");
+    }
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("still reports the publish as successful when IndexNow itself fails", async () => {
+    // Phase 3C.4A: this is a real new publish, so the fixture must be
+    // publishable, not merely "IndexNow failing shouldn't matter".
     mockCreateSupabaseServerClient.mockResolvedValue(
-      fakeSupabase({ existing: { status: "draft", published_at: null, locale: "en", slug: "my-article" } })
+      fakeSupabase({ existing: { status: "draft", published_at: null, locale: "en", slug: "my-article", ...PUBLISHABLE_COVER } })
     );
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network down"));
     vi.spyOn(console, "error").mockImplementation(() => {});

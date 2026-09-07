@@ -20,7 +20,7 @@ import { mapArticle, mapArticleSummary } from "../data/mappers";
 
 const ADMIN_COLUMNS = `
   id, locale, slug, translation_of, title, excerpt, cover_image_url,
-  cover_image_alt, reading_minutes, author_name, status, scheduled_at,
+  cover_image_alt, cover_image_status, reading_minutes, author_name, status, scheduled_at,
   published_at, seo_title, seo_description, source, featured,
   created_at, updated_at,
   category:insights_categories(*),
