@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import type { MarketOpportunityEvidence } from "./types";
 import type { MarketMetricTrendEvidence } from "../market/trend";
 import { EvidenceBadge } from "./EvidenceBadge";
+import { evaluateRecommendation } from "./recommendation";
+import { buildRecommendationHandoff } from "./recommendationHandoff";
 import {
 	CLASSIFICATION_EXPLANATION,
 	CLASSIFICATION_LABEL,
@@ -17,6 +19,8 @@ import {
 	displayValue,
 	LIMITING_REASON_EXPLANATION,
 	MATCH_KIND_LABEL,
+	RECOMMENDATION_KIND_LABEL,
+	RECOMMENDATION_REASON_LABEL,
 	RELEVANCE_LABEL,
 	RELEVANCE_TONE,
 } from "./marketOpportunityPresentation";
@@ -37,6 +41,18 @@ import {
  * `titleMatches`/`excerptOnlyMatches` carry an `articleId` that IS
  * confirmed to be the same `insights_articles.id`
  * `/admin/insights/[id]/edit` expects, so those do link.
+ *
+ * Phase 3C.3 adds a ninth, still read-only "Recommendation" section:
+ * `evaluateRecommendation()` is a pure function of the `evidence` prop
+ * this component already receives, so calling it here (rather than
+ * threading a separately-computed prop through the page) guarantees the
+ * recommendation shown is always freshly derived from whatever evidence
+ * this render actually has — never a cached or stale value. The at-most-
+ * one navigation link this section can show comes from
+ * `buildRecommendationHandoff()`, which never creates anything itself —
+ * see that module's own doc comment. Recommendation != execution: this
+ * remains a display component with no form, no `action=`, and no
+ * `@/lib/actions/*` import, exactly as before.
  */
 
 function DefinitionGrid({ items }: { items: { term: string; value: ReactNode }[] }) {
@@ -87,6 +103,8 @@ function metricTrendItems(evidence: MarketMetricTrendEvidence): { term: string; 
 
 export function MarketOpportunityInspector({ evidence }: { evidence: MarketOpportunityEvidence }) {
 	const { subject, marketDemand, ccsVisibility, ccsTrend, businessRelevance, contentCoverage, evidenceConfidence, classifications } = evidence;
+	const recommendation = evaluateRecommendation(evidence);
+	const handoff = buildRecommendationHandoff(recommendation);
 
 	return (
 		<div>
@@ -338,6 +356,50 @@ export function MarketOpportunityInspector({ evidence }: { evidence: MarketOppor
 							))}
 						</ul>
 					</>
+				)}
+			</Section>
+
+			{/* --- 9. Recommendation --- */}
+			<Section title="Recommendation">
+				<p style={{ marginBottom: 12 }}>
+					<b>{RECOMMENDATION_KIND_LABEL[recommendation.recommendation]}</b>{" "}
+					<EvidenceBadge label={CONFIDENCE_LABEL[recommendation.confidence]} tone={CONFIDENCE_TONE[recommendation.confidence]} />
+				</p>
+				{recommendation.supportingReasons.length > 0 && (
+					<>
+						<h3 style={{ fontSize: "0.9rem", fontWeight: 600, margin: "16px 0 8px" }}>Supporting</h3>
+						<ul style={{ paddingLeft: 18, display: "flex", flexDirection: "column", gap: 4 }}>
+							{recommendation.supportingReasons.map((reason) => (
+								<li key={reason} style={{ fontSize: 13 }}>
+									{RECOMMENDATION_REASON_LABEL[reason]}
+								</li>
+							))}
+						</ul>
+					</>
+				)}
+				{recommendation.blockingReasons.length > 0 && (
+					<>
+						<h3 style={{ fontSize: "0.9rem", fontWeight: 600, margin: "16px 0 8px" }}>Blocking</h3>
+						<ul style={{ paddingLeft: 18, display: "flex", flexDirection: "column", gap: 4 }}>
+							{recommendation.blockingReasons.map((reason) => (
+								<li key={reason} style={{ fontSize: 13 }}>
+									{RECOMMENDATION_REASON_LABEL[reason]}
+								</li>
+							))}
+						</ul>
+					</>
+				)}
+				{handoff && (
+					// A plain navigation link to an EXISTING route — never a
+					// form, never an action=, never an automatic write. The
+					// human still reviews and submits the existing Create
+					// Brief form / edits the article through the existing
+					// editor themselves. See recommendationHandoff.ts.
+					<p style={{ marginTop: 16 }}>
+						<a href={handoff.href} className="btn btn-ghost">
+							{handoff.label}
+						</a>
+					</p>
 				)}
 			</Section>
 		</div>

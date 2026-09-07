@@ -14,11 +14,17 @@ export function CreateBriefForm({
 	defaultTopic,
 	defaultOpportunityId,
 	defaultLocale,
+	defaultKeyPoints,
 }: {
 	categories: Category[];
 	defaultTopic?: string;
 	defaultOpportunityId?: string;
 	defaultLocale?: "en" | "pl";
+	/** Phase 3C.3: an optional prefill for the "Starting notes" textarea
+	 * below, e.g. from a Market Opportunity recommendation handoff — the
+	 * human can still edit or clear it before submitting; nothing here
+	 * submits the form automatically. */
+	defaultKeyPoints?: string;
 }) {
 	const [state, formAction, pending] = useActionState(createBriefAction, idle);
 	const router = useRouter();
@@ -70,7 +76,13 @@ export function CreateBriefForm({
 				<label htmlFor="keyPoints">
 					Starting notes <span className="opt">optional</span>
 				</label>
-				<textarea id="keyPoints" name="keyPoints" rows={4} placeholder="Anything the article should definitely cover, an angle to take, etc." />
+				<textarea
+					id="keyPoints"
+					name="keyPoints"
+					rows={4}
+					defaultValue={defaultKeyPoints}
+					placeholder="Anything the article should definitely cover, an angle to take, etc."
+				/>
 			</div>
 
 			<button type="submit" className="btn btn-primary form-submit" disabled={pending}>

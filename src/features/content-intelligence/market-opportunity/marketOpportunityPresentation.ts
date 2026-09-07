@@ -8,6 +8,8 @@ import type {
 	EvidenceConfidenceLimitingReason,
 	MarketOpportunityClassification,
 	QueryMatchKind,
+	RecommendationKind,
+	RecommendationReason,
 } from "./types";
 
 /**
@@ -207,6 +209,43 @@ export const ERROR_MESSAGE = {
 	market_keyword_not_found: "This keyword isn't being tracked for the selected provider and market yet.",
 	storage_error: "Something went wrong loading this evidence. Try again shortly.",
 } as const;
+
+// ---------------------------------------------------------------------------
+// Phase 3C.3 — Recommendation presentation (labels only; no execution)
+// ---------------------------------------------------------------------------
+//
+// These two maps are the single source of truth for how a
+// RecommendationKind/RecommendationReason is worded, reused by both the
+// Inspector's (display-only) recommendation section and
+// recommendationHandoff.ts's deterministic keyPoints template — so the
+// wording an editor sees on the page is exactly the wording that lands
+// in the prefilled brief, never two independently-maintained copies.
+
+export const RECOMMENDATION_KIND_LABEL: Record<RecommendationKind, string> = {
+	create_content: "Create content",
+	refresh_content: "Refresh content",
+	research_further: "Research further",
+	monitor: "Monitor",
+	no_action: "No action",
+};
+
+export const RECOMMENDATION_REASON_LABEL: Record<RecommendationReason, string> = {
+	business_none: "not relevant to CCS's business",
+	business_core: "core to CCS's business",
+	business_adjacent: "adjacent to CCS's business",
+	market_growth: "market demand is growing",
+	market_decline: "market demand is declining",
+	market_signal_unclear: "market signal is mixed or unclear",
+	content_missing: "no existing content covers this",
+	content_partial_mention: "only a passing mention exists elsewhere",
+	content_covered_unambiguous: "already has dedicated content",
+	content_mapping_ambiguous: "coverage mapping is ambiguous",
+	existing_content_declining: "existing content's performance is declining",
+	first_party_ambiguous_match: "first-party match is ambiguous",
+	first_party_no_match: "no first-party record tracked yet",
+	confidence_medium: "evidence confidence is medium",
+	confidence_low: "evidence confidence is low",
+};
 
 // ---------------------------------------------------------------------------
 // Small formatting helpers
