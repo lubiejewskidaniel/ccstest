@@ -59,14 +59,16 @@ const IMAGES_API_URL = "https://api.openai.com/v1/images/generations";
 
 /**
  * Image generation can legitimately take far longer than a plain asset
- * download — a `high`-quality `gpt-image-2` request routinely takes
- * tens of seconds. 60s is generous enough for that while still bounding
- * a hung request. Deliberately NOT the 10s
+ * download — the first real, paid `high`-quality `gpt-image-2` request
+ * at this adapter's canonical size timed out at almost exactly the
+ * previous 60s deadline (observed request duration ~61s), proving 60s
+ * was too tight rather than generous. 120s is deliberately NOT the 10s
  * `TEMPORARY_URL_FETCH_TIMEOUT_MS` used in `articleVisualStorageService.ts`
  * for downloading an already-generated asset — a much cheaper, faster
- * operation than generating one.
+ * operation than generating one — and still bounds a genuinely hung
+ * request; it is not removed altogether.
  */
-const GENERATION_TIMEOUT_MS = 60_000;
+const GENERATION_TIMEOUT_MS = 120_000;
 
 /** `gpt-image-2` requires both dimensions to be a multiple of 16 (and
  * the aspect ratio to fall within 1:3..3:1, never a real concern for any
@@ -191,7 +193,17 @@ export function createOpenAiArticleVisualProvider(): ArticleVisualProvider {
 			const prompt = buildPrompt(brief);
 
 			const controller = new AbortController();
-			const timeout = setTimeout(() => controller.abort(), GENERATION_TIMEOUT_MS);
+			// Set the instant this timer actually fires, not merely when the
+			// abort races a fetch that was already failing for some other
+			// reason -- `signal.aborted` alone can't tell an own-timeout
+			// abort apart from an abort the underlying fetch implementation
+			// triggers itself, so this flag is the one authoritative source
+			// of truth for "did OUR deadline cause this".
+			let timedOut = false;
+			const timeout = setTimeout(() => {
+				timedOut = true;
+				controller.abort();
+			}, GENERATION_TIMEOUT_MS);
 
 			let response: Response;
 			try {
@@ -213,10 +225,20 @@ export function createOpenAiArticleVisualProvider(): ArticleVisualProvider {
 					}),
 				});
 			} catch {
-				clearTimeout(timeout);
+				// Never the raw fetch/AbortError or a stack trace -- just one
+				// of two safe, fixed messages, chosen solely by whether OUR
+				// timer (not some other abort/network failure) fired first.
+				if (timedOut) {
+					return { ok: false, kind: "provider_error", message: "Image generation timed out. Please try again." };
+				}
 				return { ok: false, kind: "provider_error", message: "Could not reach the image generation provider." };
+			} finally {
+				// Always cleared, on every path out of the try -- success,
+				// the timeout firing, or any other network failure -- so a
+				// completed or failed request never leaves a stray timer
+				// running past this call.
+				clearTimeout(timeout);
 			}
-			clearTimeout(timeout);
 
 			if (!response.ok) {
 				const errorBody = (await response.json().catch(() => ({}))) as OpenAiImagesErrorResponse;

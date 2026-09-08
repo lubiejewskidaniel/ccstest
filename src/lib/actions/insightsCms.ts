@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createArticle, updateArticle, transitionArticleStatus, deleteArticle } from "@/features/insights/cms/service";
 import { approveArticleVisual } from "@/features/content-intelligence/visuals/articleVisualReviewService";
+import { generateArticleVisualCandidate } from "@/features/content-intelligence/visuals/articleVisualGenerationService";
 import { routes } from "@/lib/routes";
 import { articlePath } from "@/features/insights/seo/paths";
 
@@ -145,6 +146,32 @@ export async function approveArticleVisualAction(args: {
 	if (result.ok) {
 		revalidatePath(`/admin/insights/${args.articleId}/edit`);
 		revalidateInsightsSurfaces(args.locale, args.slug);
+	}
+	return result;
+}
+
+/** Bound with an article's id/locale/slug from the admin edit page, the
+ * same way as `approveArticleVisualAction` -- transport/revalidation
+ * only, exactly like every other action in this file. Contains no
+ * generation business logic itself: authentication, editor
+ * authorization, article/category/brief validation, the single
+ * provider call, and the storage handoff are all owned by
+ * `generateArticleVisualCandidate` (Phase 3C.4B.5B). This action never
+ * receives or forwards a prompt, provider id, image bytes, a URL, a
+ * storage path, an API key, or a `reviewedBy` value from the client --
+ * the only input it accepts is the same `{ articleId, locale, slug }`
+ * shape `approveArticleVisualAction` already uses.
+ *
+ * Only revalidates the admin edit route on success. Unlike approval,
+ * a freshly generated candidate is always `pending_review` -- it can
+ * never be publicly visible -- so there is no real reason to also
+ * revalidate the public Insights surfaces the way
+ * `approveArticleVisualAction` does; a failed generation revalidates
+ * nothing at all. */
+export async function generateArticleVisualAction(args: { articleId: string; locale: "en" | "pl"; slug: string }) {
+	const result = await generateArticleVisualCandidate(args.articleId);
+	if (result.ok) {
+		revalidatePath(`/admin/insights/${args.articleId}/edit`);
 	}
 	return result;
 }

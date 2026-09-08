@@ -210,8 +210,9 @@ describe("createOpenAiArticleVisualProvider", () => {
 		expect(source).not.toMatch(/\bdocument\./);
 	});
 
-	// 20. API/network error -> provider_error
-	it("20. maps a network failure to a provider_error result", async () => {
+	// 20. API/network error -> provider_error (an ordinary network failure,
+	// not our own timeout, so it must keep the generic message)
+	it("20. maps an ordinary network failure to the generic provider_error message", async () => {
 		vi.stubGlobal(
 			"fetch",
 			vi.fn(async (_url: string, _init: RequestInit) => {
@@ -219,7 +220,67 @@ describe("createOpenAiArticleVisualProvider", () => {
 			}),
 		);
 		const result = await createOpenAiArticleVisualProvider().generate(BASE_BRIEF, OPTIONS);
-		expect(result).toEqual({ ok: false, kind: "provider_error", message: expect.any(String) });
+		expect(result).toEqual({ ok: false, kind: "provider_error", message: "Could not reach the image generation provider." });
+	});
+
+	// Follow-up fix: the first real paid generation timed out at almost
+	// exactly the previous 60s deadline. Covers: timeout constant is
+	// 120s, a timeout-triggered AbortError maps to the timeout-specific
+	// safe message (never the generic one), an ordinary network failure
+	// still maps to the generic message (see #20 above, unchanged),
+	// exactly one fetch call happens either way, no retry, the timer is
+	// always cleared, and the provider's public contract is unchanged.
+	describe("generation timeout (120s, safe timeout classification)", () => {
+		afterEach(() => {
+			vi.useRealTimers();
+		});
+
+		it("declares a 120-second generation timeout constant", async () => {
+			const { readFileSync } = await import("node:fs");
+			const { resolve } = await import("node:path");
+			const source = readFileSync(resolve(process.cwd(), "src/features/content-intelligence/visuals/OpenAiArticleVisualProvider.ts"), "utf8");
+			expect(source).toMatch(/const GENERATION_TIMEOUT_MS = 120_000;/);
+			expect(source).not.toMatch(/const GENERATION_TIMEOUT_MS = 60_000;/);
+		});
+
+		it("maps our own timeout-triggered AbortError to the timeout-specific safe message, with exactly one fetch call and no retry", async () => {
+			vi.useFakeTimers();
+			const fetchMock = vi.fn(
+				(_url: string, init: RequestInit) =>
+					new Promise<Response>((_resolve, reject) => {
+						init.signal?.addEventListener("abort", () => {
+							const abortError = new Error("This operation was aborted");
+							abortError.name = "AbortError";
+							reject(abortError);
+						});
+					}),
+			);
+			vi.stubGlobal("fetch", fetchMock);
+			const clearTimeoutSpy = vi.spyOn(globalThis, "clearTimeout");
+
+			const resultPromise = createOpenAiArticleVisualProvider().generate(BASE_BRIEF, OPTIONS);
+			await vi.advanceTimersByTimeAsync(120_000);
+			const result = await resultPromise;
+
+			expect(result).toEqual({ ok: false, kind: "provider_error", message: "Image generation timed out. Please try again." });
+			expect(fetchMock).toHaveBeenCalledTimes(1);
+			expect(clearTimeoutSpy).toHaveBeenCalled();
+		});
+
+		it("still clears the timer on a successful (non-timeout) generation", async () => {
+			const clearTimeoutSpy = vi.spyOn(globalThis, "clearTimeout");
+			vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ data: [{ b64_json: pngBase64() }], size: "1600x896", output_format: "png" })));
+			const result = await createOpenAiArticleVisualProvider().generate(BASE_BRIEF, OPTIONS);
+			expect(result.ok).toBe(true);
+			expect(clearTimeoutSpy).toHaveBeenCalled();
+		});
+
+		it("does not change the provider's public contract (id, isConfigured, generate arity)", () => {
+			const provider = createOpenAiArticleVisualProvider();
+			expect(provider.id).toBe("openai");
+			expect(typeof provider.isConfigured).toBe("function");
+			expect(provider.generate.length).toBe(2);
+		});
 	});
 
 	// 20b. non-2xx HTTP status -> provider_error
