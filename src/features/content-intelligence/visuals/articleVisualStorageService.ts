@@ -48,8 +48,22 @@ import {
  * lives in. This phase never creates the bucket from application code
  * (see this file's final report for the manual setup this bucket and
  * its policies require) — a missing or unreachable bucket surfaces as a
- * `storage_error` result, never a silent auto-create. */
-const ARTICLE_VISUALS_BUCKET = "article-visuals";
+ * `storage_error` result, never a silent auto-create. Exported so the
+ * Phase 3C.4B.4A review service and read model (`articleVisualReviewService.ts`,
+ * `articleVisualQueries.ts`) use the exact same bucket name rather than
+ * repeating the string literal. */
+export const ARTICLE_VISUALS_BUCKET = "article-visuals";
+
+/**
+ * Derives the public URL for a stored candidate's object, server-side,
+ * from its trusted `storage_path` — never from a client-submitted URL
+ * or a provider's temporary URL. `getPublicUrl` does not make a network
+ * call; it only builds the URL from the client's own project
+ * configuration, so this can never fail.
+ */
+export function getArticleVisualPublicUrl(supabase: SupabaseServerClient, storagePath: string): string {
+	return supabase.storage.from(ARTICLE_VISUALS_BUCKET).getPublicUrl(storagePath).data.publicUrl;
+}
 
 /** How long a provider's `temporary_url` is given to respond before this
  * module gives up and reports `storage_error`. Chosen to be generous

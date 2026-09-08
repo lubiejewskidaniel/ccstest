@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createArticle, updateArticle, transitionArticleStatus, deleteArticle } from "@/features/insights/cms/service";
+import { approveArticleVisual } from "@/features/content-intelligence/visuals/articleVisualReviewService";
 import { routes } from "@/lib/routes";
 import { articlePath } from "@/features/insights/seo/paths";
 
@@ -122,5 +123,28 @@ export async function setArticleStatusAction(
 export async function deleteArticleAction(args: { id: string; locale: "en" | "pl"; slug: string }) {
 	const result = await deleteArticle(args.id);
 	if (result.ok) revalidateInsightsSurfaces(args.locale, args.slug);
+	return result;
+}
+
+
+/** Bound with an article's id/locale/slug from the admin edit page, the
+ * same way as `setArticleStatusAction` — approving a cover image is a
+ * narrower write than the full article form, so a review action button
+ * doesn't need to resubmit it. Contains no approval logic itself; that
+ * all lives in `approveArticleVisual` (and the `approve_article_visual`
+ * database function it calls), which is the only place
+ * `cover_image_status` is allowed to become `"approved"`. */
+export async function approveArticleVisualAction(args: {
+	articleId: string;
+	visualId: string;
+	altText: string;
+	locale: "en" | "pl";
+	slug: string;
+}) {
+	const result = await approveArticleVisual({ articleId: args.articleId, visualId: args.visualId, altText: args.altText });
+	if (result.ok) {
+		revalidatePath(`/admin/insights/${args.articleId}/edit`);
+		revalidateInsightsSurfaces(args.locale, args.slug);
+	}
 	return result;
 }
