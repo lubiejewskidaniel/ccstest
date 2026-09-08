@@ -5,6 +5,7 @@ import { listCategories, listTags } from "@/features/insights/data/queries";
 import { getAdminSession } from "@/lib/supabase/adminAuth";
 import { ArticleEditorForm } from "@/features/insights/cms/ArticleEditorForm";
 import { ArticleStatusActions } from "@/features/insights/cms/ArticleStatusActions";
+import { ArticleVisualReviewPanel } from "@/features/content-intelligence/visuals/ArticleVisualReviewPanel";
 import { updateArticleAction } from "@/lib/actions/insightsCms";
 
 type Params = { id: string };
@@ -32,6 +33,14 @@ export default async function EditArticlePage({ params }: { params: Promise<Para
 			</p>
 
 			<ArticleStatusActions article={article} locale={article.locale} isAdmin={session?.isAdmin ?? false} />
+
+			<ArticleVisualReviewPanel
+				articleId={article.id}
+				locale={article.locale}
+				slug={article.slug}
+				coverImageUrl={article.coverImageUrl}
+				coverImageStatus={article.coverImageStatus}
+			/>
 
 			<p style={{ fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--ink-3)", marginBottom: 12 }}>
 				Content

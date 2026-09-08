@@ -1,0 +1,129 @@
+.panel {
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	padding: 20px;
+	background: var(--surface);
+	margin-bottom: 28px;
+}
+
+.label {
+	font-family: var(--font-mono);
+	font-size: 11px;
+	letter-spacing: 0.05em;
+	text-transform: uppercase;
+	color: var(--ink-3);
+	margin: 0 0 16px;
+}
+
+.banner {
+	background: rgba(255, 107, 107, 0.1);
+	border: 1px solid rgba(255, 107, 107, 0.35);
+	color: #ff6b6b;
+	border-radius: var(--radius-sm);
+	padding: 12px 14px;
+	font-size: 13px;
+	margin: 0 0 16px;
+}
+
+.note {
+	font-size: 12.5px;
+	color: var(--ink-3);
+	margin: 0 0 16px;
+}
+
+.empty {
+	font-size: 13.5px;
+	color: var(--ink-3);
+	margin: 0;
+}
+
+.grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	gap: 16px;
+}
+
+.card {
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-sm);
+	background: var(--surface-2);
+	padding: 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.preview {
+	width: 100%;
+	aspect-ratio: 16 / 9;
+	object-fit: cover;
+	border-radius: 8px;
+	border: 1px solid var(--line);
+	background: var(--surface-3);
+}
+
+.meta {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.statusRow {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.statusBadge {
+	display: inline-flex;
+	align-items: center;
+	font-family: var(--font-mono);
+	font-size: 11.5px;
+	padding: 4px 10px;
+	border-radius: 999px;
+	border: 1px solid var(--line-strong);
+	color: var(--ink-2);
+	white-space: nowrap;
+}
+.statusBadge[data-status="approved"] {
+	color: var(--go);
+	border-color: color-mix(in srgb, var(--go) 45%, var(--line-strong));
+}
+.statusBadge[data-status="pending_review"] {
+	color: var(--rate);
+	border-color: color-mix(in srgb, var(--rate) 45%, var(--line-strong));
+}
+.statusBadge[data-status="superseded"] {
+	color: var(--ink-3);
+}
+
+.activeTag {
+	font-size: 11.5px;
+	font-weight: 600;
+	color: var(--go);
+}
+
+.altReadOnly {
+	font-size: 13px;
+	color: var(--ink-2);
+	margin: 0;
+}
+
+.confirmBox {
+	background: var(--surface);
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-sm);
+	padding: 12px;
+}
+.confirmBox p {
+	margin: 0 0 10px;
+	font-size: 12.5px;
+	color: var(--ink-1);
+	line-height: 1.5;
+}
+
+.confirmActions {
+	display: flex;
+	gap: 10px;
+}
