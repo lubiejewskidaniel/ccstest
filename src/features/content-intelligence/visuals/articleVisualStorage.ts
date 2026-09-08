@@ -47,7 +47,11 @@ export type ArticleVisualStatus = "pending_review" | "approved" | "superseded";
  * arbitrary caller input. */
 export type SupportedArticleVisualMimeType = "image/png" | "image/jpeg" | "image/webp";
 
-const MAX_ASSET_BYTES = 8 * 1024 * 1024;
+/** 8 MB — the only size ceiling this phase enforces. Exported so the
+ * Phase 3C.4B.3B storage-integration service can reject an oversized
+ * temporary-URL download using this exact same limit, rather than
+ * duplicating the number. */
+export const MAX_ARTICLE_VISUAL_ASSET_BYTES = 8 * 1024 * 1024;
 
 const MIME_TO_EXTENSION: Record<SupportedArticleVisualMimeType, string> = {
 	"image/png": "png",
@@ -62,11 +66,14 @@ function isSupportedMimeType(value: string): value is SupportedArticleVisualMime
 }
 
 /**
- * A future candidate row shape (Phase 3C.4B.3B writes these; this
- * module only describes the shape). Deliberately mirrors
- * `article_visuals`'s columns one-to-one, minus `id`/`created_at`/
- * `reviewed_at`/`reviewed_by`, which only exist once a row has actually
- * been written or reviewed.
+ * A candidate row shape, as returned once Phase 3C.4B.3B's
+ * `articleVisualStorageService.ts` has actually inserted one. Mirrors
+ * `article_visuals`'s columns one-to-one, minus `status` (always
+ * `"pending_review"` for a just-stored candidate in this phase, so not
+ * worth carrying), `reviewed_at`/`reviewed_by` (never set by a store
+ * action — see `StoreArticleVisualResult`'s doc comment). `createdAt` is
+ * always the real database-assigned timestamp read back from the
+ * inserted row, never a locally-fabricated `Date.now()` value.
  */
 export type ArticleVisualCandidate = {
 	articleId: string;
@@ -78,19 +85,40 @@ export type ArticleVisualCandidate = {
 	width: number;
 	height: number;
 	mimeType: SupportedArticleVisualMimeType;
+	createdAt: string;
 };
 
 /**
- * The result shape a future `storeGeneratedArticleVisual` /
- * `storeUploadedArticleVisual` (Phase 3C.4B.3B) will return. Declared
- * now for forward compatibility; nothing in this module produces one,
- * since nothing here performs any storage or database write. Follows
- * the same `{ ok, kind, message }` discriminated-union convention as
- * `CmsResult`, `StageResult`, `ArticleVisualBriefResult`, and
+ * The result shape `storeGeneratedArticleVisual` /
+ * `storeUploadedArticleVisual` (Phase 3C.4B.3B,
+ * `articleVisualStorageService.ts`) return. Declared here (alongside
+ * `ArticleVisualCandidate`) so both the pure validation module and the
+ * I/O-performing service module share one stable result contract;
+ * nothing in *this* module produces one, since nothing here performs
+ * any storage or database write. Follows the same
+ * `{ ok, kind, message }` discriminated-union convention as `CmsResult`,
+ * `StageResult`, `ArticleVisualBriefResult`, and
  * `GenerateArticleVisualResult`.
+ *
+ * `warning?: "cover_status_update_failed"` on the success variant
+ * covers one real partial-failure case the service layer can hit: the
+ * `article_visuals` candidate row was inserted successfully (the
+ * store action's actual job), but the best-effort follow-up update of
+ * `insights_articles.cover_image_status` (missing -> pending_review)
+ * failed. The candidate genuinely exists and must not be deleted or
+ * masked as a failure — this is still `ok: true` — but the caller
+ * should know the article's aggregate readiness state may be stale.
+ *
+ * `not_configured` / `auth` / `not_found` are real failure states the
+ * service layer needs (Supabase/storage bucket unavailable; caller is
+ * not a signed-in editor; the target article doesn't exist) that none
+ * of the original three kinds correctly describe.
  */
 export type StoreArticleVisualResult =
-	| { ok: true; candidate: ArticleVisualCandidate }
+	| { ok: true; candidate: ArticleVisualCandidate; warning?: "cover_status_update_failed" }
+	| { ok: false; kind: "not_configured"; message: string }
+	| { ok: false; kind: "auth"; message: string }
+	| { ok: false; kind: "not_found"; message: string }
 	| { ok: false; kind: "invalid_asset"; message: string }
 	| { ok: false; kind: "storage_error"; message: string }
 	| { ok: false; kind: "database_error"; message: string };
@@ -320,7 +348,7 @@ export function validateArticleVisualAsset(data: Uint8Array, declaredMimeType: s
 		return { ok: false, kind: "empty_payload", message: "The image data is empty." };
 	}
 
-	if (data.length > MAX_ASSET_BYTES) {
+	if (data.length > MAX_ARTICLE_VISUAL_ASSET_BYTES) {
 		return { ok: false, kind: "too_large", message: "The image exceeds the 8 MB maximum asset size." };
 	}
 
@@ -362,12 +390,25 @@ export function validateArticleVisualAsset(data: Uint8Array, declaredMimeType: s
 }
 
 /**
- * Builds the deterministic storage object path for a validated article
- * visual: `article-visuals/{articleId}/{visualId}.{ext}`, where `ext`
+ * Builds the deterministic OBJECT KEY *inside* the `article-visuals`
+ * Supabase Storage bucket: `{articleId}/{visualId}.{ext}`, where `ext`
  * comes exclusively from `mimeType` (typed as
  * `SupportedArticleVisualMimeType`, which only a prior
  * `validateArticleVisualAsset` success can produce) — never from
  * arbitrary caller input.
+ *
+ * Phase 3C.4B.3B correction: earlier versions of this helper returned
+ * `article-visuals/{articleId}/{visualId}.{ext}`, i.e. the object key
+ * already included the bucket name as a path segment. That is wrong for
+ * the Supabase Storage API, where a bucket name and an object key are
+ * separate arguments (`supabase.storage.from(bucketName).upload(objectKey,
+ * ...)`) — reusing the old string as the `objectKey` argument against the
+ * `article-visuals` bucket would have stored the object at
+ * `article-visuals/article-visuals/{articleId}/{visualId}.{ext}` inside
+ * the bucket, silently double-prefixing every path. This helper now
+ * returns only the object key; the bucket name (`article-visuals`) is a
+ * separate constant the storage-integration layer (3C.4B.3B) passes to
+ * the Storage client directly, never concatenated into this string.
  *
  * Pure: never generates `visualId` itself. Both `articleId` and
  * `visualId` are caller-supplied; UUID generation belongs to the
@@ -379,5 +420,5 @@ export function buildArticleVisualStoragePath(input: {
 	mimeType: SupportedArticleVisualMimeType;
 }): string {
 	const extension = MIME_TO_EXTENSION[input.mimeType];
-	return `article-visuals/${input.articleId}/${input.visualId}.${extension}`;
+	return `${input.articleId}/${input.visualId}.${extension}`;
 }

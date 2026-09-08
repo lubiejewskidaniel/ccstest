@@ -279,7 +279,7 @@ describe("buildArticleVisualStoragePath", () => {
 	for (const { mimeType, ext } of CASES) {
 		it(`maps ${mimeType} to the .${ext} extension`, () => {
 			const path = buildArticleVisualStoragePath({ articleId: "article-1", visualId: "visual-1", mimeType });
-			expect(path).toBe(`article-visuals/article-1/visual-1.${ext}`);
+			expect(path).toBe(`article-1/visual-1.${ext}`);
 		});
 	}
 
@@ -307,7 +307,13 @@ describe("buildArticleVisualStoragePath", () => {
 			visualId: "visual.with.dots.png",
 			mimeType: "image/webp",
 		});
-		expect(path).toBe("article-visuals/article.with.dots.jpg/visual.with.dots.png.webp");
+		expect(path).toBe("article.with.dots.jpg/visual.with.dots.png.webp");
+	});
+
+	it("never includes the bucket name as a path segment (Phase 3C.4B.3B regression: the bucket name and this object key are separate Storage API arguments, so a returned path that already started with \"article-visuals/\" would double-prefix once passed to `supabase.storage.from(\"article-visuals\").upload(path, ...)`)", () => {
+		const path = buildArticleVisualStoragePath({ articleId: "article-1", visualId: "visual-1", mimeType: "image/png" });
+		expect(path.startsWith("article-visuals/")).toBe(false);
+		expect(path).toBe("article-1/visual-1.png");
 	});
 });
 
