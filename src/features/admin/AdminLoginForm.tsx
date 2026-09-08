@@ -1,16 +1,23 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { adminSignIn, type AdminAuthState } from "@/lib/actions/adminAuth";
 
 const idle: AdminAuthState = { status: "idle" };
 
-export function AdminLoginForm() {
+export function AdminLoginForm({
+  resetSuccess = false,
+  resetError = false,
+}: {
+  resetSuccess?: boolean;
+  resetError?: boolean;
+}) {
   const [state, formAction, pending] = useActionState(adminSignIn, idle);
 
   return (
     <form action={formAction} noValidate>
-      {state.status === "error" && (
+      {state.status === "error" ? (
         <div className="form-status err" role="alert">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
             <circle cx="12" cy="12" r="9" />
@@ -18,7 +25,23 @@ export function AdminLoginForm() {
           </svg>
           <span>{state.message}</span>
         </div>
-      )}
+      ) : resetSuccess ? (
+        <div className="form-status ok" role="status">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+            <circle cx="12" cy="12" r="9" />
+            <path d="m8 12 3 3 5-6" />
+          </svg>
+          <span>Your password has been updated. Sign in with your new password.</span>
+        </div>
+      ) : resetError ? (
+        <div className="form-status err" role="alert">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 8v5M12 16h.01" />
+          </svg>
+          <span>That reset link is invalid or has expired. Request a new one below.</span>
+        </div>
+      ) : null}
       <div className="field admin-field">
         <label htmlFor="admin-email">Email</label>
         <div className="admin-field-control">
@@ -59,6 +82,9 @@ export function AdminLoginForm() {
           />
         </div>
       </div>
+      <p style={{ fontSize: 12.5, margin: "-6px 0 16px", textAlign: "right" }}>
+        <Link href="/admin/forgot-password">Forgot password?</Link>
+      </p>
       <button type="submit" className="btn btn-primary form-submit" disabled={pending}>
         {pending ? "Signing in…" : "Sign in"}
       </button>

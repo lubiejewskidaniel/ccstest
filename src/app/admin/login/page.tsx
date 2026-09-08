@@ -32,7 +32,15 @@ export const metadata: Metadata = {
  * naturally for a sign-in page. See .form-shell.admin-login-shell in
  * admin.css for the area definitions.
  */
-export default function AdminLoginPage() {
+export default async function AdminLoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ reset?: string; error?: string }>;
+}) {
+  const { reset, error } = await searchParams;
+  const resetSuccess = reset === "success";
+  const resetError = error === "reset_link_invalid";
+
   return (
     <main className="admin-login-page">
       <section className="page-hero admin-login-hero">
@@ -60,7 +68,7 @@ export default function AdminLoginPage() {
                 <h2>Admin sign in</h2>
                 <p className="admin-login-lede">Sign in to manage Insights, leads and publishing.</p>
               </div>
-              <AdminLoginForm />
+              <AdminLoginForm resetSuccess={resetSuccess} resetError={resetError} />
             </div>
           </div>
           <div className="form-facts">
