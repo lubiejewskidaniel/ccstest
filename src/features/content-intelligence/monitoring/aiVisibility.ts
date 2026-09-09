@@ -1,9 +1,11 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getAdminSession } from "@/lib/supabase/adminAuth";
 import { createAnthropicProvider } from "../generation/AnthropicProvider";
-import { checkBudget, logUsage } from "../generation/costGuard";
+import { checkBudget, estimateCostUsd, logUsage } from "../generation/costGuard";
+import { recordAiOperationEvent } from "../events/aiOperationEventWriter";
 import { siteName } from "@/lib/seo/metadata";
 import type { Locale } from "@/lib/routes";
+import type { AiCompletionResult, TextAiOperationOptions } from "../types/contentAi";
 
 export type AiVisibilityCheck = {
 	id: string;
@@ -39,7 +41,10 @@ const SYSTEM_PROMPT =
  * existing integrations (reuses Checkpoint 7's provider and cost guard
  * rather than adding a second AI integration for this one feature).
  */
-export async function checkAiVisibility(query: string, locale: Locale | null = null): Promise<CheckResult> {
+export async function checkAiVisibility(query: string, locale: Locale | null = null, options: TextAiOperationOptions = {}): Promise<CheckResult> {
+	const executionMode = options.executionMode ?? "manual";
+	const runId = options.runId ?? null;
+
 	const session = await getAdminSession();
 	if (!session?.isEditor) return { ok: false, kind: "auth", message: "You must be signed in as an editor to do this." };
 
@@ -56,7 +61,36 @@ export async function checkAiVisibility(query: string, locale: Locale | null = n
 	}
 
 	try {
-		const result = await provider.complete({ system: SYSTEM_PROMPT, prompt: query, maxTokens: 500 });
+		const startedAt = performance.now();
+		let result: AiCompletionResult;
+		try {
+			result = await provider.complete({ system: SYSTEM_PROMPT, prompt: query, maxTokens: 500 });
+		} catch (err) {
+			// Best-effort observability only -- never masks the real
+			// provider error re-thrown below.
+			try {
+				await recordAiOperationEvent({
+					briefId: null,
+					stage: "ai_visibility",
+					operationType: "ai_visibility",
+					provider: provider.id,
+					model: provider.model,
+					executionMode,
+					runId,
+					inputTokens: 0,
+					outputTokens: 0,
+					cost: null,
+					costBasis: null,
+					durationMs: Math.round(performance.now() - startedAt),
+					outcome: "failure",
+					errorKind: "provider_error",
+				});
+			} catch {
+				// Ignored -- see comment above.
+			}
+			throw err;
+		}
+		const durationMs = Math.round(performance.now() - startedAt);
 
 		await logUsage({
 			briefId: null,
@@ -66,6 +100,27 @@ export async function checkAiVisibility(query: string, locale: Locale | null = n
 			inputTokens: result.inputTokens,
 			outputTokens: result.outputTokens,
 		});
+
+		try {
+			await recordAiOperationEvent({
+				briefId: null,
+				stage: "ai_visibility",
+				operationType: "ai_visibility",
+				provider: provider.id,
+				model: provider.model,
+				executionMode,
+				runId,
+				inputTokens: result.inputTokens,
+				outputTokens: result.outputTokens,
+				cost: estimateCostUsd(result.inputTokens, result.outputTokens),
+				costBasis: "estimated",
+				durationMs,
+				outcome: "success",
+				errorKind: null,
+			});
+		} catch {
+			// Best-effort observability only.
+		}
 
 		const mentioned = result.text.toLowerCase().includes(siteName.toLowerCase());
 		const snippetIndex = mentioned ? result.text.toLowerCase().indexOf(siteName.toLowerCase()) : 0;

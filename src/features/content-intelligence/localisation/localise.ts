@@ -1,11 +1,12 @@
 import { getAdminSession } from "@/lib/supabase/adminAuth";
 import { getBrief, updateBriefRow } from "../briefs/service";
 import { createAnthropicProvider } from "../generation/AnthropicProvider";
-import { checkBudget, logUsage } from "../generation/costGuard";
+import { checkBudget, estimateCostUsd, logUsage } from "../generation/costGuard";
+import { recordAiOperationEvent } from "../events/aiOperationEventWriter";
 import { slugify } from "@/lib/slugify";
 import { articleBodySchema } from "@/features/insights/types/blocks";
 import type { Locale } from "@/lib/routes";
-import type { StageResult } from "../types/contentAi";
+import type { AiCompletionResult, StageResult, TextAiOperationOptions } from "../types/contentAi";
 
 const LOCALE_NAME: Record<Locale, string> = { en: "English", pl: "Polish" };
 
@@ -34,7 +35,10 @@ function buildPrompt(targetLanguage: string, title: string, excerpt: string, bod
  * required field or invents a new block type fails this stage the same
  * way a malformed generation would, rather than silently degrading.
  */
-export async function runLocalisation(briefId: string): Promise<StageResult> {
+export async function runLocalisation(briefId: string, options: TextAiOperationOptions = {}): Promise<StageResult> {
+	const executionMode = options.executionMode ?? "manual";
+	const runId = options.runId ?? null;
+
 	const session = await getAdminSession();
 	if (!session?.isEditor) return { ok: false, kind: "auth", message: "You must be signed in as an editor to do this." };
 
@@ -59,20 +63,49 @@ export async function runLocalisation(briefId: string): Promise<StageResult> {
 	await updateBriefRow(briefId, { status: "localising" });
 
 	try {
-		const result = await provider.complete({
-			system: SYSTEM_PROMPT,
-			prompt: buildPrompt(LOCALE_NAME[targetLocale], brief.generated.title, brief.generated.excerpt, brief.generated.body),
-			// Translating a full body echoes back the whole block structure
-			// (not just the human-readable text), and translated text is
-			// often longer than the English source (Polish especially) — a
-			// full ~20-block article can exceed generation's own 3000-token
-			// request. This is a per-call increase, not a change to the
-			// shared DEFAULT_MAX_OUTPUT_TOKENS in AnthropicProvider.ts, so
-			// research/generation/ai-visibility are unaffected. Still capped
-			// by CONTENT_AI_MAX_OUTPUT_TOKENS if that env var is set lower
-			// than this — raise it if localisation keeps truncating.
-			maxTokens: 6000,
-		});
+		const startedAt = performance.now();
+		let result: AiCompletionResult;
+		try {
+			result = await provider.complete({
+				system: SYSTEM_PROMPT,
+				prompt: buildPrompt(LOCALE_NAME[targetLocale], brief.generated.title, brief.generated.excerpt, brief.generated.body),
+				// Translating a full body echoes back the whole block structure
+				// (not just the human-readable text), and translated text is
+				// often longer than the English source (Polish especially) — a
+				// full ~20-block article can exceed generation's own 3000-token
+				// request. This is a per-call increase, not a change to the
+				// shared DEFAULT_MAX_OUTPUT_TOKENS in AnthropicProvider.ts, so
+				// research/generation/ai-visibility are unaffected. Still capped
+				// by CONTENT_AI_MAX_OUTPUT_TOKENS if that env var is set lower
+				// than this — raise it if localisation keeps truncating.
+				maxTokens: 6000,
+			});
+		} catch (err) {
+			// Best-effort observability only -- never masks the real
+			// provider error re-thrown below.
+			try {
+				await recordAiOperationEvent({
+					briefId,
+					stage: "localisation",
+					operationType: "localisation",
+					provider: provider.id,
+					model: provider.model,
+					executionMode,
+					runId,
+					inputTokens: 0,
+					outputTokens: 0,
+					cost: null,
+					costBasis: null,
+					durationMs: Math.round(performance.now() - startedAt),
+					outcome: "failure",
+					errorKind: "provider_error",
+				});
+			} catch {
+				// Ignored -- see comment above.
+			}
+			throw err;
+		}
+		const durationMs = Math.round(performance.now() - startedAt);
 
 		await logUsage({
 			briefId,
@@ -82,6 +115,31 @@ export async function runLocalisation(briefId: string): Promise<StageResult> {
 			inputTokens: result.inputTokens,
 			outputTokens: result.outputTokens,
 		});
+
+		try {
+			await recordAiOperationEvent({
+				briefId,
+				stage: "localisation",
+				operationType: "localisation",
+				provider: provider.id,
+				model: provider.model,
+				executionMode,
+				runId,
+				inputTokens: result.inputTokens,
+				outputTokens: result.outputTokens,
+				cost: estimateCostUsd(result.inputTokens, result.outputTokens),
+				costBasis: "estimated",
+				durationMs,
+				outcome: "success",
+				errorKind: null,
+			});
+		} catch {
+			// Best-effort observability only -- the translation below is
+			// still checked for truncation and parsed regardless. Recorded
+			// as a success because the provider call itself succeeded and
+			// consumed real tokens, even if the truncation check just below
+			// then fails the stage for an unrelated reason.
+		}
 
 		if (result.stopReason === "max_tokens") {
 			throw new Error(

@@ -1,10 +1,11 @@
 import { getAdminSession } from "@/lib/supabase/adminAuth";
 import { getBrief, updateBriefRow } from "../briefs/service";
 import { createAnthropicProvider } from "./AnthropicProvider";
-import { checkBudget, logUsage } from "./costGuard";
+import { checkBudget, estimateCostUsd, logUsage } from "./costGuard";
+import { recordAiOperationEvent } from "../events/aiOperationEventWriter";
 import { slugify } from "@/lib/slugify";
 import { articleBodySchema, assignHeadingIds, type ContentBlock } from "@/features/insights/types/blocks";
-import type { StageResult } from "../types/contentAi";
+import type { AiCompletionResult, StageResult, TextAiOperationOptions } from "../types/contentAi";
 
 const SYSTEM_PROMPT = `You are a senior software engineer writing for a code consulting studio's engineering blog. Voice: calm, technical, honest, no hype, no invented statistics, no fake case studies, no fabricated quotes or named sources. If something would need a citation, describe it generally instead of inventing a specific number or source. Write like you're explaining it to a competent client, not writing SEO filler.
 
@@ -71,7 +72,10 @@ function stripCodeFences(text: string): string {
  * stage with a clear, recorded error rather than ever reaching
  * insights_articles.
  */
-export async function runGeneration(briefId: string, categoryName: string): Promise<StageResult> {
+export async function runGeneration(briefId: string, categoryName: string, options: TextAiOperationOptions = {}): Promise<StageResult> {
+	const executionMode = options.executionMode ?? "manual";
+	const runId = options.runId ?? null;
+
 	const session = await getAdminSession();
 	if (!session?.isEditor) return { ok: false, kind: "auth", message: "You must be signed in as an editor to do this." };
 
@@ -93,11 +97,40 @@ export async function runGeneration(briefId: string, categoryName: string): Prom
 	await updateBriefRow(briefId, { status: "generating" });
 
 	try {
-		const result = await provider.complete({
-			system: SYSTEM_PROMPT,
-			prompt: buildPrompt(brief.topic, brief.researchNotes, categoryName, brief.keyPoints),
-			maxTokens: 3000,
-		});
+		const startedAt = performance.now();
+		let result: AiCompletionResult;
+		try {
+			result = await provider.complete({
+				system: SYSTEM_PROMPT,
+				prompt: buildPrompt(brief.topic, brief.researchNotes, categoryName, brief.keyPoints),
+				maxTokens: 3000,
+			});
+		} catch (err) {
+			// Best-effort observability only -- never masks the real
+			// provider error re-thrown below.
+			try {
+				await recordAiOperationEvent({
+					briefId,
+					stage: "generation",
+					operationType: "generation",
+					provider: provider.id,
+					model: provider.model,
+					executionMode,
+					runId,
+					inputTokens: 0,
+					outputTokens: 0,
+					cost: null,
+					costBasis: null,
+					durationMs: Math.round(performance.now() - startedAt),
+					outcome: "failure",
+					errorKind: "provider_error",
+				});
+			} catch {
+				// Ignored -- see comment above.
+			}
+			throw err;
+		}
+		const durationMs = Math.round(performance.now() - startedAt);
 
 		await logUsage({
 			briefId,
@@ -107,6 +140,28 @@ export async function runGeneration(briefId: string, categoryName: string): Prom
 			inputTokens: result.inputTokens,
 			outputTokens: result.outputTokens,
 		});
+
+		try {
+			await recordAiOperationEvent({
+				briefId,
+				stage: "generation",
+				operationType: "generation",
+				provider: provider.id,
+				model: provider.model,
+				executionMode,
+				runId,
+				inputTokens: result.inputTokens,
+				outputTokens: result.outputTokens,
+				cost: estimateCostUsd(result.inputTokens, result.outputTokens),
+				costBasis: "estimated",
+				durationMs,
+				outcome: "success",
+				errorKind: null,
+			});
+		} catch {
+			// Best-effort observability only -- the model response below is
+			// still parsed and validated regardless.
+		}
 
 		let parsed: unknown;
 		try {

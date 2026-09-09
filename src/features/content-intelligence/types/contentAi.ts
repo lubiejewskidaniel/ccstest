@@ -1,5 +1,6 @@
 import type { Locale } from "@/lib/routes";
 import type { ContentBlock } from "@/features/insights/types/blocks";
+import type { AiOperationExecutionMode } from "./aiOperationEvent";
 
 /**
  * Provider-agnostic AI text-generation interface — the content-
@@ -99,3 +100,18 @@ export type StageResult =
 	| { ok: false; kind: "provider_error"; message: string }
 	| { ok: false; kind: "validation"; message: string }
 	| { ok: false; kind: "persistence"; message: string };
+
+/** Phase 3C.4C.2 — observability options a caller may supply to a text
+ * AI operation (research/generation/localisation/ai_visibility). Both
+ * fields default to the only truthful values available today: there is
+ * no scheduler yet, so every call is "manual" unless a future
+ * orchestrator explicitly says otherwise, and an isolated call has
+ * nothing to correlate with unless the caller already holds a `runId`
+ * (from `createAiOperationRunId()`). Accepting this now means a future
+ * automated orchestrator can pass `executionMode: "automated"` and one
+ * shared `runId` through research -> generation -> localisation without
+ * any of these functions needing to change shape again. */
+export type TextAiOperationOptions = {
+	executionMode?: AiOperationExecutionMode;
+	runId?: string | null;
+};
