@@ -51,6 +51,21 @@
 	margin: 0 0 16px;
 }
 
+/* Phase 3C.4B.6B -- the manual-upload row. Deliberately the same
+   wrapping flex pattern as .generateRow (never a grid item, never a
+   new overflow container, no fixed/sticky positioning) so it cannot
+   reintroduce the .card/.grid min-content overflow the previous phase
+   fixed. min-width: 0 lets its .field children shrink on narrow
+   viewports rather than forcing this row wider than its container. */
+.uploadRow {
+	display: flex;
+	align-items: flex-end;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin: 0 0 16px;
+	min-width: 0;
+}
+
 .empty {
 	font-size: 13.5px;
 	color: var(--ink-3);

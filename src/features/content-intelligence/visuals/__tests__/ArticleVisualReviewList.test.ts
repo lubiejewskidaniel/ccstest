@@ -169,10 +169,8 @@ describe("inconsistent state handling (29, 30, 31)", () => {
 });
 
 describe("scope exclusions (32-36)", () => {
-	it("contains no Upload, Reject, Delete, Publish, or image-provider control", () => {
-		expect(listCode).not.toMatch(/Upload/);
+	it("contains no Reject, Publish, or image-provider control (manual Upload since Phase 3C.4B.6B and Delete since Phase 3C.4B.7A are both intentional -- see their own dedicated coverage below)", () => {
 		expect(listCode).not.toMatch(/Reject/);
-		expect(listCode).not.toMatch(/Delete/);
 		expect(listCode).not.toMatch(/Publish|setArticleStatusAction|transitionArticleStatus/);
 		expect(listCode).not.toMatch(/ArticleVisualProvider|articleVisualBrief|\.generate\(/);
 	});
@@ -190,9 +188,11 @@ describe("accessibility (37, 38)", () => {
 		expect(listCode).toMatch(/htmlFor=\{`visual-alt-\$\{candidate\.id\}`\}[\s\S]{0,120}id=\{`visual-alt-\$\{candidate\.id\}`\}/);
 	});
 
-	it("38. uses real <button> elements for approval, confirmation, and generation, not click handlers on non-interactive elements", () => {
+	it("38. uses real <button> elements for approval, confirmation, generation, upload, and deletion, not click handlers on non-interactive elements", () => {
 		const buttonCount = (listCode.match(/<button[\s\S]{0,30}type="button"/g) ?? []).length;
-		expect(buttonCount).toBe(4); // Approve visual, Confirm, Cancel, Generate visual
+		// Generate visual, Upload visual, Approve visual, Confirm approval, Cancel
+		// approval, Delete visual, Confirm delete, Cancel delete (Phase 3C.4B.7A).
+		expect(buttonCount).toBe(8);
 	});
 });
 
@@ -227,6 +227,15 @@ describe("ArticleVisualReviewPanel.tsx (server component)", () => {
 const ACTIONS_SOURCE_PATH = resolve(process.cwd(), "src/lib/actions/insightsCms.ts");
 const actionsSource = readFileSync(ACTIONS_SOURCE_PATH, "utf8");
 const actionsCode = actionsSource.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+
+// Phase 3C.4B.6B — manual upload transport (Route Handler, not a
+// Server Action -- see this file's own final describe block for why).
+const ROUTE_SOURCE_PATH = resolve(process.cwd(), "src/app/api/admin/article-visuals/upload/route.ts");
+const routeSource = readFileSync(ROUTE_SOURCE_PATH, "utf8");
+const routeCode = routeSource.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+
+const NEXT_CONFIG_PATH = resolve(process.cwd(), "next.config.mjs");
+const nextConfigSource = readFileSync(NEXT_CONFIG_PATH, "utf8");
 
 describe("Generate visual control presence (1-5)", () => {
 	it("1 & 2. renders a Generate visual button unconditionally, not gated behind candidates.length", () => {
@@ -333,14 +342,18 @@ describe("client/security boundary (21, 22, 23, 24)", () => {
 	});
 });
 
-describe("scope exclusions specific to generation (25, 26, 27, 28)", () => {
+describe("scope exclusions specific to generation (25, 27, 28)", () => {
 	it("25. no Regenerate button", () => {
 		expect(listCode).not.toMatch(/Regenerate/i);
 	});
 
-	it("26. no Upload button", () => {
-		expect(listCode).not.toMatch(/Upload visual|Upload button/i);
-	});
+	// Test 26 ("no Upload button") removed here: Phase 3C.4B.6B
+	// intentionally added a real "Upload visual" control. That change is
+	// covered by its own dedicated describe block ("Upload visual
+	// control presence and accepted types") further down this file, so
+	// removing an obsolete negative assertion here does not reduce
+	// coverage. This block keeps the remaining, still-true generation
+	// scope exclusions.
 
 	it("27. no combined Generate-and-approve control", () => {
 		expect(listCode).not.toMatch(/Generate and approve/i);
@@ -390,28 +403,38 @@ describe("independent repeatable invocation (33, 34)", () => {
 
 describe("generateArticleVisualAction Server Action (35, 36, 37, 38)", () => {
 	it("35. contains no generation business logic -- delegates entirely to generateArticleVisualCandidate", () => {
-		const actionBlock = actionsCode.slice(actionsCode.indexOf("export async function generateArticleVisualAction"));
+		const actionBlock = actionsCode.slice(
+			actionsCode.indexOf("export async function generateArticleVisualAction"),
+			actionsCode.indexOf("export async function deleteArticleVisualAction"),
+		);
 		expect(actionBlock).toMatch(/await generateArticleVisualCandidate\(args\.articleId\)/);
 		expect(actionBlock).not.toMatch(/createOpenAiArticleVisualProvider|storeGeneratedArticleVisual|buildArticleVisualBrief/);
 	});
 
 	it("36. revalidates the admin edit route on success", () => {
-		const actionBlock = actionsCode.slice(actionsCode.indexOf("export async function generateArticleVisualAction"));
+		const actionBlock = actionsCode.slice(
+			actionsCode.indexOf("export async function generateArticleVisualAction"),
+			actionsCode.indexOf("export async function deleteArticleVisualAction"),
+		);
 		expect(actionBlock).toMatch(/if \(result\.ok\) \{\s*revalidatePath\(`\/admin\/insights\/\$\{args\.articleId\}\/edit`\);/);
 	});
 
 	it("37. does not perform the success revalidation on failure (revalidatePath is inside the result.ok branch only)", () => {
-		const actionBlock = actionsCode.slice(
-			actionsCode.indexOf("export async function generateArticleVisualAction"),
-			actionsCode.indexOf("export async function generateArticleVisualAction") + 600,
-		);
+		const start = actionsCode.indexOf("export async function generateArticleVisualAction");
+		const end = actionsCode.indexOf("export async function deleteArticleVisualAction", start);
+		expect(start).toBeGreaterThanOrEqual(0);
+		expect(end).toBeGreaterThan(start);
+		const actionBlock = actionsCode.slice(start, end);
 		const okBlock = actionBlock.match(/if \(result\.ok\) \{[\s\S]*?\}/);
 		expect(okBlock).not.toBeNull();
 		expect(actionBlock.replace(okBlock?.[0] ?? "", "")).not.toMatch(/revalidatePath/);
 	});
 
 	it("38. the action returns the service result as-is -- no raw bytes/provider data field is added to it", () => {
-		const actionBlock = actionsCode.slice(actionsCode.indexOf("export async function generateArticleVisualAction"));
+		const actionBlock = actionsCode.slice(
+			actionsCode.indexOf("export async function generateArticleVisualAction"),
+			actionsCode.indexOf("export async function deleteArticleVisualAction"),
+		);
 		expect(actionBlock).toMatch(/return result;/);
 		expect(actionBlock).not.toMatch(/b64_json|base64|bytes/i);
 	});
@@ -510,5 +533,442 @@ describe("desktop scroll/responsiveness regression (visual review CSS module)", 
 		expect(listCode).toMatch(/onClick=\{runGenerate\}/);
 		expect(listCode).toMatch(/onClick=\{\(\) => handleApproveClick\(candidate\)\}/);
 		expect(listCode).toMatch(/onClick=\{\(\) => runApprove\(candidate\)\}/);
+	});
+});
+
+/**
+ * Phase 3C.4B.6B — manual article visual upload (transport only).
+ *
+ * `storeUploadedArticleVisual` and `validateArticleVisualAsset` already
+ * own every real validation/auth/storage rule and are covered by their
+ * own test files (`articleVisualStorageService.test.ts`,
+ * `articleVisualStorage.test.ts`) — nothing here re-tests 8 MB/MIME/
+ * signature/SVG/dimension logic, database inserts, or the
+ * missing -> pending_review transition. Every scenario below proves
+ * only the transport layer: the client UI control, its independent
+ * state, the FormData -> File -> Uint8Array conversion in the new
+ * Route Handler, and that nothing here ever touches approval/publish/
+ * cover-replacement logic. No real Storage/network call is made in any
+ * of these tests (structural source-text assertions only, matching
+ * every other test in this file).
+ */
+describe("Upload visual control presence and accepted types (1-4)", () => {
+	it("1. renders an Upload visual button, unconditionally alongside Generate visual", () => {
+		expect(listCode).toMatch(/>\s*\{uploadPending \? "Uploading visual…" : "Upload visual"\}\s*<\/button>/);
+	});
+
+	it("2. the file input accepts PNG, JPEG and WebP", () => {
+		expect(listCode).toMatch(/ACCEPTED_UPLOAD_MIME_TYPES\s*=\s*"image\/png,image\/jpeg,image\/webp"/);
+		expect(listCode).toMatch(/type="file"/);
+		expect(listCode).toMatch(/accept=\{ACCEPTED_UPLOAD_MIME_TYPES\}/);
+	});
+
+	it("3. SVG is never advertised in the accepted-file guidance", () => {
+		expect(listCode).not.toMatch(/image\/svg/);
+	});
+
+	it("4. an empty file selection cannot upload -- the Upload button is disabled whenever no file is selected", () => {
+		expect(listCode).toMatch(/disabled=\{uploadPending \|\| !selectedFile\}/);
+	});
+});
+
+describe("Client-side 8 MB UX guard, not a security boundary (5-6)", () => {
+	it("5. a file strictly larger than 8 MB is rejected client-side before any upload call", () => {
+		expect(listCode).toMatch(/MAX_UPLOAD_BYTES\s*=\s*8\s*\*\s*1024\s*\*\s*1024/);
+		const guardFn = listCode.slice(listCode.indexOf("function acceptSelectedFile"), listCode.indexOf("function acceptSelectedFile") + 600);
+		expect(guardFn).toMatch(/file\.size > MAX_UPLOAD_BYTES/);
+		// Rejection happens before setSelectedFile ever accepts the file
+		// and before runUpload's fetch could ever be reached for it.
+		expect(guardFn).toMatch(/setUploadError\(/);
+		expect(guardFn).toMatch(/setSelectedFile\(null\)/);
+	});
+
+	it("6. a file at exactly 8 MB is allowed through client-side (strict > comparison, never >=)", () => {
+		const guardFn = listCode.slice(listCode.indexOf("function acceptSelectedFile"), listCode.indexOf("function acceptSelectedFile") + 600);
+		expect(guardFn).toMatch(/file\.size > MAX_UPLOAD_BYTES/);
+		expect(guardFn).not.toMatch(/file\.size >= MAX_UPLOAD_BYTES/);
+	});
+});
+
+describe("Selected file reaches transport as FormData (7-8)", () => {
+	it("7. the selected File is appended to a FormData payload sent to the upload route", () => {
+		const uploadFn = listCode.slice(listCode.indexOf("function runUpload"), listCode.indexOf("function runUpload") + 1200);
+		expect(uploadFn).toMatch(/new FormData\(\)/);
+		expect(uploadFn).toMatch(/formData\.append\("file", selectedFile\)/);
+		expect(uploadFn).toMatch(/fetch\("\/api\/admin\/article-visuals\/upload", \{ method: "POST", body: formData \}\)/);
+	});
+
+	it("8. the declared MIME type sent is the browser's own File.type -- never re-derived, sniffed, or hardcoded client-side", () => {
+		const uploadFn = listCode.slice(listCode.indexOf("function runUpload"), listCode.indexOf("function runUpload") + 1200);
+		// The client never appends a separate mimeType/declaredMimeType
+		// field at all -- the File object carries its own .type, and the
+		// route reads that directly from the File instance server-side.
+		expect(uploadFn).not.toMatch(/formData\.append\("(mimeType|declaredMimeType|contentType)"/);
+		expect(listCode).not.toMatch(/\.type\s*=\s*"image\//); // never hardcoded/overridden
+	});
+});
+
+describe("Route Handler: bytes conversion and delegation to storeUploadedArticleVisual (9-16)", () => {
+	it("9. File bytes are converted to a Uint8Array server-side via arrayBuffer()", () => {
+		expect(routeCode).toMatch(/await file\.arrayBuffer\(\)/);
+		expect(routeCode).toMatch(/new Uint8Array\(arrayBuffer\)/);
+	});
+
+	it("10. storeUploadedArticleVisual is called exactly once, remains the authoritative storage/validation boundary, and no validation/storage logic is duplicated in this file", () => {
+		const callCount = (routeCode.match(/storeUploadedArticleVisual\(/g) ?? []).length;
+		expect(callCount).toBe(1);
+		expect(routeCode).not.toMatch(/createSupabasePrivilegedClient|service[-_]?role/i);
+		// Phase 3C.4B.6C intentionally added a transport-level auth
+		// preflight (createSupabaseServerClient()/getAdminSession(),
+		// checked before request.formData() -- see the dedicated
+		// "auth preflight before request.formData()" coverage in
+		// route.test.ts for the order proof) as defense-in-depth. It
+		// must never call the service's own private requireEditorClient()
+		// helper directly -- that remains internal to
+		// storeUploadedArticleVisual, the one authoritative auth/
+		// validation/storage boundary.
+		expect(routeCode).toMatch(/getAdminSession\(\)/);
+		expect(routeCode).toMatch(/createSupabaseServerClient\(\)/);
+		expect(routeCode).not.toMatch(/requireEditorClient/);
+		expect(routeCode).not.toMatch(/\.storage\.from\(/);
+		expect(routeCode).not.toMatch(/\.from\("article_visuals"\)/);
+		expect(routeCode).not.toMatch(/8 \* 1024 \* 1024/); // no duplicated 8 MB ceiling
+		expect(routeCode).not.toMatch(/0x89|0x50|0x4e|0x47/); // no re-implemented magic-byte sniffing
+	});
+
+	it("11. articleId is read from the incoming form and passed through to the service", () => {
+		expect(routeCode).toMatch(/formData\.get\("articleId"\)/);
+		expect(routeCode).toMatch(/articleId,/);
+	});
+
+	it("12. optional alt text is read from the form and passed through, defaulting to null when blank", () => {
+		expect(routeCode).toMatch(/formData\.get\("altText"\)/);
+		expect(routeCode).toMatch(/altText,/);
+	});
+
+	it("13. no public URL is supplied by the client -- the route never reads a publicUrl/coverImageUrl field from the form", () => {
+		expect(routeCode).not.toMatch(/formData\.get\("publicUrl"\)/);
+		expect(routeCode).not.toMatch(/formData\.get\("coverImageUrl"\)/);
+	});
+
+	it("14. no storage path is supplied by the client", () => {
+		expect(routeCode).not.toMatch(/formData\.get\("storagePath"\)/);
+		expect(routeCode).not.toMatch(/formData\.get\("storage_path"\)/);
+	});
+
+	it("15. no reviewedBy is supplied by the client", () => {
+		expect(routeCode).not.toMatch(/formData\.get\("reviewedBy"\)/);
+		expect(routeCode).not.toMatch(/reviewedBy/);
+	});
+
+	it("16. no approved status is supplied by the client", () => {
+		expect(routeCode).not.toMatch(/formData\.get\("status"\)/);
+		expect(routeCode).not.toMatch(/formData\.get\("approved"\)/);
+		expect(routeCode).not.toMatch(/status:\s*"approved"/);
+	});
+});
+
+describe("No client-side Supabase or service-role usage (17-18)", () => {
+	it("17. no Supabase client is imported into the client UI component", () => {
+		expect(listCode).not.toMatch(/@supabase\/supabase-js|createSupabase(Server|Browser|Privileged)?Client/);
+	});
+
+	it("18. no service-role import anywhere in the client UI or the transport route", () => {
+		expect(listCode).not.toMatch(/service[-_]?role/i);
+		expect(routeCode).not.toMatch(/service[-_]?role/i);
+	});
+});
+
+describe("Upload pending state and independence from generation/approval (19-23)", () => {
+	it("19 & 20. the Upload button disables while pending, and 'Uploading visual...' is visible", () => {
+		expect(listCode).toMatch(/disabled=\{uploadPending \|\| !selectedFile\}/);
+		expect(listCode).toMatch(/Uploading visual…/);
+	});
+
+	it("21. generation controls remain available independently of upload state", () => {
+		expect(listCode).toMatch(/disabled=\{generationPending\}/);
+		expect(listCode).not.toMatch(/disabled=\{generationPending \|\| uploadPending\}/);
+		expect(listCode).not.toMatch(/disabled=\{uploadPending \|\| generationPending\}/);
+	});
+
+	it("22. approval controls remain independent of upload state", () => {
+		const approveButtonBlock = listCode.slice(listCode.indexOf('"Approve visual"') - 200, listCode.indexOf('"Approve visual"'));
+		expect(approveButtonBlock).toMatch(/disabled=\{pending \|\| isInconsistent\}/);
+		expect(approveButtonBlock).not.toMatch(/uploadPending/);
+	});
+
+	it("23. existing candidates remain visible during upload -- the grid is never gated on uploadPending", () => {
+		expect(listCode).toMatch(/\{candidates\.length === 0 \?/);
+		expect(listCode).not.toMatch(/uploadPending[\s\S]{0,40}candidates\.map/);
+		expect(listCode).not.toMatch(/candidates\.length === 0 \|\| uploadPending/);
+	});
+});
+
+describe("Success and failure behaviour (24-30)", () => {
+	it("24. success clears the error, resets the file and alt text, and calls router.refresh() -- no optimistic candidate", () => {
+		const uploadFn = listCode.slice(listCode.indexOf("function runUpload"), listCode.indexOf("function runUpload") + 1800);
+		const successTail = uploadFn.slice(uploadFn.indexOf("setUploadError(null);", uploadFn.indexOf("if (!result")));
+		expect(successTail).toMatch(/setUploadError\(null\);/);
+		expect(successTail).toMatch(/setSelectedFile\(null\);/);
+		expect(successTail).toMatch(/setUploadAlt\(""\);/);
+		expect(successTail).toMatch(/router\.refresh\(\);/);
+		// No optimistic insertion: `candidates` is never mutated/concatenated
+		// anywhere in runUpload.
+		expect(uploadFn).not.toMatch(/candidates\.(push|concat)|setCandidates/);
+	});
+
+	it("25. failure does not call router.refresh()", () => {
+		const uploadFn = listCode.slice(listCode.indexOf("function runUpload"), listCode.indexOf("function runUpload") + 1800);
+		const failureBlock = uploadFn.slice(uploadFn.indexOf("if (!result || !result.ok)"), uploadFn.indexOf("if (!result || !result.ok)") + 150);
+		expect(failureBlock).not.toMatch(/router\.refresh\(\)/);
+		expect(failureBlock).toMatch(/return;/);
+	});
+
+	it("26. failure displays the safe result.message, never a raw/internal error", () => {
+		const uploadFn = listCode.slice(listCode.indexOf("function runUpload"), listCode.indexOf("function runUpload") + 1800);
+		expect(uploadFn).toMatch(/setUploadError\(result\?\.message \?\? "Could not upload this image\."\)/);
+	});
+
+	it("27. failure preserves the selected file for retry (never cleared in the failure branch)", () => {
+		const uploadFn = listCode.slice(listCode.indexOf("function runUpload"), listCode.indexOf("function runUpload") + 1800);
+		const failureBlock = uploadFn.slice(uploadFn.indexOf("if (!result || !result.ok)"), uploadFn.indexOf("if (!result || !result.ok)") + 150);
+		expect(failureBlock).not.toMatch(/setSelectedFile\(null\)/);
+	});
+
+	it("28. no auto-approval anywhere in the upload path", () => {
+		const uploadFn = listCode.slice(listCode.indexOf("function runUpload"), listCode.indexOf("function runUpload") + 1800);
+		expect(uploadFn).not.toMatch(/approveArticleVisualAction|runApprove\(/);
+	});
+
+	it("29. no publish/status-transition call anywhere in the upload path", () => {
+		const uploadFn = listCode.slice(listCode.indexOf("function runUpload"), listCode.indexOf("function runUpload") + 1800);
+		expect(uploadFn).not.toMatch(/setArticleStatusAction|transitionArticleStatus/);
+	});
+
+	it("30. the route never writes an approved status -- covered structurally by test 16 above, reasserted here against the service call site", () => {
+		const callSite = routeCode.slice(routeCode.indexOf("storeUploadedArticleVisual({"), routeCode.indexOf("storeUploadedArticleVisual({") + 200);
+		expect(callSite).not.toMatch(/status/);
+	});
+});
+
+describe("Existing candidate/cover states remain untouched, repeatable upload (31)", () => {
+	it("31. runUpload never filters, replaces, or deletes an existing candidate; can be invoked repeatedly (no one-shot guard beyond having a file selected)", () => {
+		const uploadFn = listCode.slice(listCode.indexOf("function runUpload"), listCode.indexOf("function runUpload") + 1800);
+		expect(uploadFn).not.toMatch(/candidates\.filter\(|candidates\.splice\(/);
+		// The only early-return guard is "no file selected" -- nothing
+		// disables re-invocation after a prior successful or failed
+		// upload. The function body's very first statement (right after
+		// the signature) is that guard, not a one-shot/already-uploaded
+		// flag of any kind.
+		const bodyStart = uploadFn.slice(uploadFn.indexOf("{") + 1).trimStart();
+		expect(bodyStart.startsWith("if (!selectedFile) return;")).toBe(true);
+	});
+});
+
+describe("No drag-and-drop, no image transformation dependency (32-33)", () => {
+	it("32. no drag-and-drop handlers anywhere in the visual review UI", () => {
+		expect(listCode).not.toMatch(/onDrop=|onDragOver=|onDragEnter=|onDragLeave=/);
+	});
+
+	it("33. no image-transformation dependency is imported (no crop/resize/compression/format-conversion library)", () => {
+		expect(listCode).not.toMatch(/sharp|browser-image-compression|react-image-crop|pica\b/i);
+		expect(routeCode).not.toMatch(/sharp|browser-image-compression|react-image-crop|pica\b/i);
+	});
+});
+
+describe("Responsive structural CSS preserved (34)", () => {
+	it("34. the new upload row uses the same safe wrapping-flex pattern as the existing generate row -- no fixed/sticky/vh unit, and the previously-fixed .card/.grid/.preview rules are untouched", () => {
+		const uploadRowBlock = panelCss.slice(panelCss.indexOf(".uploadRow {"), panelCss.indexOf(".uploadRow {") + 300);
+		expect(uploadRowBlock).toMatch(/display:\s*flex/);
+		expect(uploadRowBlock).toMatch(/flex-wrap:\s*wrap/);
+		expect(uploadRowBlock).not.toMatch(/position:\s*fixed|position:\s*sticky|100vh|100dvh|100vw/);
+		expect(uploadRowBlock).not.toMatch(/overflow(-x|-y)?\s*:/);
+
+		// The prior phase's fix is still exactly in place.
+		expect(panelCss).toMatch(/grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(240px,\s*100%\),\s*1fr\)\)/);
+		const cardBlock = panelCss.slice(panelCss.indexOf(".card {"), panelCss.indexOf(".card {") + 300);
+		expect(cardBlock).toMatch(/min-width:\s*0/);
+	});
+});
+
+describe("Server Action vs Route Handler body-size decision, documented and verified (35)", () => {
+	it("35a. the upload transport is a Route Handler (exports POST, never a \"use server\" module)", () => {
+		expect(routeSource).toMatch(/export async function POST\(/);
+		expect(routeSource).not.toMatch(/"use server"/);
+	});
+
+	it("35b. next.config.mjs was deliberately left untouched -- no serverActions.bodySizeLimit override was added to raise the global Server Action limit", () => {
+		expect(nextConfigSource).not.toMatch(/serverActions/);
+		expect(nextConfigSource).not.toMatch(/bodySizeLimit/);
+	});
+
+	it("35c. the route's own doc comment documents why a Route Handler was chosen over a Server Action (the default 1 MB Server Action body limit vs the 8 MB asset contract)", () => {
+		expect(routeSource).toMatch(/1 MB/);
+		expect(routeSource).toMatch(/8 MB/);
+		expect(routeSource).toMatch(/bodySizeLimit/);
+	});
+});
+
+describe("No direct browser-to-Supabase-Storage upload (36)", () => {
+	it("36. the client never talks to Supabase directly -- its only network call is a same-origin fetch to the app's own upload route, and the route is the only place .storage is touched", () => {
+		expect(listCode).toMatch(/fetch\("\/api\/admin\/article-visuals\/upload"/);
+		expect(listCode).not.toMatch(/supabase\.co|\.storage\.from\(/);
+		expect(routeCode).not.toMatch(/https?:\/\/[a-z0-9-]+\.supabase\.co/);
+	});
+});
+
+describe("Phase 3C.4B.7A -- delete visual candidate button visibility", () => {
+	it("renders a Delete visual control only for pending_review or superseded candidates via a dedicated isDeletable check", () => {
+		expect(listCode).toMatch(/const isDeletable = candidate\.status === "pending_review" \|\| candidate\.status === "superseded";/);
+	});
+
+	it("never marks an approved candidate as deletable (isDeletable's condition never includes \"approved\")", () => {
+		const idx = listCode.indexOf("const isDeletable =");
+		const line = listCode.slice(idx, listCode.indexOf(";", idx) + 1);
+		expect(line).not.toMatch(/"approved"/);
+	});
+
+	it("the Delete visual button/confirmation block is gated on isDeletable, not on isPending or isActive", () => {
+		const idx = listCode.indexOf("{isDeletable ? (");
+		expect(idx).toBeGreaterThan(-1);
+	});
+
+	it("renders the literal 'Delete visual' button label and the exact confirmation copy", () => {
+		expect(listCode).toMatch(/Delete visual/);
+		expect(listCode).toMatch(/Delete this visual candidate\? This removes the stored image and cannot be undone\./);
+	});
+
+	it("reuses the existing generic .confirmBox/.confirmActions CSS classes -- no new CSS class is introduced for delete", () => {
+		const idx = listCode.indexOf("{isDeletable ? (");
+		const block = listCode.slice(idx, idx + 1200);
+		expect(block).toMatch(/styles\.confirmBox/);
+		expect(block).toMatch(/styles\.confirmActions/);
+		expect(block).not.toMatch(/styles\.delete|styles\.danger/);
+	});
+
+	it("reuses the existing btn-primary/btn-ghost button classes -- no new 'danger' button variant is introduced", () => {
+		const idx = listCode.indexOf("{isDeletable ? (");
+		const block = listCode.slice(idx, idx + 1200);
+		expect(block).toMatch(/className="btn btn-primary"/);
+		expect(block).toMatch(/className="btn btn-ghost"/);
+		expect(block).not.toMatch(/btn-danger/);
+	});
+});
+
+describe("Phase 3C.4B.7A -- deletion's own independent state", () => {
+	it("declares confirmingDeleteVisualId, deleteError, and deletePending as their own dedicated state, never reusing approval's confirmingVisualId/approvalError/pending", () => {
+		expect(listCode).toMatch(/const \[confirmingDeleteVisualId, setConfirmingDeleteVisualId\] = useState<string \| null>\(null\);/);
+		expect(listCode).toMatch(/const \[deleteError, setDeleteError\] = useState<string \| null>\(null\);/);
+		expect(listCode).toMatch(/const \[deletePending, startDeleteTransition\] = useTransition\(\);/);
+	});
+
+	it("renders deleteError in its own banner, independent of approvalError/generationError/uploadError banners", () => {
+		expect(listCode).toMatch(/\{deleteError \? \(\s*<p className=\{styles\.banner\} role="alert">\s*\{deleteError\}/);
+	});
+
+	it("the isConfirmingDelete check is derived from confirmingDeleteVisualId, never from approval's confirmingVisualId", () => {
+		expect(listCode).toMatch(/const isConfirmingDelete = confirmingDeleteVisualId === candidate\.id;/);
+	});
+});
+
+describe("Phase 3C.4B.7A -- confirmation flow (explicit confirm required, Cancel exits, one confirmed click deletes)", () => {
+	it("handleDeleteClick requires a second click to actually delete -- the first click only sets confirmingDeleteVisualId", () => {
+		const idx = listCode.indexOf("function handleDeleteClick(");
+		const fn = listCode.slice(idx, idx + 300);
+		expect(fn).toMatch(/if \(confirmingDeleteVisualId !== candidate\.id\)/);
+		expect(fn).toMatch(/setConfirmingDeleteVisualId\(candidate\.id\);/);
+		expect(fn).toMatch(/return;/);
+		expect(fn).toMatch(/runDelete\(candidate\);/);
+	});
+
+	it("the confirm box's Delete button calls runDelete directly (a single already-confirmed click invokes the action exactly once)", () => {
+		const idx = listCode.indexOf("{isDeletable ? (");
+		const block = listCode.slice(idx, idx + 1200);
+		expect(block).toMatch(/onClick=\{\(\) => runDelete\(candidate\)\}/);
+	});
+
+	it("Cancel clears confirmingDeleteVisualId without calling runDelete or the delete action", () => {
+		const idx = listCode.indexOf("{isDeletable ? (");
+		const block = listCode.slice(idx, idx + 1200);
+		const cancelIdx = block.indexOf("Cancel");
+		const cancelButtonStart = block.lastIndexOf("<button", cancelIdx);
+		const cancelButton = block.slice(cancelButtonStart, cancelIdx + 20);
+		expect(cancelButton).toMatch(/onClick=\{\(\) => setConfirmingDeleteVisualId\(null\)\}/);
+		expect(cancelButton).not.toMatch(/runDelete/);
+	});
+});
+
+describe("Phase 3C.4B.7A -- pending-state control disabling and candidate visibility", () => {
+	it("disables the Delete/Cancel confirmation controls while deletePending is true", () => {
+		const idx = listCode.indexOf("{isDeletable ? (");
+		const block = listCode.slice(idx, idx + 1200);
+		const deleteButtonMatches = block.match(/disabled=\{deletePending\}/g) ?? [];
+		expect(deleteButtonMatches.length).toBeGreaterThanOrEqual(2);
+	});
+
+	it("shows a 'Deleting…' label on the confirm button while deletePending is true", () => {
+		expect(listCode).toMatch(/\{deletePending \? "Deleting…" : "Delete"\}/);
+	});
+
+	it("never disables Generate visual or Upload visual controls because of deletePending", () => {
+		expect(listCode).not.toMatch(/disabled=\{generationPending \|\| deletePending\}/);
+		expect(listCode).not.toMatch(/disabled=\{deletePending \|\| generationPending\}/);
+		expect(listCode).not.toMatch(/disabled=\{uploadPending \|\| deletePending\}/);
+		expect(listCode).not.toMatch(/disabled=\{deletePending \|\| uploadPending\}/);
+	});
+
+	it("candidates.map is never re-filtered by deletePending or confirmingDeleteVisualId -- every existing candidate stays rendered during and after a delete attempt", () => {
+		expect(listCode).not.toMatch(/candidates\.filter\([^)]*deletePending/);
+		expect(listCode).not.toMatch(/candidates\.filter\([^)]*confirmingDeleteVisualId/);
+	});
+});
+
+describe("Phase 3C.4B.7A -- runDelete success/failure behaviour and payload whitelist", () => {
+	it("runDelete calls deleteArticleVisualAction with exactly articleId, visualId, locale, slug -- no storagePath/publicUrl/status/reviewedBy field", () => {
+		const idx = listCode.indexOf("function runDelete(");
+		const fn = listCode.slice(idx, idx + 900);
+		expect(fn).toMatch(/deleteArticleVisualAction\(\{/);
+		expect(fn).toMatch(/articleId,\s*visualId: candidate\.id,\s*locale,\s*slug,/);
+		expect(fn).not.toMatch(/storagePath|storage_path|publicUrl|reviewedBy|status:|approved:/);
+	});
+
+	it("on failure, sets deleteError, closes the confirmation box, and never calls router.refresh()", () => {
+		const idx = listCode.indexOf("function runDelete(");
+		const fn = listCode.slice(idx, idx + 900);
+		const failIdx = fn.indexOf("if (!result.ok)");
+		const endIdx = fn.indexOf("return;", failIdx);
+		const failBlock = fn.slice(failIdx, endIdx + 10);
+		expect(failBlock).toMatch(/setDeleteError\(result\.message\);/);
+		expect(failBlock).toMatch(/setConfirmingDeleteVisualId\(null\);/);
+		expect(failBlock).not.toMatch(/router\.refresh\(\)/);
+	});
+
+	it("on success, clears deleteError, closes the confirmation box, and calls router.refresh() -- never mutates candidates in local state", () => {
+		const idx = listCode.indexOf("function runDelete(");
+		const fn = listCode.slice(idx, idx + 900);
+		expect(fn).toMatch(/setDeleteError\(null\);\s*setConfirmingDeleteVisualId\(null\);\s*router\.refresh\(\);/);
+		expect(fn).not.toMatch(/candidates\.(filter|splice|push|concat)|setCandidates/);
+	});
+
+	it("never optimistically removes the deleted candidate -- runDelete performs no local array mutation of any kind", () => {
+		const idx = listCode.indexOf("function runDelete(");
+		const fn = listCode.slice(idx, idx + 900);
+		expect(fn).not.toMatch(/\.filter\(|\.splice\(/);
+	});
+});
+
+describe("Phase 3C.4B.7A -- source_type independence and no new dependency", () => {
+	it("isDeletable checks only candidate.status, never candidate.sourceType or any other field -- generated and uploaded candidates follow the identical rule", () => {
+		const idx = listCode.indexOf("const isDeletable =");
+		const line = listCode.slice(idx, listCode.indexOf(";", idx) + 1);
+		expect(line).not.toMatch(/sourceType|source_type/);
+	});
+
+	it("no modal library is imported for the delete confirmation (it reuses the existing inline confirmBox pattern)", () => {
+		expect(listCode).not.toMatch(/from ["']react-modal["']|from ["']@radix-ui\/react-dialog["']|from ["']@headlessui\/react["']/);
+	});
+
+	it("the deletion action import is added alongside the existing action imports, not a separate ad-hoc fetch call", () => {
+		expect(listCode).toMatch(/import \{ approveArticleVisualAction, generateArticleVisualAction, deleteArticleVisualAction \} from "@\/lib\/actions\/insightsCms";/);
 	});
 });

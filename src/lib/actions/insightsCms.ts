@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createArticle, updateArticle, transitionArticleStatus, deleteArticle } from "@/features/insights/cms/service";
 import { approveArticleVisual } from "@/features/content-intelligence/visuals/articleVisualReviewService";
 import { generateArticleVisualCandidate } from "@/features/content-intelligence/visuals/articleVisualGenerationService";
+import { deleteArticleVisual } from "@/features/content-intelligence/visuals/articleVisualDeletionService";
 import { routes } from "@/lib/routes";
 import { articlePath } from "@/features/insights/seo/paths";
 
@@ -170,6 +171,34 @@ export async function approveArticleVisualAction(args: {
  * nothing at all. */
 export async function generateArticleVisualAction(args: { articleId: string; locale: "en" | "pl"; slug: string }) {
 	const result = await generateArticleVisualCandidate(args.articleId);
+	if (result.ok) {
+		revalidatePath(`/admin/insights/${args.articleId}/edit`);
+	}
+	return result;
+}
+
+/** Bound with an article's id/locale/slug from the admin edit page, the
+ * same way as `approveArticleVisualAction`/`generateArticleVisualAction`
+ * -- transport/revalidation only. Contains no deletion business logic
+ * itself: authentication, editor authorization, article/candidate
+ * lookup, ownership validation, deletable-status validation, the
+ * Storage object delete, and the database row delete are all owned by
+ * `deleteArticleVisual` (Phase 3C.4B.7A). This action never receives or
+ * forwards a storage path, a public URL, a provider id, a reviewedBy
+ * value, or a status/approved field from the client -- the only input
+ * it accepts is the same `{ articleId, visualId, locale, slug }` shape
+ * `approveArticleVisualAction` already uses.
+ *
+ * Only revalidates the admin edit route on success. An `approved`
+ * candidate can never be deleted (`deleteArticleVisual`'s own locked
+ * rule), so a successful deletion here can only ever remove a
+ * `pending_review` or `superseded` row -- neither is ever publicly
+ * visible, so there is no real reason to also revalidate the public
+ * Insights surfaces the way `approveArticleVisualAction` does. This
+ * action never calls `transitionArticleStatus` or any publication
+ * logic, and a failed deletion revalidates nothing at all. */
+export async function deleteArticleVisualAction(args: { articleId: string; visualId: string; locale: "en" | "pl"; slug: string }) {
+	const result = await deleteArticleVisual({ articleId: args.articleId, visualId: args.visualId });
 	if (result.ok) {
 		revalidatePath(`/admin/insights/${args.articleId}/edit`);
 	}
