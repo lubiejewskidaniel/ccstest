@@ -78,7 +78,7 @@ export async function runLocalisation(briefId: string, options: TextAiOperationO
 				// research/generation/ai-visibility are unaffected. Still capped
 				// by CONTENT_AI_MAX_OUTPUT_TOKENS if that env var is set lower
 				// than this — raise it if localisation keeps truncating.
-				maxTokens: 6000,
+				maxTokens: 8000,
 			});
 		} catch (err) {
 			// Best-effort observability only -- never masks the real

@@ -90,12 +90,27 @@ describe("5. successful localisation", () => {
 	});
 
 	it("still records success when the response is truncated (max_tokens), since real tokens were spent", async () => {
-		mockComplete.mockResolvedValue({ text: VALID_TRANSLATION_JSON, inputTokens: 100, outputTokens: 6000, stopReason: "max_tokens" });
+		mockComplete.mockResolvedValue({ text: VALID_TRANSLATION_JSON, inputTokens: 100, outputTokens: 8000, stopReason: "max_tokens" });
 
 		const result = await runLocalisation(BRIEF_ID);
 
 		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.message).toBe(
+				"Translation response was cut off before completing (hit the output token limit) — the article is likely too long for the current CONTENT_AI_MAX_OUTPUT_TOKENS setting. Raise it and retry; research and the English draft are unaffected.",
+			);
+		}
 		expect(mockRecordAiOperationEvent.mock.calls[0]?.[0]).toMatchObject({ outcome: "success" });
+	});
+});
+
+describe("requested output token limit", () => {
+	it("requests the 8000 output token limit from the provider", async () => {
+		mockComplete.mockResolvedValue({ text: VALID_TRANSLATION_JSON, inputTokens: 10, outputTokens: 10, stopReason: "end_turn" });
+
+		await runLocalisation(BRIEF_ID);
+
+		expect(mockComplete.mock.calls[0]?.[0]).toMatchObject({ maxTokens: 8000 });
 	});
 });
 
