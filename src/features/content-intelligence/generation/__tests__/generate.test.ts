@@ -158,6 +158,45 @@ describe("event-writer failure isolation", () => {
 	});
 });
 
+describe("max_tokens truncation", () => {
+	it("fails with an explicit truncation message when stopReason is max_tokens, without treating it as invalid JSON", async () => {
+		mockComplete.mockResolvedValue({ text: '{"title": "Cut off partway thro', inputTokens: 500, outputTokens: 4000, stopReason: "max_tokens" });
+
+		const result = await runGeneration(BRIEF_ID, "Engineering");
+
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.message).toBe("Model response was truncated because the output token limit was reached.");
+			expect(result.message).not.toBe("Model response was not valid JSON.");
+		}
+	});
+
+	it("still succeeds when the response is valid JSON and stopReason is not max_tokens", async () => {
+		mockComplete.mockResolvedValue({ text: VALID_MODEL_JSON, inputTokens: 500, outputTokens: 900, stopReason: "end_turn" });
+
+		const result = await runGeneration(BRIEF_ID, "Engineering");
+
+		expect(result.ok).toBe(true);
+	});
+
+	it("still reports the existing invalid-JSON failure when JSON is malformed but stopReason is not max_tokens", async () => {
+		mockComplete.mockResolvedValue({ text: "not valid json", inputTokens: 40, outputTokens: 5, stopReason: "end_turn" });
+
+		const result = await runGeneration(BRIEF_ID, "Engineering");
+
+		expect(result.ok).toBe(false);
+		if (!result.ok) expect(result.message).toBe("Model response was not valid JSON.");
+	});
+
+	it("requests the new 4000 output token limit from the provider", async () => {
+		mockComplete.mockResolvedValue({ text: VALID_MODEL_JSON, inputTokens: 10, outputTokens: 10 });
+
+		await runGeneration(BRIEF_ID, "Engineering");
+
+		expect(mockComplete.mock.calls[0]?.[0]).toMatchObject({ maxTokens: 4000 });
+	});
+});
+
 describe("no generated article content passed to the event writer", () => {
 	it("the recorded event never contains the generated title, excerpt, or body", async () => {
 		mockComplete.mockResolvedValue({ text: VALID_MODEL_JSON, inputTokens: 10, outputTokens: 10 });

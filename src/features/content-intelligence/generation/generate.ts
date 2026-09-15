@@ -103,7 +103,7 @@ export async function runGeneration(briefId: string, categoryName: string, optio
 			result = await provider.complete({
 				system: SYSTEM_PROMPT,
 				prompt: buildPrompt(brief.topic, brief.researchNotes, categoryName, brief.keyPoints),
-				maxTokens: 3000,
+				maxTokens: 4000,
 			});
 		} catch (err) {
 			// Best-effort observability only -- never masks the real
@@ -161,6 +161,14 @@ export async function runGeneration(briefId: string, categoryName: string, optio
 		} catch {
 			// Best-effort observability only -- the model response below is
 			// still parsed and validated regardless.
+		}
+
+		// The model was cut off before finishing -- `result.text` is a
+		// partial document, not malformed JSON, so it must never reach
+		// JSON.parse (which would misreport this as a JSON error) or any
+		// kind of repair. Fail explicitly instead.
+		if (result.stopReason === "max_tokens") {
+			throw new Error("Model response was truncated because the output token limit was reached.");
 		}
 
 		let parsed: unknown;
