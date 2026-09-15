@@ -19,9 +19,12 @@
 -- nothing in the existing translation_of model forbids this shape, and
 -- it identifies one unambiguous pair. Any other combination naming more
 -- than one distinct article returns null - an ambiguous relationship is
--- never guessed at, and MIN(id) is only read once that uniqueness has
--- already been proven by the distinct count below, never used to pick
--- between real candidates.
+-- never guessed at.
+--
+-- Candidates are collected with array_agg, not min/max, since
+-- min(uuid)/max(uuid) are not available everywhere. The union above
+-- already dedupes, so array_agg needs no DISTINCT. The single candidate
+-- is only read once the array length is known to be exactly 1.
 create or replace function public.find_linked_translation_id(p_article_id uuid)
 returns uuid
 language plpgsql
@@ -30,15 +33,14 @@ set search_path = public
 as $$
 declare
   v_forward uuid;
-  v_candidate_count int;
-  v_candidate_id uuid;
+  v_candidates uuid[];
 begin
   select translation_of into v_forward
   from public.insights_articles
   where id = p_article_id;
 
-  select count(distinct candidate_id), min(candidate_id)
-    into v_candidate_count, v_candidate_id
+  select array_agg(candidate_id)
+    into v_candidates
   from (
     select v_forward as candidate_id
     where v_forward is not null
@@ -50,8 +52,8 @@ begin
     where translation_of = p_article_id
   ) as candidates;
 
-  if v_candidate_count = 1 then
-    return v_candidate_id;
+  if coalesce(array_length(v_candidates, 1), 0) = 1 then
+    return v_candidates[1];
   end if;
 
   return null;

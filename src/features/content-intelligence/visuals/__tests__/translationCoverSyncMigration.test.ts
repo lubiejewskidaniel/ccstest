@@ -74,15 +74,30 @@ describe("find_linked_translation_id - structure", () => {
 		expect(body).toMatch(/where translation_of = p_article_id/);
 	});
 
-	it("only returns a candidate once its distinct count is proven to be exactly one", () => {
-		expect(body).toMatch(/count\(distinct candidate_id\)/);
-		expect(body).toMatch(/if v_candidate_count = 1 then/);
+	it("only returns a candidate once the array length is proven to be exactly one", () => {
+		expect(body).toMatch(/array_agg\(candidate_id\)/);
+		expect(body).toMatch(/if coalesce\(array_length\(v_candidates, 1\), 0\) = 1 then/);
 	});
 
-	it("reads MIN only after uniqueness is already known, never to pick between real candidates", () => {
-		const countLine = body.indexOf("count(distinct candidate_id)");
-		const minLine = body.indexOf("min(candidate_id)");
-		expect(minLine).toBeGreaterThan(countLine);
+	it("reads the array element only after uniqueness is already known, never to pick between real candidates", () => {
+		const lengthCheckLine = body.indexOf("array_length(v_candidates, 1)");
+		const elementReadLine = body.indexOf("v_candidates[1]");
+		expect(lengthCheckLine).toBeGreaterThan(-1);
+		expect(elementReadLine).toBeGreaterThan(lengthCheckLine);
+	});
+
+	it("never calls min or max on a uuid, which is not available in every Postgres environment", () => {
+		expect(body.toLowerCase()).not.toMatch(/\bmin\s*\(/);
+		expect(body.toLowerCase()).not.toMatch(/\bmax\s*\(/);
+	});
+
+	it("never orders candidates or casts a uuid to text to pick one", () => {
+		expect(body.toLowerCase()).not.toMatch(/order by/);
+		expect(body.toLowerCase()).not.toMatch(/::text/);
+	});
+
+	it("never uses DISTINCT to dedupe candidates, relying only on the union above", () => {
+		expect(body.toLowerCase()).not.toMatch(/distinct candidate_id/);
 	});
 });
 
