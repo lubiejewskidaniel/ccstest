@@ -32,8 +32,9 @@ export const articleInputSchema = z.object({
 		.min(20, "Excerpt must be at least 20 characters.")
 		.max(400, "Excerpt is too long (400 characters max)."),
 
-	coverImageUrl: z.union([z.string().trim().url("Enter a valid URL."), z.literal("")]).optional().transform((v) => v || null),
-	coverImageAlt: z.string().trim().max(300).optional().transform((v) => v || null),
+	// coverImageUrl/coverImageAlt are not part of this schema - those
+	// fields belong to the Article Visual approval workflow, not the
+	// ordinary content form.
 
 	// Raw JSON text from the textarea — parsed to a JS value by the
 	// caller (src/features/insights/cms/service.ts) before this schema

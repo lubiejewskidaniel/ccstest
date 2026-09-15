@@ -42,8 +42,6 @@ function articleInputFromFormData(formData: FormData, bodyValue: unknown) {
 		tagIds: formData.getAll("tagIds"),
 		title: formData.get("title"),
 		excerpt: formData.get("excerpt"),
-		coverImageUrl: formData.get("coverImageUrl") ?? "",
-		coverImageAlt: formData.get("coverImageAlt") ?? "",
 		body: bodyValue,
 		readingMinutes: formData.get("readingMinutes") ?? "",
 		authorName: formData.get("authorName"),

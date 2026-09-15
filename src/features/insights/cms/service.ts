@@ -47,8 +47,8 @@ function toRow(input: ArticleInput) {
 		category_id: input.categoryId,
 		title: input.title,
 		excerpt: input.excerpt,
-		cover_image_url: input.coverImageUrl,
-		cover_image_alt: input.coverImageAlt,
+		// cover_image_url/cover_image_alt are intentionally omitted so an
+		// update never touches them - only approve_article_visual writes them.
 		body: input.body,
 		reading_minutes: input.readingMinutes,
 		author_name: input.authorName,

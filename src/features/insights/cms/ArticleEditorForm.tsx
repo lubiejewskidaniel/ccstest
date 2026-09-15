@@ -33,7 +33,6 @@ export function ArticleEditorForm({
 	const [translationOf, setTranslationOf] = useState<string | null>(article?.translationOf ?? null);
 	const [title, setTitle] = useState(article?.title ?? "");
 	const [excerpt, setExcerpt] = useState(article?.excerpt ?? "");
-	const [coverImageUrl, setCoverImageUrl] = useState(article?.coverImageUrl ?? "");
 	const [seoTitle, setSeoTitle] = useState(article?.seoTitle ?? "");
 	const [seoDescription, setSeoDescription] = useState(article?.seoDescription ?? "");
 
@@ -133,45 +132,6 @@ export function ArticleEditorForm({
 					)}
 				</div>
 			</div>
-
-			<div className="field-row">
-				<div className="field">
-					<label htmlFor="coverImageUrl">
-						Cover image URL <span className="opt">optional</span>
-					</label>
-					<input
-						id="coverImageUrl"
-						name="coverImageUrl"
-						type="text"
-						value={coverImageUrl}
-						onChange={(e) => setCoverImageUrl(e.target.value)}
-					/>
-					{fieldError("coverImageUrl") ? <span className="field-error">{fieldError("coverImageUrl")}</span> : null}
-				</div>
-				<div className="field">
-					<label htmlFor="coverImageAlt">
-						Cover image alt text <span className="opt">recommended for accessibility</span>
-					</label>
-					<input id="coverImageAlt" name="coverImageAlt" type="text" defaultValue={article?.coverImageAlt ?? ""} />
-				</div>
-			</div>
-
-			{coverImageUrl ? (
-				<div className={styles.coverPreviewWrap}>
-					{/* eslint-disable-next-line @next/next/no-img-element -- editor-supplied URL on an unknown host */}
-					<img
-						src={coverImageUrl}
-						alt=""
-						className={styles.coverPreview}
-						onError={(e) => {
-							e.currentTarget.style.display = "none";
-						}}
-						onLoad={(e) => {
-							e.currentTarget.style.display = "block";
-						}}
-					/>
-				</div>
-			) : null}
 
 			<div className="field">
 				<label>Body</label>
