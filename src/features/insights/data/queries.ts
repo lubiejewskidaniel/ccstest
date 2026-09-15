@@ -11,9 +11,12 @@ import { mapArticle, mapArticleSummary, mapCategory, mapTag } from "./mappers";
  *   null result instead of throwing — the same "safe without a real
  *   backend" fallback every other Supabase-backed feature in this app
  *   uses),
- * - relies on RLS to enforce "published only" (docs/INSIGHTS_DATABASE.md
- *   §3) rather than adding its own status filter as the only line of
- *   defense,
+ * - explicitly filters on `status = "published"` for every read, as
+ *   defence-in-depth on top of (never a replacement for) the "published
+ *   only" RLS policy (docs/INSIGHTS_DATABASE.md §3) — a caching or
+ *   session-scoping failure that lets a privileged read reach a public
+ *   code path must not be the only thing standing between an in-review
+ *   article and the public internet,
  * - is the ONLY place that talks to the `insights_*` tables for public
  *   pages. CMS/admin query functions (Checkpoint 3) live in a separate,
  *   parallel module and are never imported from `src/app/insights/**`
@@ -40,6 +43,7 @@ export async function getPublishedArticleBySlug(locale: Locale, slug: string): P
     .select(ARTICLE_COLUMNS)
     .eq("locale", locale)
     .eq("slug", slug)
+    .eq("status", "published")
     .maybeSingle();
 
   if (!data) return null;
@@ -62,6 +66,7 @@ export async function listPublishedArticles(
     .from("insights_articles")
     .select(SUMMARY_COLUMNS, { count: "exact" })
     .eq("locale", locale)
+    .eq("status", "published")
     .order("published_at", { ascending: false })
     .range((page - 1) * pageSize, page * pageSize - 1);
 
@@ -96,6 +101,7 @@ export async function listFeaturedArticles(locale: Locale, limit = 1): Promise<A
     .select(SUMMARY_COLUMNS)
     .eq("locale", locale)
     .eq("featured", true)
+    .eq("status", "published")
     .order("published_at", { ascending: false })
     .limit(limit);
 
@@ -181,6 +187,7 @@ export async function listPublishedArticlesForFeed(
     .from("insights_articles")
     .select("slug, title, excerpt, author_name, published_at")
     .eq("locale", locale)
+    .eq("status", "published")
     .order("published_at", { ascending: false })
     .limit(limit);
 
@@ -211,6 +218,7 @@ export async function getArticleTranslation(article: Article): Promise<Article |
       .select(ARTICLE_COLUMNS)
       .eq("id", article.translationOf)
       .eq("locale", otherLocale)
+      .eq("status", "published")
       .maybeSingle();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (data) return mapArticle(data as any);
@@ -262,6 +270,7 @@ export async function searchPublishedArticles(
     .from("insights_articles")
     .select(SUMMARY_COLUMNS)
     .eq("locale", locale)
+    .eq("status", "published")
     .or(`title.ilike."${pattern}",excerpt.ilike."${pattern}"`)
     .order("published_at", { ascending: false })
     .limit(limit);
