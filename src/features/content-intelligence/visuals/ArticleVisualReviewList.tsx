@@ -67,6 +67,7 @@ export function ArticleVisualReviewList({
 	candidates,
 	articleCoverImageUrl,
 	articleCoverImageStatus,
+	hasLinkedTranslation,
 }: {
 	articleId: string;
 	locale: Locale;
@@ -74,6 +75,10 @@ export function ArticleVisualReviewList({
 	candidates: ArticleVisualListItem[];
 	articleCoverImageUrl: string | null;
 	articleCoverImageStatus: ArticleCoverImageStatus;
+	/** True when this article links to a translation (translation_of is
+	 * set on this article) - used only to label a zero-candidate approved
+	 * cover accurately as shared rather than legacy manual. */
+	hasLinkedTranslation: boolean;
 }) {
 	const [altValues, setAltValues] = useState<Record<string, string>>({});
 	// Identifies the exact candidate awaiting confirmation -- never a
@@ -126,6 +131,7 @@ export function ArticleVisualReviewList({
 			(articleCoverImageStatus !== "approved" || articleCoverImageUrl !== managedActiveCandidate.publicUrl));
 
 	const hasLegacyActiveCover = approvedCandidates.length === 0 && articleCoverImageStatus === "approved" && Boolean(articleCoverImageUrl);
+	const hasSharedTranslationCover = hasLegacyActiveCover && hasLinkedTranslation;
 
 	// Approving replaces a real, currently-active cover whenever another
 	// managed candidate is already approved, OR the article's live
@@ -352,10 +358,13 @@ export function ArticleVisualReviewList({
 				</p>
 			) : null}
 
-			{hasLegacyActiveCover ? (
+			{hasSharedTranslationCover ? (
 				<p className={styles.note}>
-					This article&apos;s live cover currently comes from the manual Cover image URL field below, not a reviewed visual candidate.
+					This article currently shares its approved cover with its linked translation. Approving a candidate
+					here gives this article its own cover without changing the linked translation.
 				</p>
+			) : hasLegacyActiveCover ? (
+				<p className={styles.note}>This article&apos;s live cover was set outside the Article Visual review process.</p>
 			) : null}
 
 			<div className={styles.generateRow}>

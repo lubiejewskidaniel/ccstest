@@ -79,6 +79,17 @@ async function notifyIndexNowOfPublish(locale: Locale, slug: string) {
 	await pingIndexNow([articleUrl(slug, locale)]);
 }
 
+type SupabaseServerClient = NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>;
+
+// Best effort and safe to retry.
+async function syncLinkedTranslationCover(supabase: SupabaseServerClient, articleId: string) {
+	try {
+		await supabase.rpc("sync_linked_translation_cover", { p_article_id: articleId });
+	} catch {
+		// Ignored - see comment above.
+	}
+}
+
 async function requireEditorSession() {
 	const session = await getAdminSession();
 	if (!session?.isEditor) {
@@ -108,6 +119,10 @@ export async function createArticle(raw: unknown): Promise<CmsResult> {
 
 	await syncTags(supabase, data.id, parsed.data.tagIds);
 
+	if (parsed.data.translationOf) {
+		await syncLinkedTranslationCover(supabase, data.id);
+	}
+
 	return { ok: true, id: data.id };
 }
 
@@ -129,6 +144,14 @@ export async function updateArticle(id: string, raw: unknown): Promise<CmsResult
 	if (error) return { ok: false, kind: "persistence", message: describeWriteError(error.message) };
 
 	await syncTags(supabase, id, parsed.data.tagIds);
+
+	// Called on every save with a translation link, not only when the
+	// link changes, so a save retries and repairs a sync that failed on
+	// a previous save. sync_linked_translation_cover is idempotent, so
+	// this is harmless when the two articles are already in step.
+	if (parsed.data.translationOf) {
+		await syncLinkedTranslationCover(supabase, id);
+	}
 
 	// IndexNow: ArticleEditorForm always resubmits the article's *current*
 	// status unchanged (its hidden `status` field mirrors `article.status`

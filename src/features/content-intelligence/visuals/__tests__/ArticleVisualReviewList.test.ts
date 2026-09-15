@@ -201,7 +201,22 @@ describe("legacy-cover note (39)", () => {
 		expect(listCode).toMatch(
 			/const hasLegacyActiveCover = approvedCandidates\.length === 0 && articleCoverImageStatus === "approved" && Boolean\(articleCoverImageUrl\);/,
 		);
-		expect(listCode).toMatch(/\{hasLegacyActiveCover \? \(/);
+		expect(listCode).toMatch(/\) : hasLegacyActiveCover \? \(/);
+	});
+
+	it("never mentions the removed manual Cover image URL field", () => {
+		expect(listCode).not.toMatch(/Cover image URL field/);
+	});
+});
+
+describe("shared translation cover note", () => {
+	it("only shows the shared-cover note when this article links to a translation and has no candidates of its own", () => {
+		expect(listCode).toMatch(/const hasSharedTranslationCover = hasLegacyActiveCover && hasLinkedTranslation;/);
+		expect(listCode).toMatch(/\{hasSharedTranslationCover \? \(/);
+	});
+
+	it("accepts hasLinkedTranslation as a plain boolean prop", () => {
+		expect(listCode).toMatch(/hasLinkedTranslation: boolean;/);
 	});
 });
 
@@ -213,6 +228,11 @@ describe("ArticleVisualReviewPanel.tsx (server component)", () => {
 
 	it("passes only the article fields needed for active-cover context, not the full Article object", () => {
 		expect(panelCode).not.toMatch(/import type \{ Article \}/);
+	});
+
+	it("passes hasLinkedTranslation straight through to ArticleVisualReviewList", () => {
+		expect(panelCode).toMatch(/hasLinkedTranslation: boolean;/);
+		expect(panelCode).toMatch(/hasLinkedTranslation=\{hasLinkedTranslation\}/);
 	});
 });
 

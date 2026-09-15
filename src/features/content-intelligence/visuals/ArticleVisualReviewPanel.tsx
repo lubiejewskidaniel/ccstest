@@ -27,12 +27,14 @@ export async function ArticleVisualReviewPanel({
 	slug,
 	coverImageUrl,
 	coverImageStatus,
+	hasLinkedTranslation,
 }: {
 	articleId: string;
 	locale: Locale;
 	slug: string;
 	coverImageUrl: string | null;
 	coverImageStatus: ArticleCoverImageStatus;
+	hasLinkedTranslation: boolean;
 }) {
 	const candidates = await listArticleVisuals(articleId);
 
@@ -44,6 +46,7 @@ export async function ArticleVisualReviewPanel({
 			candidates={candidates}
 			articleCoverImageUrl={coverImageUrl}
 			articleCoverImageStatus={coverImageStatus}
+			hasLinkedTranslation={hasLinkedTranslation}
 		/>
 	);
 }

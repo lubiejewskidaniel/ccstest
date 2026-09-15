@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getArticleForAdmin, listArticlesForAdmin } from "@/features/insights/cms/queries";
 import { listCategories, listTags } from "@/features/insights/data/queries";
 import { getAdminSession } from "@/lib/supabase/adminAuth";
+import { hasLinkedTranslation } from "@/features/insights/cms/translationLink";
 import { ArticleEditorForm } from "@/features/insights/cms/ArticleEditorForm";
 import { ArticleStatusActions } from "@/features/insights/cms/ArticleStatusActions";
 import { ArticleVisualReviewPanel } from "@/features/content-intelligence/visuals/ArticleVisualReviewPanel";
@@ -25,6 +26,9 @@ export default async function EditArticlePage({ params }: { params: Promise<Para
 	const translationCandidates = allArticles.map((a) => ({ id: a.id, title: a.title, slug: a.slug, locale: a.locale }));
 	const boundUpdateAction = updateArticleAction.bind(null, id);
 
+	// Translation links can resolve in either direction.
+	const linkedTranslation = hasLinkedTranslation(article.id, article.translationOf, allArticles);
+
 	return (
 		<div>
 			<h1 style={{ fontSize: "1.6rem", fontWeight: 600, marginBottom: 8 }}>{article.title}</h1>
@@ -40,6 +44,7 @@ export default async function EditArticlePage({ params }: { params: Promise<Para
 				slug={article.slug}
 				coverImageUrl={article.coverImageUrl}
 				coverImageStatus={article.coverImageStatus}
+				hasLinkedTranslation={linkedTranslation}
 			/>
 
 			<p style={{ fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--ink-3)", marginBottom: 12 }}>

@@ -37,7 +37,9 @@ function fakeSupabase() {
 	const deleteEq = vi.fn(async () => ({ error: null }));
 	const del = vi.fn(() => ({ eq: deleteEq }));
 
-	return { from: vi.fn((_table: string) => ({ insert, update, delete: del })) };
+	const rpc = vi.fn(async () => ({ data: null, error: null }));
+
+	return { from: vi.fn((_table: string) => ({ insert, update, delete: del })), rpc };
 }
 
 function validArticleInput(overrides: Record<string, unknown> = {}) {
