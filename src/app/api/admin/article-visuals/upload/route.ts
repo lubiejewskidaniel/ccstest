@@ -1,8 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { revalidatePath } from "next/cache";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getAdminSession } from "@/lib/supabase/adminAuth";
-import { storeUploadedArticleVisual } from "@/features/content-intelligence/visuals/articleVisualStorageService";
+import { requireEditorContext, storeUploadedArticleVisual } from "@/features/content-intelligence/visuals/articleVisualStorageService";
 import { MAX_ARTICLE_VISUAL_ASSET_BYTES, type StoreArticleVisualResult } from "@/features/content-intelligence/visuals/articleVisualStorage";
 
 /**
@@ -31,15 +29,22 @@ import { MAX_ARTICLE_VISUAL_ASSET_BYTES, type StoreArticleVisualResult } from "@
  *      `file.arrayBuffer()`. Previously an unauthenticated, non-editor,
  *      or unconfigured-Supabase request still reached full multipart
  *      parsing and file-byte buffering before `storeUploadedArticleVisual`
- *      rejected it. The preflight below (`createSupabaseServerClient()`
- *      + `getAdminSession()?.isEditor`) mirrors, but does NOT replace,
- *      `storeUploadedArticleVisual`'s own internal `requireEditorClient()`
- *      check — that remains the one authoritative auth boundary, run
- *      again, unchanged, when the service is called further down. This
- *      preflight is a transport optimization only: it never uses a
- *      service-role client, and a request that somehow reached the
- *      service despite failing this preflight would still be correctly
- *      rejected by the service's own check.
+ *      rejected it. The preflight below calls `requireEditorContext()`
+ *      — the SAME function `articleVisualGenerationService.ts` uses —
+ *      exactly once, and the resulting context is passed straight into
+ *      `storeUploadedArticleVisual` below rather than being re-resolved
+ *      a second time. This route used to run its own separate
+ *      `createSupabaseServerClient()`/`getAdminSession()` check here and
+ *      let `storeUploadedArticleVisual` independently resolve its own
+ *      session again internally; that duplicate-resolution pattern is
+ *      exactly what let a slow operation between two such checks
+ *      silently drop a successful result elsewhere in this feature (see
+ *      `articleVisualGenerationService.ts`'s own doc comment). Upload's
+ *      window between checks was always small (parsing an
+ *      already-received body, not a third-party network call), but this
+ *      route now follows the same one-context model regardless, so
+ *      Article Visual persistence has exactly one authentication
+ *      pattern rather than two.
  *
  *   2. `file.size` is now checked against the storage module's own
  *      exported `MAX_ARTICLE_VISUAL_ASSET_BYTES` BEFORE
@@ -79,19 +84,14 @@ import { MAX_ARTICLE_VISUAL_ASSET_BYTES, type StoreArticleVisualResult } from "@
  * `articleId`, `file`, and an optional `altText`.
  */
 export async function POST(request: NextRequest) {
-	// --- Transport auth preflight (Phase 3C.4B.6C) ---------------------
-	// Deliberately BEFORE request.formData() / file.arrayBuffer(). Never
-	// a service-role client. storeUploadedArticleVisual's own auth check
-	// further down remains authoritative and unchanged; this only avoids
-	// buffering a multipart body for a request that can never succeed.
-	const supabase = await createSupabaseServerClient();
-	if (!supabase) {
-		return NextResponse.json({ ok: false, kind: "not_configured", message: "Supabase isn't configured in this environment." }, { status: 503 });
-	}
-
-	const session = await getAdminSession();
-	if (!session?.isEditor) {
-		return NextResponse.json({ ok: false, kind: "auth", message: "You must be signed in as an editor to upload an article visual." }, { status: 401 });
+	// --- Transport auth preflight (Phase 3C.4B.6C; consolidated) --------
+	// Deliberately BEFORE request.formData() / file.arrayBuffer(), and
+	// deliberately the ONLY authentication resolution for this request --
+	// storeUploadedArticleVisual below receives this same context rather
+	// than resolving its own. Never a service-role client.
+	const authResult = await requireEditorContext();
+	if (!authResult.ok) {
+		return NextResponse.json(authResult, { status: statusForFailureKind(authResult.kind) });
 	}
 	// --------------------------------------------------------------------
 
@@ -148,6 +148,7 @@ export async function POST(request: NextRequest) {
 	// `file.type` is the browser's own declared MIME type -- untrusted,
 	// passed through as-is. Real validation happens inside the service.
 	const result: StoreArticleVisualResult = await storeUploadedArticleVisual({
+		context: authResult.context,
 		articleId,
 		data,
 		declaredMimeType: file.type,

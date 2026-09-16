@@ -594,6 +594,23 @@ at a time.
   removes a `pending_review` or `superseded` candidate; an `approved`
   candidate can never be deleted through this path.
 
+**Authentication/write boundary.** Editor authorization for generation
+and upload is resolved exactly once per action, via
+`articleVisualStorageService.ts`'s `requireEditorContext()`, before
+anything slow or billable runs - never independently re-resolved
+afterward. A production defect once had `generateArticleVisualCandidate`
+check authorization, call the real image provider (which can take up to
+two minutes), and only then hand off to a storage function that
+independently re-resolved the session a second time; a session that had
+gone stale during that wait could pass the first check and fail the
+second, discarding an already-generated, already-paid-for image. Both
+generation and upload now obtain one `ArticleVisualAuthContext` (a
+session-aware, RLS-governed Supabase client plus the verified session)
+up front and reuse it for the eventual write, which still runs through
+that same ordinary client - never a service-role client, and RLS
+(migrations 011-013) remains the final database security boundary
+exactly as before.
+
 **Managed cover ownership.** The ordinary CMS content-save path
 (`updateArticle`, `createArticle` in `cms/service.ts`) never writes
 `cover_image_url`, `cover_image_alt` or `cover_image_status`. Those

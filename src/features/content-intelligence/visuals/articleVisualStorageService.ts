@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getAdminSession } from "@/lib/supabase/adminAuth";
+import { getAdminSession, type AdminSession } from "@/lib/supabase/adminAuth";
 import type { ArticleVisualBrief } from "./articleVisualBrief";
 import type { GeneratedArticleVisual } from "./ArticleVisualProvider";
 import {
@@ -42,6 +42,22 @@ import {
  * ordinary Postgres RLS and Storage policies are the real authorization
  * boundary, exactly like every other CMS write in
  * `src/features/insights/cms/service.ts`.
+ *
+ * Auth timing fix: `storeGeneratedArticleVisual`/`storeUploadedArticleVisual`
+ * used to independently re-resolve `getAdminSession()` themselves,
+ * separate from whatever check their caller had already performed. For
+ * generation, that meant a real, billable `ArticleVisualProvider.generate()`
+ * call (up to two minutes) sat between the first, successful check and
+ * this second one -- long enough for the session to no longer resolve,
+ * discarding an already-generated, already-paid-for image. Both
+ * functions now take an `ArticleVisualAuthContext` (a client + session
+ * pair) that the caller obtains ONCE, via `requireEditorContext()` below,
+ * before doing anything slow or billable, and reuses for the eventual
+ * write. Editor authorization is still established before any provider
+ * call, and the write still runs through that same ordinary,
+ * session-aware, RLS-governed client -- nothing here removes a check or
+ * introduces a privileged client; it removes a redundant, slow,
+ * time-separated re-check of the same thing.
  */
 
 /** The Supabase Storage bucket every article visual candidate's object
@@ -73,37 +89,51 @@ const TEMPORARY_URL_FETCH_TIMEOUT_MS = 10_000;
 
 type SupabaseServerClient = NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>;
 
-type EditorClientResult = { ok: true; supabase: SupabaseServerClient } | { ok: false; result: StoreArticleVisualResult };
+/**
+ * A client + session pair already proven to belong to a signed-in
+ * editor/admin. The only way to obtain one is `requireEditorContext()`
+ * below -- callers establish this ONCE, before anything slow or
+ * billable, and pass the exact same value through to whichever store
+ * function eventually persists the result, rather than resolving a new
+ * one afterward.
+ */
+export type ArticleVisualAuthContext = { supabase: SupabaseServerClient; session: AdminSession };
+
+type RequireEditorContextFailure = { ok: false; kind: "not_configured" | "auth"; message: string };
+
+export type RequireEditorContextResult = { ok: true; context: ArticleVisualAuthContext } | RequireEditorContextFailure;
 
 /**
  * Step 1 (configuration/client check) + step 2 (auth/editor check), in
  * that order — deliberately not folded into one `getAdminSession()`
  * call, because `getAdminSession()` returns `null` for "Supabase isn't
  * configured" and "no authenticated editor" alike, and callers need to
- * tell those two apart (`not_configured` vs `auth`). The client
- * constructed here is reused for every later Postgres/Storage
- * operation, so this is the only `createSupabaseServerClient()` call in
- * a single store action — no new auth pattern, just the same
- * session-aware client every other CMS write in `cms/service.ts` uses.
+ * tell those two apart (`not_configured` vs `auth`).
+ *
+ * Call this exactly once per logical Generate-visual/Upload-visual
+ * action, as early as possible -- before validating input, before
+ * calling an `ArticleVisualProvider`, before anything that can take a
+ * meaningful amount of time. The returned `context.supabase` is a
+ * normal, session-aware, RLS-governed client (never service-role); reuse
+ * it for every later Postgres/Storage operation in that same action
+ * instead of calling this (or `createSupabaseServerClient()`/
+ * `getAdminSession()` directly) a second time. A second, independent,
+ * later call is exactly what previously let a real provider call
+ * complete before a stale/expired session was discovered, discarding an
+ * already-generated image.
  */
-async function requireEditorClient(): Promise<EditorClientResult> {
+export async function requireEditorContext(): Promise<RequireEditorContextResult> {
 	const supabase = await createSupabaseServerClient();
 	if (!supabase) {
-		return {
-			ok: false,
-			result: { ok: false, kind: "not_configured", message: "Supabase isn't configured in this environment." },
-		};
+		return { ok: false, kind: "not_configured", message: "Supabase isn't configured in this environment." };
 	}
 
 	const session = await getAdminSession();
 	if (!session?.isEditor) {
-		return {
-			ok: false,
-			result: { ok: false, kind: "auth", message: "You must be signed in as an editor to store an article visual." },
-		};
+		return { ok: false, kind: "auth", message: "You must be signed in as an editor to store an article visual." };
 	}
 
-	return { ok: true, supabase };
+	return { ok: true, context: { supabase, session } };
 }
 
 type ArticleCoverStateResult =
@@ -407,6 +437,11 @@ async function persistValidatedVisual(input: PersistValidatedVisualInput): Promi
 }
 
 export type StoreGeneratedArticleVisualInput = {
+	/** Already-established, already-verified editor context — obtained by
+	 * the caller via `requireEditorContext()` before calling an
+	 * `ArticleVisualProvider`, and passed through unchanged. This
+	 * function never resolves its own, independent session. */
+	context: ArticleVisualAuthContext;
 	articleId: string;
 	/** Supplies `altText` for the stored candidate — this module never
 	 * derives alt text itself. */
@@ -422,12 +457,18 @@ export type StoreGeneratedArticleVisualInput = {
  * `article_visuals` candidate. Never calls an `ArticleVisualProvider`
  * itself — `visual` is already the finished output of one, produced by
  * trusted server-side calling code.
+ *
+ * Takes an already-verified `context` rather than resolving its own —
+ * the cheap, synchronous `isEditor` check below is a defence-in-depth
+ * assertion of state the caller already proved (no network call), not a
+ * second independent authentication attempt.
  */
 export async function storeGeneratedArticleVisual(input: StoreGeneratedArticleVisualInput): Promise<StoreArticleVisualResult> {
-	const authResult = await requireEditorClient();
-	if (!authResult.ok) return authResult.result;
+	if (!input.context.session.isEditor) {
+		return { ok: false, kind: "auth", message: "You must be signed in as an editor to store an article visual." };
+	}
 
-	const coverState = await readArticleCoverState(authResult.supabase, input.articleId);
+	const coverState = await readArticleCoverState(input.context.supabase, input.articleId);
 	if (!coverState.ok) return coverState.result;
 
 	const bytesResult = await obtainGeneratedBytes(input.visual);
@@ -436,7 +477,7 @@ export async function storeGeneratedArticleVisual(input: StoreGeneratedArticleVi
 	}
 
 	return persistValidatedVisual({
-		supabase: authResult.supabase,
+		supabase: input.context.supabase,
 		articleId: input.articleId,
 		currentCoverImageStatus: coverState.coverImageStatus,
 		data: bytesResult.data,
@@ -448,9 +489,14 @@ export async function storeGeneratedArticleVisual(input: StoreGeneratedArticleVi
 }
 
 export type StoreUploadedArticleVisualInput = {
+	/** Already-established, already-verified editor context — obtained by
+	 * the caller via `requireEditorContext()` before reading the upload's
+	 * bytes, and passed through unchanged. This function never resolves
+	 * its own, independent session. */
+	context: ArticleVisualAuthContext;
 	articleId: string;
 	/** Raw image bytes, already read server-side from whatever transport
-	 * carried the upload (e.g. a Server Action's `File.arrayBuffer()`).
+	 * carried the upload (e.g. a Route Handler's `File.arrayBuffer()`).
 	 * Deliberately not a URL — manual uploads never fetch a remote
 	 * location, and never accept a client-supplied storage credential. */
 	data: Uint8Array;
@@ -460,17 +506,19 @@ export type StoreUploadedArticleVisualInput = {
 
 /**
  * Stores a manually uploaded image as a new, `pending_review`
- * `article_visuals` candidate.
+ * `article_visuals` candidate. Takes an already-verified `context` for
+ * the same reason `storeGeneratedArticleVisual` does.
  */
 export async function storeUploadedArticleVisual(input: StoreUploadedArticleVisualInput): Promise<StoreArticleVisualResult> {
-	const authResult = await requireEditorClient();
-	if (!authResult.ok) return authResult.result;
+	if (!input.context.session.isEditor) {
+		return { ok: false, kind: "auth", message: "You must be signed in as an editor to store an article visual." };
+	}
 
-	const coverState = await readArticleCoverState(authResult.supabase, input.articleId);
+	const coverState = await readArticleCoverState(input.context.supabase, input.articleId);
 	if (!coverState.ok) return coverState.result;
 
 	return persistValidatedVisual({
-		supabase: authResult.supabase,
+		supabase: input.context.supabase,
 		articleId: input.articleId,
 		currentCoverImageStatus: coverState.coverImageStatus,
 		data: input.data,

@@ -12,6 +12,14 @@ import type { GeneratedArticleVisual } from "../ArticleVisualProvider";
  * `.from(...).select/update/insert` and `.storage.from(...).upload/remove`
  * surface this service actually touches), extended with a mocked global
  * `fetch` for the `temporary_url` provider-result path.
+ *
+ * Auth timing fix: `storeGeneratedArticleVisual`/`storeUploadedArticleVisual`
+ * no longer resolve their own session -- they take an already-established
+ * `ArticleVisualAuthContext` (see `requireEditorContext`'s own tests
+ * below). Every call site in this file therefore builds its own context
+ * literal (`editorContext(supabase)`/`nonEditorContext(supabase)`)
+ * instead of relying on `mockGetAdminSession`/`mockCreateSupabaseServerClient`
+ * -- those two mocks now exist only to test `requireEditorContext` itself.
  */
 
 const mockGetAdminSession = vi.fn();
@@ -24,10 +32,18 @@ vi.mock("@/lib/supabase/server", () => ({
 	createSupabaseServerClient: () => mockCreateSupabaseServerClient(),
 }));
 
-const { storeGeneratedArticleVisual, storeUploadedArticleVisual } = await import("../articleVisualStorageService");
+const { storeGeneratedArticleVisual, storeUploadedArticleVisual, requireEditorContext } = await import("../articleVisualStorageService");
 
 const EDITOR_SESSION = { userId: "u1", email: "editor@example.com", roles: ["editor"], isAdmin: false, isEditor: true };
 const NON_EDITOR_SESSION = { userId: "u2", email: "viewer@example.com", roles: [], isAdmin: false, isEditor: false };
+
+function editorContext(supabase: unknown) {
+	return { supabase, session: EDITOR_SESSION } as never;
+}
+
+function nonEditorContext(supabase: unknown) {
+	return { supabase, session: NON_EDITOR_SESSION } as never;
+}
 
 const ARTICLE_ID = "11111111-1111-4111-8111-111111111111";
 
@@ -163,7 +179,7 @@ function fakeSupabase(opts: FakeSupabaseOptions = {}) {
 }
 
 beforeEach(() => {
-	mockGetAdminSession.mockReset().mockResolvedValue(EDITOR_SESSION);
+	mockGetAdminSession.mockReset();
 	mockCreateSupabaseServerClient.mockReset();
 });
 
@@ -173,25 +189,73 @@ afterEach(() => {
 	vi.useRealTimers();
 });
 
-describe("auth and article existence gates", () => {
-	it("1. rejects a non-editor before any storage or database call", async () => {
+describe("requireEditorContext", () => {
+	it("returns not_configured when Supabase isn't configured", async () => {
+		mockCreateSupabaseServerClient.mockResolvedValue(null);
+
+		const result = await requireEditorContext();
+
+		expect(result.ok).toBe(false);
+		if (!result.ok) expect(result.kind).toBe("not_configured");
+		expect(mockGetAdminSession).not.toHaveBeenCalled();
+	});
+
+	it("returns auth when there is no session", async () => {
+		mockCreateSupabaseServerClient.mockResolvedValue(fakeSupabase());
+		mockGetAdminSession.mockResolvedValue(null);
+
+		const result = await requireEditorContext();
+
+		expect(result.ok).toBe(false);
+		if (!result.ok) expect(result.kind).toBe("auth");
+	});
+
+	it("returns auth for a non-editor session", async () => {
+		mockCreateSupabaseServerClient.mockResolvedValue(fakeSupabase());
 		mockGetAdminSession.mockResolvedValue(NON_EDITOR_SESSION);
+
+		const result = await requireEditorContext();
+
+		expect(result.ok).toBe(false);
+		if (!result.ok) expect(result.kind).toBe("auth");
+	});
+
+	it("returns the exact client and session on success -- a caller can hold and reuse this pair", async () => {
 		const supabase = fakeSupabase();
 		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
+		mockGetAdminSession.mockResolvedValue(EDITOR_SESSION);
 
-		const result = await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
+		const result = await requireEditorContext();
+
+		expect(result.ok).toBe(true);
+		if (result.ok) {
+			expect(result.context.supabase).toBe(supabase);
+			expect(result.context.session).toBe(EDITOR_SESSION);
+		}
+	});
+});
+
+describe("auth and article existence gates", () => {
+	it("1. rejects a non-editor before any storage or database call, using only the already-established context -- no network resolution", async () => {
+		const supabase = fakeSupabase();
+
+		const result = await storeUploadedArticleVisual({ context: nonEditorContext(supabase), articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
 
 		expect(result.ok).toBe(false);
 		if (!result.ok) expect(result.kind).toBe("auth");
 		expect(supabase.spies.select).not.toHaveBeenCalled();
 		expect(supabase.spies.storageFrom).not.toHaveBeenCalled();
+		// The regression guard: rejecting a non-editor context must never
+		// involve a fresh, independent session resolution -- it is a
+		// synchronous check of state the caller already established.
+		expect(mockGetAdminSession).not.toHaveBeenCalled();
+		expect(mockCreateSupabaseServerClient).not.toHaveBeenCalled();
 	});
 
 	it("2. returns not_found for a missing article before any upload", async () => {
 		const supabase = fakeSupabase({ article: null });
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
 
-		const result = await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
+		const result = await storeUploadedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
 
 		expect(result.ok).toBe(false);
 		if (!result.ok) expect(result.kind).toBe("not_found");
@@ -202,9 +266,9 @@ describe("auth and article existence gates", () => {
 describe("generated visual: bytes and temporary_url", () => {
 	it("3. stores a bytes-kind generated visual successfully", async () => {
 		const supabase = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
 
 		const result = await storeGeneratedArticleVisual({
+			context: editorContext(supabase),
 			articleId: ARTICLE_ID,
 			brief: BRIEF,
 			providerId: "openai-images",
@@ -221,7 +285,6 @@ describe("generated visual: bytes and temporary_url", () => {
 
 	it("4. fetches a temporary_url exactly once and stores it successfully", async () => {
 		const supabase = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
 
 		const fetchMock = vi.fn(
 			async () => new Response(VALID_PNG.buffer as ArrayBuffer, { status: 200, headers: { "content-length": String(VALID_PNG.length) } }),
@@ -229,6 +292,7 @@ describe("generated visual: bytes and temporary_url", () => {
 		vi.stubGlobal("fetch", fetchMock);
 
 		const result = await storeGeneratedArticleVisual({
+			context: editorContext(supabase),
 			articleId: ARTICLE_ID,
 			brief: BRIEF,
 			providerId: "openai-images",
@@ -241,13 +305,12 @@ describe("generated visual: bytes and temporary_url", () => {
 
 	it("5. never persists the temporary URL anywhere", async () => {
 		const supabase = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
 		vi.stubGlobal(
 			"fetch",
 			vi.fn(async () => new Response(VALID_PNG.buffer as ArrayBuffer, { status: 200, headers: { "content-length": String(VALID_PNG.length) } })),
 		);
 
-		await storeGeneratedArticleVisual({ articleId: ARTICLE_ID, brief: BRIEF, providerId: "openai-images", visual: urlVisual(TEMPORARY_URL) });
+		await storeGeneratedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, brief: BRIEF, providerId: "openai-images", visual: urlVisual(TEMPORARY_URL) });
 
 		const insertPayload = supabase.getLastInsertPayload();
 		expect(JSON.stringify(insertPayload)).not.toContain(TEMPORARY_URL);
@@ -257,10 +320,10 @@ describe("generated visual: bytes and temporary_url", () => {
 
 	it("6. maps a temporary_url HTTP failure to storage_error", async () => {
 		const supabase = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
 		vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 500 })));
 
 		const result = await storeGeneratedArticleVisual({
+			context: editorContext(supabase),
 			articleId: ARTICLE_ID,
 			brief: BRIEF,
 			providerId: "openai-images",
@@ -275,7 +338,6 @@ describe("generated visual: bytes and temporary_url", () => {
 	it("7. maps a temporary_url timeout to storage_error", async () => {
 		vi.useFakeTimers();
 		const supabase = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
 
 		vi.stubGlobal(
 			"fetch",
@@ -292,6 +354,7 @@ describe("generated visual: bytes and temporary_url", () => {
 		);
 
 		const resultPromise = storeGeneratedArticleVisual({
+			context: editorContext(supabase),
 			articleId: ARTICLE_ID,
 			brief: BRIEF,
 			providerId: "openai-images",
@@ -307,7 +370,6 @@ describe("generated visual: bytes and temporary_url", () => {
 
 	it("8. rejects an oversized downloaded asset using Content-Length, without reading the body", async () => {
 		const supabase = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
 
 		const getReader = vi.fn(() => {
 			throw new Error("must not be called: Content-Length should short-circuit before the body is read");
@@ -321,6 +383,7 @@ describe("generated visual: bytes and temporary_url", () => {
 		vi.stubGlobal("fetch", vi.fn(async () => oversizedResponse as unknown as Response));
 
 		const result = await storeGeneratedArticleVisual({
+			context: editorContext(supabase),
 			articleId: ARTICLE_ID,
 			brief: BRIEF,
 			providerId: "openai-images",
@@ -334,10 +397,10 @@ describe("generated visual: bytes and temporary_url", () => {
 
 	it("9. rejects invalid MIME/magic bytes for a generated visual before any upload", async () => {
 		const supabase = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
 
 		// Declares image/png but the bytes are really a JPEG signature.
 		const result = await storeGeneratedArticleVisual({
+			context: editorContext(supabase),
 			articleId: ARTICLE_ID,
 			brief: BRIEF,
 			providerId: "openai-images",
@@ -353,33 +416,29 @@ describe("generated visual: bytes and temporary_url", () => {
 describe("manual upload", () => {
 	it("10. stores a valid uploaded PNG", async () => {
 		const supabase = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
-		const result = await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: pngBytes(800, 450), declaredMimeType: "image/png" });
+		const result = await storeUploadedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, data: pngBytes(800, 450), declaredMimeType: "image/png" });
 		expect(result.ok).toBe(true);
 		if (result.ok) expect(result.candidate.mimeType).toBe("image/png");
 	});
 
 	it("11. stores a valid uploaded JPEG", async () => {
 		const supabase = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
-		const result = await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: jpegBytes(800, 450), declaredMimeType: "image/jpeg" });
+		const result = await storeUploadedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, data: jpegBytes(800, 450), declaredMimeType: "image/jpeg" });
 		expect(result.ok).toBe(true);
 		if (result.ok) expect(result.candidate.mimeType).toBe("image/jpeg");
 	});
 
 	it("12. stores a valid uploaded WebP", async () => {
 		const supabase = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
-		const result = await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: webpBytes(800, 450), declaredMimeType: "image/webp" });
+		const result = await storeUploadedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, data: webpBytes(800, 450), declaredMimeType: "image/webp" });
 		expect(result.ok).toBe(true);
 		if (result.ok) expect(result.candidate.mimeType).toBe("image/webp");
 	});
 
 	it("13. rejects an uploaded SVG", async () => {
 		const supabase = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
 		const svg = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"></svg>');
-		const result = await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: svg, declaredMimeType: "image/svg+xml" });
+		const result = await storeUploadedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, data: svg, declaredMimeType: "image/svg+xml" });
 		expect(result.ok).toBe(false);
 		if (!result.ok) expect(result.kind).toBe("invalid_asset");
 		expect(supabase.spies.storageFrom).not.toHaveBeenCalled();
@@ -389,8 +448,7 @@ describe("manual upload", () => {
 describe("row shape and write invariants", () => {
 	it("14. a generated candidate's row has source_type=generated and provider=providerId", async () => {
 		const supabase = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
-		await storeGeneratedArticleVisual({ articleId: ARTICLE_ID, brief: BRIEF, providerId: "openai-images", visual: bytesVisual(VALID_PNG) });
+		await storeGeneratedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, brief: BRIEF, providerId: "openai-images", visual: bytesVisual(VALID_PNG) });
 		const payload = supabase.getLastInsertPayload();
 		expect(payload?.source_type).toBe("generated");
 		expect(payload?.provider).toBe("openai-images");
@@ -398,8 +456,7 @@ describe("row shape and write invariants", () => {
 
 	it("15. an uploaded candidate's row has source_type=uploaded and provider=null", async () => {
 		const supabase = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
-		await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
+		await storeUploadedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
 		const payload = supabase.getLastInsertPayload();
 		expect(payload?.source_type).toBe("uploaded");
 		expect(payload?.provider).toBeNull();
@@ -407,20 +464,17 @@ describe("row shape and write invariants", () => {
 
 	it("16. status is always pending_review for both flows", async () => {
 		const supabaseA = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabaseA);
-		await storeGeneratedArticleVisual({ articleId: ARTICLE_ID, brief: BRIEF, providerId: "openai-images", visual: bytesVisual(VALID_PNG) });
+		await storeGeneratedArticleVisual({ context: editorContext(supabaseA), articleId: ARTICLE_ID, brief: BRIEF, providerId: "openai-images", visual: bytesVisual(VALID_PNG) });
 		expect(supabaseA.getLastInsertPayload()?.status).toBe("pending_review");
 
 		const supabaseB = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabaseB);
-		await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
+		await storeUploadedArticleVisual({ context: editorContext(supabaseB), articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
 		expect(supabaseB.getLastInsertPayload()?.status).toBe("pending_review");
 	});
 
 	it("17. the storage upload call uses upsert: false", async () => {
 		const supabase = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
-		await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
+		await storeUploadedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
 		const call = supabase.spies.upload.mock.calls[0];
 		if (!call) throw new Error("upload was not called");
 		const [, , options] = call;
@@ -429,8 +483,7 @@ describe("row shape and write invariants", () => {
 
 	it("18. the storage upload call's contentType comes from the validated MIME type", async () => {
 		const supabase = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
-		await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: webpBytes(400, 300), declaredMimeType: "image/webp" });
+		await storeUploadedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, data: webpBytes(400, 300), declaredMimeType: "image/webp" });
 		const call = supabase.spies.upload.mock.calls[0];
 		if (!call) throw new Error("upload was not called");
 		const [, , options] = call;
@@ -439,8 +492,7 @@ describe("row shape and write invariants", () => {
 
 	it("19. the article_visuals insert uses the same visualId as the storage path", async () => {
 		const supabase = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
-		const result = await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
+		const result = await storeUploadedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
 		expect(result.ok).toBe(true);
 
 		const uploadCall = supabase.spies.upload.mock.calls[0];
@@ -456,31 +508,27 @@ describe("row shape and write invariants", () => {
 describe("cover_image_status transition", () => {
 	it("20. missing -> pending_review updates cover_image_status only", async () => {
 		const supabase = fakeSupabase({ article: { cover_image_status: "missing" } });
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
-		await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
+		await storeUploadedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
 		expect(supabase.spies.update).toHaveBeenCalledTimes(1);
 		expect(supabase.spies.update).toHaveBeenCalledWith({ cover_image_status: "pending_review" });
 	});
 
 	it("21. pending_review stays pending_review (no update call at all)", async () => {
 		const supabase = fakeSupabase({ article: { cover_image_status: "pending_review" } });
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
-		await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
+		await storeUploadedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
 		expect(supabase.spies.update).not.toHaveBeenCalled();
 	});
 
 	it("22. approved stays approved (no update call at all)", async () => {
 		const supabase = fakeSupabase({ article: { cover_image_status: "approved" } });
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
-		const result = await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
+		const result = await storeUploadedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
 		expect(result.ok).toBe(true);
 		expect(supabase.spies.update).not.toHaveBeenCalled();
 	});
 
 	it("23. an approved article's cover_image_url is never touched", async () => {
 		const supabase = fakeSupabase({ article: { cover_image_status: "approved" } });
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
-		await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
+		await storeUploadedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
 		for (const call of supabase.spies.update.mock.calls) {
 			expect(JSON.stringify(call)).not.toContain("cover_image_url");
 		}
@@ -488,8 +536,7 @@ describe("cover_image_status transition", () => {
 
 	it("24. an approved article's cover_image_alt is never touched", async () => {
 		const supabase = fakeSupabase({ article: { cover_image_status: "approved" } });
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
-		await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
+		await storeUploadedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
 		for (const call of supabase.spies.update.mock.calls) {
 			expect(JSON.stringify(call)).not.toContain("cover_image_alt");
 		}
@@ -499,9 +546,8 @@ describe("cover_image_status transition", () => {
 describe("partial-failure handling", () => {
 	it("25. an article_visuals insert failure triggers best-effort storage cleanup", async () => {
 		const supabase = fakeSupabase({ insertError: { message: "insert failed" } });
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
 
-		const result = await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
+		const result = await storeUploadedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
 
 		expect(result.ok).toBe(false);
 		if (!result.ok) expect(result.kind).toBe("database_error");
@@ -514,9 +560,8 @@ describe("partial-failure handling", () => {
 
 	it("26. a cleanup failure does not mask the original persistence error", async () => {
 		const supabase = fakeSupabase({ insertError: { message: "insert failed" }, removeError: { message: "cleanup also failed" } });
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
 
-		const result = await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
+		const result = await storeUploadedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
 
 		expect(result.ok).toBe(false);
 		if (!result.ok) {
@@ -527,9 +572,8 @@ describe("partial-failure handling", () => {
 
 	it("27. an upload failure causes no database insert at all", async () => {
 		const supabase = fakeSupabase({ uploadError: { message: "upload failed" } });
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
 
-		const result = await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
+		const result = await storeUploadedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
 
 		expect(result.ok).toBe(false);
 		if (!result.ok) expect(result.kind).toBe("storage_error");
@@ -538,9 +582,8 @@ describe("partial-failure handling", () => {
 
 	it("28. a validation failure causes no upload at all", async () => {
 		const supabase = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
 
-		const result = await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: new Uint8Array(0), declaredMimeType: "image/png" });
+		const result = await storeUploadedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, data: new Uint8Array(0), declaredMimeType: "image/png" });
 
 		expect(result.ok).toBe(false);
 		if (!result.ok) expect(result.kind).toBe("invalid_asset");
@@ -549,9 +592,8 @@ describe("partial-failure handling", () => {
 
 	it("a failed cover-status update after a successful insert returns ok:true with a warning, and does not delete the candidate", async () => {
 		const supabase = fakeSupabase({ article: { cover_image_status: "missing" }, updateError: { message: "update failed" } });
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
 
-		const result = await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
+		const result = await storeUploadedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
 
 		expect(result.ok).toBe(true);
 		if (result.ok) expect(result.warning).toBe("cover_status_update_failed");
@@ -563,10 +605,9 @@ describe("candidate mapping and idempotency", () => {
 	it("29. the returned candidate's createdAt comes from the DB row, never Date.now()", async () => {
 		const FIXED_CREATED_AT = "2030-05-05T12:00:00.000Z";
 		const supabase = fakeSupabase({ createdAt: FIXED_CREATED_AT });
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
 
 		const before = Date.now();
-		const result = await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
+		const result = await storeUploadedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -577,8 +618,8 @@ describe("candidate mapping and idempotency", () => {
 
 	it("35. generated and uploaded paths converge to the same candidate shape", async () => {
 		const supabaseA = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabaseA);
 		const generated = await storeGeneratedArticleVisual({
+			context: editorContext(supabaseA),
 			articleId: ARTICLE_ID,
 			brief: BRIEF,
 			providerId: "openai-images",
@@ -586,8 +627,7 @@ describe("candidate mapping and idempotency", () => {
 		});
 
 		const supabaseB = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabaseB);
-		const uploaded = await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
+		const uploaded = await storeUploadedArticleVisual({ context: editorContext(supabaseB), articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
 
 		expect(generated.ok).toBe(true);
 		expect(uploaded.ok).toBe(true);
@@ -598,12 +638,10 @@ describe("candidate mapping and idempotency", () => {
 
 	it("36. two explicit invocations create different candidate ids and paths", async () => {
 		const supabaseA = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabaseA);
-		const first = await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
+		const first = await storeUploadedArticleVisual({ context: editorContext(supabaseA), articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
 
 		const supabaseB = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabaseB);
-		const second = await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
+		const second = await storeUploadedArticleVisual({ context: editorContext(supabaseB), articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
 
 		expect(first.ok).toBe(true);
 		expect(second.ok).toBe(true);
@@ -615,14 +653,41 @@ describe("candidate mapping and idempotency", () => {
 
 	it("37. the storage path does not double-prefix the bucket name", async () => {
 		const supabase = fakeSupabase();
-		mockCreateSupabaseServerClient.mockResolvedValue(supabase);
-		await storeUploadedArticleVisual({ articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
+		await storeUploadedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
 
 		expect(supabase.spies.storageFrom).toHaveBeenCalledWith("article-visuals");
 		const uploadCall = supabase.spies.upload.mock.calls[0];
 		if (!uploadCall) throw new Error("upload was not called");
 		const [uploadedPath] = uploadCall;
 		expect(uploadedPath.startsWith("article-visuals/")).toBe(false);
+	});
+});
+
+describe("one established context, reused for the whole write -- not re-resolved", () => {
+	it("storeGeneratedArticleVisual performs the actual write using the exact supabase client from the passed-in context, never a freshly-resolved one", async () => {
+		const supabase = fakeSupabase();
+
+		await storeGeneratedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, brief: BRIEF, providerId: "openai-images", visual: bytesVisual(VALID_PNG) });
+
+		// The insert/upload calls landed on THIS supabase object -- proving
+		// the passed-in context's client is what actually performed the
+		// session-aware, RLS-governed write, not some other client.
+		expect(supabase.spies.insert).toHaveBeenCalledTimes(1);
+		expect(supabase.spies.upload).toHaveBeenCalledTimes(1);
+		// And no independent session resolution happened along the way.
+		expect(mockGetAdminSession).not.toHaveBeenCalled();
+		expect(mockCreateSupabaseServerClient).not.toHaveBeenCalled();
+	});
+
+	it("storeUploadedArticleVisual performs the actual write using the exact supabase client from the passed-in context, never a freshly-resolved one", async () => {
+		const supabase = fakeSupabase();
+
+		await storeUploadedArticleVisual({ context: editorContext(supabase), articleId: ARTICLE_ID, data: VALID_PNG, declaredMimeType: "image/png" });
+
+		expect(supabase.spies.insert).toHaveBeenCalledTimes(1);
+		expect(supabase.spies.upload).toHaveBeenCalledTimes(1);
+		expect(mockGetAdminSession).not.toHaveBeenCalled();
+		expect(mockCreateSupabaseServerClient).not.toHaveBeenCalled();
 	});
 });
 
@@ -666,5 +731,12 @@ describe("articleVisualStorageService.ts structural boundaries", () => {
 
 	it("never auto-creates the storage bucket", () => {
 		expect(codeOnly).not.toMatch(/createBucket/i);
+	});
+
+	it("resolves an editor session exactly once in this module (inside requireEditorContext only) -- storeGeneratedArticleVisual/storeUploadedArticleVisual never call getAdminSession or createSupabaseServerClient themselves", () => {
+		const getAdminSessionCalls = codeOnly.match(/getAdminSession\s*\(/g) ?? [];
+		const createClientCalls = codeOnly.match(/createSupabaseServerClient\s*\(/g) ?? [];
+		expect(getAdminSessionCalls).toHaveLength(1);
+		expect(createClientCalls).toHaveLength(1);
 	});
 });

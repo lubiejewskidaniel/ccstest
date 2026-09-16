@@ -1,10 +1,8 @@
 import { z } from "zod";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { getAdminSession } from "@/lib/supabase/adminAuth";
 import { getArticleForAdmin } from "@/features/insights/cms/queries";
 import { buildArticleVisualBrief, type ArticleVisualBriefInput } from "./articleVisualBrief";
 import { createOpenAiArticleVisualProvider } from "./OpenAiArticleVisualProvider";
-import { storeGeneratedArticleVisual } from "./articleVisualStorageService";
+import { requireEditorContext, storeGeneratedArticleVisual } from "./articleVisualStorageService";
 import type { ArticleVisualCandidate } from "./articleVisualStorage";
 import type { ArticleVisualGenerationOptions } from "./ArticleVisualProvider";
 
@@ -37,11 +35,22 @@ import type { ArticleVisualGenerationOptions } from "./ArticleVisualProvider";
  * request for free — Supabase configuration, authentication, editor
  * role, article id shape, article existence, category/context adequacy,
  * and the provider's own configuration — runs to completion BEFORE
- * `provider.generate()` is ever called. Reuses the exact same
- * `createSupabaseServerClient()` / `getAdminSession()` / `session.isEditor`
- * pattern as `articleVisualStorageService.ts` and
- * `articleVisualReviewService.ts` — no service-role client, no new auth
- * pattern.
+ * `provider.generate()` is ever called.
+ *
+ * One context, established once: editor authorization is resolved a
+ * single time, via `articleVisualStorageService.ts`'s
+ * `requireEditorContext()`, before `provider.generate()` runs — never
+ * re-resolved afterward. A production defect once had this module check
+ * auth itself, call the provider (a real network request that can take
+ * up to two minutes), and then hand off to `storeGeneratedArticleVisual`,
+ * which independently re-resolved `getAdminSession()` a second time; a
+ * session that had gone stale during that wait could then fail the
+ * second check after the (paid) generation had already succeeded,
+ * discarding it. The same `context.supabase` returned by
+ * `requireEditorContext()` is what actually performs the eventual write
+ * inside `storeGeneratedArticleVisual` — still an ordinary,
+ * session-aware, RLS-governed client, never a service-role client, and
+ * never a second independent session resolution.
  *
  * No automation lives here or is added by this phase: this function is
  * not called from any scheduler, cron, article-generation, brief-
@@ -142,14 +151,16 @@ function toBriefInput(article: ArticleVisualContextSource): ArticleVisualBriefIn
  * Generates exactly one new `pending_review` article visual candidate
  * for `articleId`.
  *
- *   1. authenticate + authorize (config, session, editor role)
+ *   1. authenticate + authorize ONCE (config, session, editor role) and
+ *      hold the resulting context for the rest of this call
  *   2. validate `articleId`
  *   3. load the article (existing `getArticleForAdmin` admin read —
  *      not a second full article-query implementation)
  *   4. build the `ArticleVisualBrief` from only its approved fields
  *   5. confirm the configured `ArticleVisualProvider` is configured
  *   6. call `provider.generate()` exactly once
- *   7. hand the result to `storeGeneratedArticleVisual()` unchanged
+ *   7. hand the result AND the same context from step 1 to
+ *      `storeGeneratedArticleVisual()` unchanged
  *
  * Every one of steps 1-5 can reject the request before step 6 — the
  * only step that can cost real money — ever runs. Never approves,
@@ -160,16 +171,12 @@ function toBriefInput(article: ArticleVisualContextSource): ArticleVisualBriefIn
  */
 export async function generateArticleVisualCandidate(articleId: string): Promise<GenerateArticleVisualCandidateResult> {
 	// Step 1: configuration + authentication + authorization, before
-	// anything billable and before even validating the article id.
-	const supabase = await createSupabaseServerClient();
-	if (!supabase) {
-		return { ok: false, kind: "not_configured", message: "Supabase isn't configured in this environment." };
-	}
-
-	const session = await getAdminSession();
-	if (!session?.isEditor) {
-		return { ok: false, kind: "auth", message: "You must be signed in as an editor to generate an article visual." };
-	}
+	// anything billable and before even validating the article id. This
+	// context is reused, not re-resolved, once the provider call below
+	// completes -- see this file's and requireEditorContext()'s own doc
+	// comments for the bug this fixes.
+	const authResult = await requireEditorContext();
+	if (!authResult.ok) return authResult;
 
 	// Step 2: validate the id shape before ever querying for it.
 	const parsedId = uuidSchema.safeParse(articleId);
@@ -219,13 +226,16 @@ export async function generateArticleVisualCandidate(articleId: string): Promise
 		return generation;
 	}
 
-	// Step 7: hand off to the existing storage service unchanged. This
-	// function never validates bytes, uploads, or writes to
+	// Step 7: hand off to the existing storage service, passing the SAME
+	// context established in step 1 -- no second, independent session
+	// resolution happens here, however long provider.generate() took.
+	// This function never validates bytes, uploads, or writes to
 	// `article_visuals`/`insights_articles` itself -- and never
 	// approves, supersedes, or replaces any existing visual: a fresh
 	// `pending_review` row is all `storeGeneratedArticleVisual` can ever
 	// produce.
 	const stored = await storeGeneratedArticleVisual({
+		context: authResult.context,
 		articleId: parsedId.data,
 		brief: briefResult.brief,
 		providerId: provider.id,

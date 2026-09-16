@@ -638,17 +638,19 @@ describe("Route Handler: bytes conversion and delegation to storeUploadedArticle
 		const callCount = (routeCode.match(/storeUploadedArticleVisual\(/g) ?? []).length;
 		expect(callCount).toBe(1);
 		expect(routeCode).not.toMatch(/createSupabasePrivilegedClient|service[-_]?role/i);
-		// Phase 3C.4B.6C intentionally added a transport-level auth
-		// preflight (createSupabaseServerClient()/getAdminSession(),
-		// checked before request.formData() -- see the dedicated
-		// "auth preflight before request.formData()" coverage in
-		// route.test.ts for the order proof) as defense-in-depth. It
-		// must never call the service's own private requireEditorClient()
-		// helper directly -- that remains internal to
-		// storeUploadedArticleVisual, the one authoritative auth/
-		// validation/storage boundary.
-		expect(routeCode).toMatch(/getAdminSession\(\)/);
-		expect(routeCode).toMatch(/createSupabaseServerClient\(\)/);
+		// Phase 3C.4B.6C added a transport-level auth preflight before
+		// request.formData() (see the dedicated "auth preflight before
+		// request.formData()" coverage in route.test.ts for the order
+		// proof). A later auth-timing fix consolidated that preflight and
+		// storeUploadedArticleVisual's own check into a single shared
+		// `requireEditorContext()` (exported by articleVisualStorageService.ts),
+		// resolved here exactly once and passed straight into
+		// storeUploadedArticleVisual -- this route must never call
+		// `createSupabaseServerClient()`/`getAdminSession()` directly, nor
+		// resolve a second, independent context of its own.
+		expect(routeCode).toMatch(/requireEditorContext\(\)/);
+		expect(routeCode).not.toMatch(/getAdminSession\(\)/);
+		expect(routeCode).not.toMatch(/createSupabaseServerClient\(\)/);
 		expect(routeCode).not.toMatch(/requireEditorClient/);
 		expect(routeCode).not.toMatch(/\.storage\.from\(/);
 		expect(routeCode).not.toMatch(/\.from\("article_visuals"\)/);

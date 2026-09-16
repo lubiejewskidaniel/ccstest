@@ -7,36 +7,33 @@ import type { NextRequest } from "next/server";
  * Phase 3C.4B.6C — transport-security correction coverage for the
  * manual article visual upload Route Handler.
  *
- * Same mocking shape as `articleVisualStorageService.test.ts`
- * (`@/lib/supabase/adminAuth` + `@/lib/supabase/server` mocked), plus
- * `articleVisualStorageService` itself and `next/cache` mocked so this
- * file can genuinely invoke `POST` and observe real call order and
- * responses -- not just structural source-text assertions. Real
- * behavioural coverage is used here (rather than this repo's usual
- * structural-only technique) specifically because the defect being
- * fixed is about CALL ORDER (auth before `request.formData()`, the
- * size guard before `file.arrayBuffer()`), which only an actual
- * invocation can prove.
+ * `articleVisualStorageService` is mocked (both `requireEditorContext`
+ * and `storeUploadedArticleVisual`) so this file can genuinely invoke
+ * `POST` and observe real call order and responses -- not just
+ * structural source-text assertions. Real behavioural coverage is used
+ * here (rather than this repo's usual structural-only technique)
+ * specifically because the defect being fixed is about CALL ORDER (auth
+ * before `request.formData()`, the size guard before
+ * `file.arrayBuffer()`), which only an actual invocation can prove.
  *
- * `storeUploadedArticleVisual` is mocked as an opaque function here --
- * its own auth/validation/storage behaviour is covered exhaustively by
- * `articleVisualStorageService.test.ts` and is never re-tested in this
- * file. This file proves only the transport layer sitting in front of
- * it.
+ * Auth timing fix: this route used to call `createSupabaseServerClient()`/
+ * `getAdminSession()` itself as a preflight, separate from
+ * `storeUploadedArticleVisual`'s own internal resolution. Both call sites
+ * now go through the single `requireEditorContext()` exported by
+ * `articleVisualStorageService.ts` -- this route resolves it exactly
+ * once and passes the result straight into `storeUploadedArticleVisual`.
+ *
+ * `storeUploadedArticleVisual` remains mocked as an opaque function
+ * here -- its own auth/validation/storage behaviour is covered
+ * exhaustively by `articleVisualStorageService.test.ts` and is never
+ * re-tested in this file. This file proves only the transport layer
+ * sitting in front of it.
  */
 
-const mockGetAdminSession = vi.fn();
-vi.mock("@/lib/supabase/adminAuth", () => ({
-	getAdminSession: () => mockGetAdminSession(),
-}));
-
-const mockCreateSupabaseServerClient = vi.fn();
-vi.mock("@/lib/supabase/server", () => ({
-	createSupabaseServerClient: () => mockCreateSupabaseServerClient(),
-}));
-
+const mockRequireEditorContext = vi.fn();
 const mockStoreUploadedArticleVisual = vi.fn();
 vi.mock("@/features/content-intelligence/visuals/articleVisualStorageService", () => ({
+	requireEditorContext: () => mockRequireEditorContext(),
 	storeUploadedArticleVisual: (...args: unknown[]) => mockStoreUploadedArticleVisual(...args),
 }));
 
@@ -49,15 +46,14 @@ const { POST } = await import("../route");
 const { MAX_ARTICLE_VISUAL_ASSET_BYTES } = await import("@/features/content-intelligence/visuals/articleVisualStorage");
 
 const EDITOR_SESSION = { userId: "u1", email: "editor@example.com", roles: ["editor"], isAdmin: false, isEditor: true };
-const NON_EDITOR_SESSION = { userId: "u2", email: "viewer@example.com", roles: [], isAdmin: false, isEditor: false };
 const ARTICLE_ID = "11111111-1111-4111-8111-111111111111";
 
 // A minimal fake Supabase client -- this route's auth preflight never
-// calls anything on it beyond what createSupabaseServerClient()/
-// getAdminSession() themselves need, both of which are mocked directly
-// above, so an empty object is sufficient and deliberately does not
-// pretend to be a real Supabase client.
+// calls anything on it directly (requireEditorContext is mocked above
+// as an opaque function), so an empty object is sufficient and
+// deliberately does not pretend to be a real Supabase client.
 const FAKE_SUPABASE_CLIENT = {};
+const EDITOR_CONTEXT = { supabase: FAKE_SUPABASE_CLIENT, session: EDITOR_SESSION };
 
 /**
  * A request stand-in whose `formData()` is a spy that THROWS if it is
@@ -135,8 +131,7 @@ function requestWithFormData(fields: { articleId?: string; file?: File; altText?
 }
 
 beforeEach(() => {
-	mockGetAdminSession.mockReset();
-	mockCreateSupabaseServerClient.mockReset();
+	mockRequireEditorContext.mockReset();
 	mockStoreUploadedArticleVisual.mockReset();
 	mockRevalidatePath.mockReset();
 });
@@ -147,20 +142,18 @@ afterEach(() => {
 
 describe("Auth preflight runs before request.formData() (Phase 3C.4B.6C, item 1)", () => {
 	it("Supabase not configured -> 503, and request.formData() is never called", async () => {
-		mockCreateSupabaseServerClient.mockResolvedValue(null);
+		mockRequireEditorContext.mockResolvedValue({ ok: false, kind: "not_configured", message: "Supabase isn't configured in this environment." });
 
 		const response = await POST(requestThatMustNotParseFormData());
 		const body = await response.json();
 
 		expect(response.status).toBe(503);
 		expect(body).toEqual({ ok: false, kind: "not_configured", message: expect.any(String) });
-		expect(mockGetAdminSession).not.toHaveBeenCalled();
 		expect(mockStoreUploadedArticleVisual).not.toHaveBeenCalled();
 	});
 
 	it("unauthenticated (no session) -> 401, and request.formData() is never called", async () => {
-		mockCreateSupabaseServerClient.mockResolvedValue(FAKE_SUPABASE_CLIENT);
-		mockGetAdminSession.mockResolvedValue(null);
+		mockRequireEditorContext.mockResolvedValue({ ok: false, kind: "auth", message: "You must be signed in as an editor to store an article visual." });
 
 		const response = await POST(requestThatMustNotParseFormData());
 		const body = await response.json();
@@ -171,8 +164,7 @@ describe("Auth preflight runs before request.formData() (Phase 3C.4B.6C, item 1)
 	});
 
 	it("non-editor session -> 401, and request.formData() is never called", async () => {
-		mockCreateSupabaseServerClient.mockResolvedValue(FAKE_SUPABASE_CLIENT);
-		mockGetAdminSession.mockResolvedValue(NON_EDITOR_SESSION);
+		mockRequireEditorContext.mockResolvedValue({ ok: false, kind: "auth", message: "You must be signed in as an editor to store an article visual." });
 
 		const response = await POST(requestThatMustNotParseFormData());
 		const body = await response.json();
@@ -184,8 +176,7 @@ describe("Auth preflight runs before request.formData() (Phase 3C.4B.6C, item 1)
 	});
 
 	it("does not leak the raw Supabase/session objects in the response body", async () => {
-		mockCreateSupabaseServerClient.mockResolvedValue(FAKE_SUPABASE_CLIENT);
-		mockGetAdminSession.mockResolvedValue(null);
+		mockRequireEditorContext.mockResolvedValue({ ok: false, kind: "auth", message: "You must be signed in as an editor to store an article visual." });
 
 		const response = await POST(requestThatMustNotParseFormData());
 		const body = await response.json();
@@ -193,12 +184,27 @@ describe("Auth preflight runs before request.formData() (Phase 3C.4B.6C, item 1)
 
 		expect(serialized).not.toMatch(/supabase|postgres|database|stack/i);
 	});
+
+	it("resolves the editor context exactly once for the whole request -- never a second, later resolution", async () => {
+		mockRequireEditorContext.mockResolvedValue({ ok: true, context: EDITOR_CONTEXT });
+		mockStoreUploadedArticleVisual.mockResolvedValue({
+			ok: true,
+			candidate: { articleId: ARTICLE_ID, visualId: "v1", storagePath: "x", altText: null, sourceType: "uploaded", provider: null, width: 1, height: 1, mimeType: "image/png", createdAt: "now" },
+		});
+		const file = makeSpyFile({ size: 4, arrayBufferShouldBeCalled: true });
+		const request = requestWithFormData({ articleId: ARTICLE_ID, file });
+
+		await POST(request);
+
+		expect(mockRequireEditorContext).toHaveBeenCalledTimes(1);
+		const callArgs = mockStoreUploadedArticleVisual.mock.calls[0]?.[0];
+		expect(callArgs.context).toBe(EDITOR_CONTEXT);
+	});
 });
 
 describe("Pre-buffer size guard runs before file.arrayBuffer() (Phase 3C.4B.6C, item 2)", () => {
 	beforeEach(() => {
-		mockCreateSupabaseServerClient.mockResolvedValue(FAKE_SUPABASE_CLIENT);
-		mockGetAdminSession.mockResolvedValue(EDITOR_SESSION);
+		mockRequireEditorContext.mockResolvedValue({ ok: true, context: EDITOR_CONTEXT });
 	});
 
 	it("a file larger than MAX_ARTICLE_VISUAL_ASSET_BYTES is rejected before arrayBuffer() is called", async () => {
@@ -230,13 +236,12 @@ describe("Pre-buffer size guard runs before file.arrayBuffer() (Phase 3C.4B.6C, 
 	});
 });
 
-describe("storeUploadedArticleVisual remains the authoritative service boundary, unchanged", () => {
+describe("storeUploadedArticleVisual remains the authoritative service boundary", () => {
 	beforeEach(() => {
-		mockCreateSupabaseServerClient.mockResolvedValue(FAKE_SUPABASE_CLIENT);
-		mockGetAdminSession.mockResolvedValue(EDITOR_SESSION);
+		mockRequireEditorContext.mockResolvedValue({ ok: true, context: EDITOR_CONTEXT });
 	});
 
-	it("the route calls storeUploadedArticleVisual with exactly articleId/data/declaredMimeType/altText -- no auth-derived field forwarded to it", async () => {
+	it("the route calls storeUploadedArticleVisual with the resolved context plus exactly articleId/data/declaredMimeType/altText -- no client-supplied auth field forwarded to it", async () => {
 		mockStoreUploadedArticleVisual.mockResolvedValue({
 			ok: true,
 			candidate: { articleId: ARTICLE_ID, visualId: "v1", storagePath: "x", altText: null, sourceType: "uploaded", provider: null, width: 1, height: 1, mimeType: "image/png", createdAt: "now" },
@@ -248,6 +253,7 @@ describe("storeUploadedArticleVisual remains the authoritative service boundary,
 
 		expect(mockStoreUploadedArticleVisual).toHaveBeenCalledWith(
 			expect.objectContaining({
+				context: EDITOR_CONTEXT,
 				articleId: ARTICLE_ID,
 				declaredMimeType: "image/png",
 				altText: "A cat",
@@ -255,6 +261,8 @@ describe("storeUploadedArticleVisual remains the authoritative service boundary,
 			}),
 		);
 		const callArgs = mockStoreUploadedArticleVisual.mock.calls[0]?.[0];
+		// No stray top-level auth field alongside `context` -- the client
+		// never supplies these, and the route never invents them either.
 		expect(callArgs).not.toHaveProperty("session");
 		expect(callArgs).not.toHaveProperty("isEditor");
 		expect(callArgs).not.toHaveProperty("userId");
@@ -305,8 +313,16 @@ describe("No service-role client and no route-level MIME sniffing (structural, s
 		expect(routeCode).not.toMatch(/8 \* 1024 \* 1024/);
 	});
 
-	it("the auth preflight appears before request.formData() in source order, and the size guard appears before file.arrayBuffer() in source order", () => {
-		const authIdx = routeCode.indexOf("getAdminSession()");
+	it("does not resolve its own session -- getAdminSession/createSupabaseServerClient never appear in this route's source", () => {
+		expect(routeCode).not.toMatch(/getAdminSession/);
+		expect(routeCode).not.toMatch(/createSupabaseServerClient/);
+	});
+
+	it("calls requireEditorContext exactly once in source, and it appears before request.formData(); the size guard appears before file.arrayBuffer()", () => {
+		const authCalls = routeCode.match(/requireEditorContext\s*\(/g) ?? [];
+		expect(authCalls).toHaveLength(1);
+
+		const authIdx = routeCode.indexOf("requireEditorContext()");
 		const formDataIdx = routeCode.indexOf("request.formData()");
 		const sizeGuardIdx = routeCode.indexOf("file.size > MAX_ARTICLE_VISUAL_ASSET_BYTES");
 		const arrayBufferIdx = routeCode.indexOf("file.arrayBuffer()");

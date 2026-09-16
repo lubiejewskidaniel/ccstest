@@ -10,24 +10,22 @@ import type { ArticleVisualProvider, GeneratedArticleVisual } from "../ArticleVi
  * Phase 3C.4B.5B — coverage for the orchestration service that connects
  * `buildArticleVisualBrief()` -> `ArticleVisualProvider.generate()` ->
  * `storeGeneratedArticleVisual()`. Every collaborator is mocked
- * (`@/lib/supabase/server`, `@/lib/supabase/adminAuth`,
- * `@/features/insights/cms/queries`, `../OpenAiArticleVisualProvider`,
+ * (`@/features/insights/cms/queries`, `../OpenAiArticleVisualProvider`,
  * `../articleVisualStorageService`) — no real Supabase, no real OpenAI
  * request, ever, in this file. `buildArticleVisualBrief` itself is NOT
  * mocked: it's pure and already covered by its own test file, so
  * exercising it for real here is what proves the article-context ->
  * brief wiring is correct end to end.
+ *
+ * Auth timing fix: `generateArticleVisualCandidate` no longer resolves
+ * `createSupabaseServerClient()`/`getAdminSession()` directly -- it calls
+ * `requireEditorContext()` (mocked below via the same
+ * `articleVisualStorageService` mock as `storeGeneratedArticleVisual`)
+ * exactly once, before `provider.generate()`, and passes the resulting
+ * context straight into `storeGeneratedArticleVisual` unchanged. Several
+ * tests below exist specifically to prove that invariant and guard
+ * against reintroducing a second, independent, later resolution.
  */
-
-const mockCreateSupabaseServerClient = vi.fn();
-vi.mock("@/lib/supabase/server", () => ({
-	createSupabaseServerClient: () => mockCreateSupabaseServerClient(),
-}));
-
-const mockGetAdminSession = vi.fn();
-vi.mock("@/lib/supabase/adminAuth", () => ({
-	getAdminSession: () => mockGetAdminSession(),
-}));
 
 const mockGetArticleForAdmin = vi.fn();
 vi.mock("@/features/insights/cms/queries", () => ({
@@ -39,18 +37,20 @@ vi.mock("../OpenAiArticleVisualProvider", () => ({
 	createOpenAiArticleVisualProvider: () => mockCreateOpenAiArticleVisualProvider(),
 }));
 
+const mockRequireEditorContext = vi.fn();
 const mockStoreGeneratedArticleVisual = vi.fn();
 vi.mock("../articleVisualStorageService", () => ({
+	requireEditorContext: () => mockRequireEditorContext(),
 	storeGeneratedArticleVisual: (input: unknown) => mockStoreGeneratedArticleVisual(input),
 }));
 
 const { generateArticleVisualCandidate } = await import("../articleVisualGenerationService");
 
 const EDITOR_SESSION = { userId: "u1", email: "editor@example.com", roles: ["editor"], isAdmin: false, isEditor: true };
-const NON_EDITOR_SESSION = { userId: "u2", email: "viewer@example.com", roles: [], isAdmin: false, isEditor: false };
+const FAKE_SUPABASE = { marker: "fake-supabase-client" };
+const EDITOR_CONTEXT = { supabase: FAKE_SUPABASE, session: EDITOR_SESSION };
 
 const ARTICLE_ID = "11111111-1111-4111-8111-111111111111";
-const FAKE_SUPABASE = { marker: "fake-supabase-client" };
 
 const BASE_ARTICLE: Article = {
 	id: ARTICLE_ID,
@@ -108,8 +108,7 @@ const STORED_CANDIDATE: ArticleVisualCandidate = {
 };
 
 function setHappyPathMocks(overrides: { provider?: ArticleVisualProvider; article?: Article | null } = {}) {
-	mockCreateSupabaseServerClient.mockResolvedValue(FAKE_SUPABASE);
-	mockGetAdminSession.mockResolvedValue(EDITOR_SESSION);
+	mockRequireEditorContext.mockResolvedValue({ ok: true, context: EDITOR_CONTEXT });
 	mockGetArticleForAdmin.mockResolvedValue(overrides.article === undefined ? BASE_ARTICLE : overrides.article);
 	mockCreateOpenAiArticleVisualProvider.mockReturnValue(overrides.provider ?? fakeProvider());
 	mockStoreGeneratedArticleVisual.mockResolvedValue({ ok: true, candidate: STORED_CANDIDATE });
@@ -126,26 +125,25 @@ describe("generateArticleVisualCandidate", () => {
 
 	// 1. Supabase not configured -> no provider call
 	it("1. returns not_configured and never calls the provider when Supabase isn't configured", async () => {
-		mockCreateSupabaseServerClient.mockResolvedValue(null);
+		mockRequireEditorContext.mockResolvedValue({ ok: false, kind: "not_configured", message: "Supabase isn't configured in this environment." });
 		const result = await generateArticleVisualCandidate(ARTICLE_ID);
 		expect(result).toEqual({ ok: false, kind: "not_configured", message: expect.any(String) });
 		expect(mockCreateOpenAiArticleVisualProvider).not.toHaveBeenCalled();
-		expect(mockGetAdminSession).not.toHaveBeenCalled();
+		expect(mockGetArticleForAdmin).not.toHaveBeenCalled();
 	});
 
 	// 2. unauthenticated -> no provider call
 	it("2. returns auth and never calls the provider when there is no session", async () => {
-		mockCreateSupabaseServerClient.mockResolvedValue(FAKE_SUPABASE);
-		mockGetAdminSession.mockResolvedValue(null);
+		mockRequireEditorContext.mockResolvedValue({ ok: false, kind: "auth", message: "You must be signed in as an editor to store an article visual." });
 		const result = await generateArticleVisualCandidate(ARTICLE_ID);
 		expect(result).toEqual({ ok: false, kind: "auth", message: expect.any(String) });
 		expect(mockCreateOpenAiArticleVisualProvider).not.toHaveBeenCalled();
+		expect(mockGetArticleForAdmin).not.toHaveBeenCalled();
 	});
 
 	// 3. non-editor -> no provider call
 	it("3. returns auth and never calls the provider for a non-editor session", async () => {
-		mockCreateSupabaseServerClient.mockResolvedValue(FAKE_SUPABASE);
-		mockGetAdminSession.mockResolvedValue(NON_EDITOR_SESSION);
+		mockRequireEditorContext.mockResolvedValue({ ok: false, kind: "auth", message: "You must be signed in as an editor to store an article visual." });
 		const result = await generateArticleVisualCandidate(ARTICLE_ID);
 		expect(result).toEqual({ ok: false, kind: "auth", message: expect.any(String) });
 		expect(mockCreateOpenAiArticleVisualProvider).not.toHaveBeenCalled();
@@ -153,8 +151,7 @@ describe("generateArticleVisualCandidate", () => {
 
 	// 4. invalid article id -> no provider call
 	it("4. returns validation and never calls the provider for a malformed article id", async () => {
-		mockCreateSupabaseServerClient.mockResolvedValue(FAKE_SUPABASE);
-		mockGetAdminSession.mockResolvedValue(EDITOR_SESSION);
+		mockRequireEditorContext.mockResolvedValue({ ok: true, context: EDITOR_CONTEXT });
 		const result = await generateArticleVisualCandidate("not-a-uuid");
 		expect(result).toEqual({ ok: false, kind: "validation", message: expect.any(String) });
 		expect(mockGetArticleForAdmin).not.toHaveBeenCalled();
@@ -241,7 +238,7 @@ describe("generateArticleVisualCandidate", () => {
 	// 16. provider id passed to storage
 	// 17. same ArticleVisualBrief passed to storage
 	// 18. generated visual passed unchanged to storage
-	it("15-18. passes the provider's id, the same brief, and the unchanged visual into storage", async () => {
+	it("15-18. passes the provider's id, the same brief, the unchanged visual, and the SAME auth context into storage", async () => {
 		const generation = successfulGeneration();
 		const provider = fakeProvider({ id: "openai", generate: vi.fn(async () => generation) });
 		setHappyPathMocks({ provider });
@@ -253,6 +250,9 @@ describe("generateArticleVisualCandidate", () => {
 		expect(storeInput.providerId).toBe("openai");
 		expect(storeInput.visual).toBe(generation.visual);
 		expect(storeInput.brief.subject).toBe(BASE_ARTICLE.title);
+		// The exact context object requireEditorContext() returned -- not a
+		// freshly-resolved one.
+		expect(storeInput.context).toBe(EDITOR_CONTEXT);
 	});
 
 	// 19. generated candidate alt originates from ArticleVisualBrief
@@ -364,6 +364,16 @@ describe("generateArticleVisualCandidate", () => {
 		expect(STRIPPED_SOURCE).not.toMatch(/\.retry\(/);
 	});
 
+	it("does not resolve its own session -- getAdminSession/createSupabaseServerClient never appear in this module's source", () => {
+		expect(STRIPPED_SOURCE).not.toMatch(/getAdminSession/);
+		expect(STRIPPED_SOURCE).not.toMatch(/createSupabaseServerClient/);
+	});
+
+	it("calls requireEditorContext exactly once in source (never a second, later resolution)", () => {
+		const calls = STRIPPED_SOURCE.match(/requireEditorContext\s*\(/g) ?? [];
+		expect(calls).toHaveLength(1);
+	});
+
 	// 34. no raw provider response returned
 	// 35. no image bytes/base64 returned from orchestration result
 	it("34-35. a successful result never carries raw provider data, bytes, or base64", async () => {
@@ -412,5 +422,66 @@ describe("generateArticleVisualCandidate", () => {
 		await generateArticleVisualCandidate(ARTICLE_ID);
 		const calls = (provider.generate as ReturnType<typeof vi.fn>).mock.calls;
 		expect(JSON.stringify(calls[0])).toBe(JSON.stringify(calls[1]));
+	});
+
+	describe("auth-before-cost regression guard (the production bug this fixes)", () => {
+		it("establishes editor authorization (requireEditorContext) before ever calling provider.generate()", async () => {
+			const order: string[] = [];
+			mockRequireEditorContext.mockImplementation(async () => {
+				order.push("auth");
+				return { ok: true, context: EDITOR_CONTEXT };
+			});
+			mockGetArticleForAdmin.mockResolvedValue(BASE_ARTICLE);
+			const provider = fakeProvider({
+				generate: vi.fn(async () => {
+					order.push("generate");
+					return successfulGeneration();
+				}),
+			});
+			mockCreateOpenAiArticleVisualProvider.mockReturnValue(provider);
+			mockStoreGeneratedArticleVisual.mockImplementation(async () => {
+				order.push("store");
+				return { ok: true, candidate: STORED_CANDIDATE };
+			});
+
+			await generateArticleVisualCandidate(ARTICLE_ID);
+
+			expect(order).toEqual(["auth", "generate", "store"]);
+		});
+
+		it("never calls provider.generate() when the initial authorization check fails", async () => {
+			mockRequireEditorContext.mockResolvedValue({ ok: false, kind: "auth", message: "You must be signed in as an editor to store an article visual." });
+			const provider = fakeProvider();
+			mockCreateOpenAiArticleVisualProvider.mockReturnValue(provider);
+
+			await generateArticleVisualCandidate(ARTICLE_ID);
+
+			expect(provider.generate).not.toHaveBeenCalled();
+			expect(mockCreateOpenAiArticleVisualProvider).not.toHaveBeenCalled();
+		});
+
+		it("calls requireEditorContext exactly once per invocation -- never a second, later resolution after a successful provider call", async () => {
+			setHappyPathMocks();
+			const result = await generateArticleVisualCandidate(ARTICLE_ID);
+
+			expect(result.ok).toBe(true);
+			expect(mockRequireEditorContext).toHaveBeenCalledTimes(1);
+		});
+
+		it("reuses the SAME context object for storage that authorization produced -- storage never receives a different or re-resolved context", async () => {
+			setHappyPathMocks();
+			await generateArticleVisualCandidate(ARTICLE_ID);
+
+			const storeInput = mockStoreGeneratedArticleVisual.mock.calls[0]?.[0];
+			expect(storeInput.context).toBe(EDITOR_CONTEXT);
+			expect(mockRequireEditorContext).toHaveBeenCalledTimes(1);
+		});
+
+		it("the provider is called at most once even though authorization and storage both run around it", async () => {
+			setHappyPathMocks();
+			await generateArticleVisualCandidate(ARTICLE_ID);
+			const provider = mockCreateOpenAiArticleVisualProvider.mock.results[0]?.value as ArticleVisualProvider;
+			expect(provider.generate).toHaveBeenCalledTimes(1);
+		});
 	});
 });
