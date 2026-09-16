@@ -10,6 +10,13 @@ Same caveat as the existing migrations carry: written and hand-checked,
 **not run against a real Postgres/Supabase instance** in this sandbox (no
 npm/network access). Review before applying to a real project.
 
+Scope: this document describes only the original Insights schema
+introduced by `supabase/migrations/003_insights_schema.sql`. Later
+migrations extend the database well beyond this checkpoint. Current
+system architecture is documented in `docs/INSIGHTS_ARCHITECTURE.md`;
+implementation and migration history is recorded in
+`docs/03_CONTENT_INTELLIGENCE_PHASE_HISTORY.md`.
+
 ---
 
 ## 1. Design principles carried from the existing schema
@@ -131,6 +138,8 @@ create table if not exists public.insights_articles (
   -- validated (INSIGHTS_ARCHITECTURE.md §7 — no special AI render path).
   source text not null default 'human' check (source in ('human', 'ai_assisted', 'ai_generated')),
 
+  featured boolean not null default false,
+
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
 
@@ -143,6 +152,9 @@ create index if not exists insights_articles_status_published_idx
 
 create index if not exists insights_articles_category_idx
   on public.insights_articles (category_id);
+
+create index if not exists insights_articles_locale_idx
+  on public.insights_articles (locale);
 ```
 
 Notes:
@@ -297,6 +309,9 @@ create trigger insights_articles_set_updated_at
 ---
 
 ## 5. Query surface (`src/features/insights/data/`)
+
+This was the pre-implementation design for this checkpoint; current
+exported function names may differ from those listed below.
 
 Thin, purpose-named functions — never raw `.from(...)` calls scattered
 across page components, matching how `src/features/leads/service.ts`

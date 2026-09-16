@@ -95,13 +95,11 @@ the same path.
 
 ## Core Web Vitals
 
-**Deferred to a real build.** Every Lighthouse/CWV number depends on a
-production `next build` + a real hosting environment, neither of which
-this sandbox has (no npm registry access — see the README's "before you
-run this" note). Once a build exists: measure before optimizing, and never
-trade an accessibility regression for a Lighthouse score (brief §16 is
-explicit that this doesn't count as a successful optimization even if the
-number improves).
+**Not yet measured.** Every Lighthouse/CWV number depends on measuring a
+real production deployment, which has not been done yet. Once measured:
+measure before optimizing, and never trade an accessibility regression
+for a Lighthouse score (brief §16 is explicit that this doesn't count as
+a successful optimization even if the number improves).
 
 ## AEO — human-first, direct-answer content
 
@@ -123,8 +121,9 @@ editing page copy:
 The homepage → Services hub → individual capability CTAs → Contact is now
 a real, clicked-and-tracked path (see docs/ANALYTICS.md's
 `service_cta_click`). **Deferred:** deeper internal linking from Insights
-articles into service pages — there are only three static placeholder
-articles today (see the README's "what's genuinely not built yet"), so
-there's no real content to link from without inventing copy that doesn't
-exist. Once Insights has real, individually-routed articles, link each one
-to the service(s) it's actually about.
+articles into service pages. Insights articles are now real,
+individually-routed, database-backed pages (see
+docs/INSIGHTS_ARCHITECTURE.md), each ending in the same generic Contact
+CTA (`ArticleCtaLink`, `article_cta_click`) regardless of category or
+topic. Linking each article to the specific service(s) it's actually
+about, instead of always to Contact, remains unbuilt.

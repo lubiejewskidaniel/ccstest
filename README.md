@@ -5,15 +5,9 @@ four-mode brand architecture (BUILD / CREATE / GROW / TEACH), Next.js 16
 App Router + Supabase, built against the `CCS_Software_Engineering_
 PreDevelopment_Specification_v4` documentation set.
 
-## ⚠️ Before you run this
+## Getting started
 
-This project was hand-written in a sandboxed environment **with no access
-to the npm registry**, so `npm install`, `next build` and `next dev` have
-**not been run or verified here**. The code is internally consistent (every
-import was checked to resolve, every component's props match its callers)
-but you are the first real build. Expect the normal amount of first-build
-friction — a missing type tweak, a Next.js 16 API that shifted slightly —
-rather than a fundamentally broken structure.
+Requires Node.js 20.9 or later (see `engines` in `package.json`).
 
 ```bash
 npm install
@@ -37,6 +31,9 @@ Recommended before your first commit: `npm run typecheck && npm run lint`.
   the boot curtain etc. are plain `IntersectionObserver` /
   `requestAnimationFrame` / CSS transitions (see `src/components/
   MotionSystem.tsx` and `src/components/SectionReveal.tsx`)
+- External AI/search providers: Anthropic (content generation), OpenAI
+  (Article Visual generation), Google Search Console and Bing Webmaster
+  (search performance). See `docs/03_CONTENT_INTELLIGENCE_PHASE_HISTORY.md`.
 
 ## Project structure
 
@@ -69,6 +66,12 @@ src/
                          both the Server Actions and the /api/v1/leads route
     experiments/          Bucketing + useExperiment scaffold — not yet wired
                          into any component (docs/EXPERIMENTATION.md)
+    insights/              Bilingual, database-backed CMS with an
+                         AI-assisted editorial pipeline and Article
+                         Visuals (docs/INSIGHTS_ARCHITECTURE.md)
+    content-intelligence/  Research, generation, quality gate and the
+                         optimisation loop behind the Insights CMS
+                         (docs/03_CONTENT_INTELLIGENCE_PHASE_HISTORY.md)
   lib/
     routes.ts            EN/PL route map — the single source of truth for
                          every URL in the app
@@ -89,7 +92,7 @@ src/
   styles/                tokens.css (design tokens, light/dark) +
                          globals.css (every component's CSS)
 supabase/migrations/
-  001_initial.sql          Schema + RLS (unverified — see below)
+  001_initial.sql          Schema + RLS
   002_lead_attribution.sql  UTM/referrer/landing-page columns on lead tables
 ```
 
@@ -158,6 +161,12 @@ To create your first admin: sign a user up via Supabase Auth (dashboard or
 marked FUTURE) are intentionally not created yet — add them in a later
 migration when that phase starts.
 
+The schema has since expanded well beyond `001`/`002`, through migration
+`015`, to support the Insights CMS and the Content Intelligence pipeline.
+See `docs/INSIGHTS_DATABASE.md` for the original Insights schema
+checkpoint and `docs/03_CONTENT_INTELLIGENCE_PHASE_HISTORY.md` for how it
+evolved from there.
+
 ## CRO, SEO/AEO, analytics & martech
 
 A second engineering pass added measurement, attribution, lead-pipeline
@@ -192,19 +201,13 @@ from yet, and others).
 
 ## Testing
 
-`npm test` runs the Vitest suite (`npm run test:watch` for watch mode).
+`npm test` runs the Vitest suite once (`vitest run`); `npm run test:watch`
+runs it in watch mode (`vitest`).
 Coverage: lead-schema validation (happy path + rejection cases), UTM
 parsing and first-touch attribution persistence, consent storage/gating,
 the analytics event taxonomy's exact payload shape, `buildPageMetadata()`'s
 canonical/hreflang/OG output, the HubSpot CRM adapter (mocked `fetch`),
 the rate limiter's sliding window, and experiment bucketing determinism.
-
-**Unverified in this sandbox**, same caveat as the rest of the build (see
-"Before you run this" above) — no npm registry access here means `vitest`
-and `jsdom` were never actually installed or run. The suite was written
-against the real source and hand-traced test-by-test against each
-function's actual logic (documented inline in a couple of the trickier
-attribution tests), but you are the first real run.
 
 ## Design system — why not the docs' default fonts
 
@@ -232,20 +235,20 @@ reason.
   pathname-driven effect) rather than via a `[locale]` route segment,
   since Next.js only allows one root layout/`<html>` per app and the
   route scheme here uses literal paths (`/pl/...`), not a dynamic segment.
-- **Insights is a static index**, not a full CMS-backed blog — doc 15
-  marks content management as a Phase 2 admin module; the three articles
-  shown are real copy, not lorem ipsum, but there's no per-article route
-  yet.
-- **Admin is intentionally minimal** — sign-in, an overview with lead
-  counts, and a read-only recent-leads table. Filtering, status, notes,
-  assignment and audit logging are explicitly Phase 2 (doc 15 §2).
+- **Insights is a bilingual, database-backed CMS**, supported by an
+  AI-assisted editorial pipeline and integrated Article Visual
+  generation/review, not a static index. See
+  `docs/INSIGHTS_ARCHITECTURE.md` and
+  `docs/03_CONTENT_INTELLIGENCE_PHASE_HISTORY.md` for detail.
+- **Admin now covers lead management plus the Insights and Content
+  Intelligence editorial and optimisation surfaces**, not just sign-in
+  and a read-only lead overview. See `docs/INSIGHTS_ARCHITECTURE.md` and
+  `docs/03_CONTENT_INTELLIGENCE_PHASE_HISTORY.md` for detail.
 
 ## What's genuinely not built yet
 
 - Phase 2 admin modules (lead status/notes/assignment, bilingual content
-  management for services/work/products/insights, SEO field controls,
-  audit log)
-- Individual Insights article pages/CMS
+  management for services/work/products, SEO field controls, audit log)
 - Growth client portal and mentoring booking/payment portal (both FUTURE
   per doc 15 §3–4)
 - A behaviour-analytics vendor (Crazy Egg, Hotjar, etc.) — the
@@ -257,8 +260,8 @@ reason.
 - Any live A/B experiment — `docs/EXPERIMENTATION.md`'s scaffold is
   wired to nothing; the brief is explicit this shouldn't launch before
   baseline analytics is trustworthy in production
-- Core Web Vitals measurement/optimization — needs a real `next build` and
-  a real hosting environment, neither of which exist in this sandbox
+- Core Web Vitals measurement/optimization, not yet measured against a
+  live deployment
 - A real, populated legal review of the Privacy/Terms/Cookies/Accessibility
   pages — they're accurate to how the *code* behaves, but doc 12 §3
   explicitly requires the actual operating entity, contact details,

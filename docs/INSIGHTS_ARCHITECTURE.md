@@ -33,18 +33,18 @@ CCS WEBSITE  (existing, unmodified)
         CONTENT DATABASE  (new Supabase tables, RLS, see INSIGHTS_DATABASE.md)
             ▲
             │
-       CONTENT ENGINE   (future — src/features/content-intelligence/**,
-                          not built in this pass, see §7)
+       CONTENT ENGINE   (src/features/content-intelligence/**,
+                          see §7 and §14-18)
 ```
 
 **Hard requirement carried from the master instruction (§2):** every page
 under `/insights/**` and `/pl/insights/**` renders entirely from the
 content database. Nothing in the render path imports from, calls, or
-awaits any `content-intelligence` module. If that subsystem doesn't exist
-yet (true today) or is later disabled, published Insights pages are
-unaffected. The only integration point the Content Engine gets is *write*
-access to the same tables an editor's CMS Server Action would write to —
-it never has a special read/render path of its own.
+awaits any `content-intelligence` module. If that subsystem is ever
+disabled, published Insights pages are unaffected. The only integration
+point the Content Engine gets is *write* access to the same tables an
+editor's CMS Server Action would write to — it never has a special
+read/render path of its own.
 
 ---
 
@@ -143,6 +143,10 @@ adding empty folders for them now would be exactly the "architectural
 theatre" the master instruction warns against. They're added when their
 checkpoint starts.
 
+`src/features/content-intelligence/` did not exist at this point (see §7)
+and is not detailed here; its modules are described by responsibility in
+§14-18, once they exist.
+
 ---
 
 ## 4. Content model shape (detail in `INSIGHTS_DATABASE.md`)
@@ -214,27 +218,27 @@ itself.
 
 ---
 
-## 7. Content Intelligence — explicitly deferred
+## 7. Content Intelligence - architectural boundary
 
-Per the master instruction's own checkpoint sequencing (Checkpoints 6–9)
-and its Phase-gating language ("gated on a reliable analytics baseline" —
-the same gating principle the round-5 CRO brief used for experiments),
-`features/content-intelligence/**` is **not scaffolded** in this
-architecture pass. It is named here only so its eventual entry point is
-unambiguous when that checkpoint starts:
+`features/content-intelligence/**` was originally deferred, unscaffolded,
+per the master instruction's own checkpoint sequencing (Checkpoints 6-9).
+It has since been built out across those checkpoints (see §14-18 for what
+it now does). The boundary decided here at the outset has held throughout
+and remains the rule:
 
-- The **only** integration surface it will ever get is a write path into
-  the same `articles`/`article_revisions` tables an editor's Server Action
-  writes to (as a `status = 'draft'` row awaiting human approval —
-  Decision 10/11), via the same Zod block schema described in §4.
-- It will **never** be imported by anything under `src/app/insights/**`
-  or `src/app/pl/insights/**`. If this rule is ever violated, that is a
+- The **only** integration surface it has into the Insights system is a
+  write path into `insights_articles` (as a `status = "in_review"` row
+  awaiting human approval, via `briefs/promote.ts`, Decision 10/11), via
+  the same Zod block schema described in §4 and the same `createArticle()`
+  function an editor's own CMS form calls.
+- It is **never** imported by anything under `src/app/insights/**` or
+  `src/app/pl/wiedza/**`. If this rule is ever violated, that is a
   regression against the master instruction's core engineering principle
   (§2) and should be treated as a bug, not a refactor opportunity.
 
-This keeps the door open architecturally without building speculative
-code against requirements (search intelligence, briefs, scheduling
-cadence, quality gates) that haven't been designed yet.
+This keeps published Insights pages fully independent of Content
+Intelligence: a failure, misconfiguration, or provider outage anywhere in
+`content-intelligence/**` can never affect a public page render.
 
 ---
 
@@ -257,8 +261,8 @@ preserves maintainability/correctness/... and document the deviation").
 1. **Direct cutover instead of the staged migration in
    `docs/INSIGHTS_AUDIT.md` §5.** The audit's migration strategy assumed
    a live application where a broken interim state carries real risk.
-   This app has never been deployed or run (confirmed in `README.md`'s
-   own warning), so that risk doesn't exist here. `src/app/insights/
+   At the time of this decision, the app had not yet been deployed or
+   run, so that risk did not exist. `src/app/insights/
    page.tsx` and `src/app/pl/wiedza/page.tsx` were replaced directly and
    `src/features/pages/InsightsPage.tsx` was deleted outright, rather than
    building the new hub at a temporary path first. Also corrected: the
@@ -345,10 +349,13 @@ preserves maintainability/correctness/... and document the deviation").
    This avoids a real bug class: a content-only edit accidentally
    changing (or silently clearing) an article's schedule, publish date,
    or status as a side effect of an unrelated field change.
-5. **`translationOf` is a plain "paste the other article's id" text
-   field**, not a slug-based lookup/picker. A real picker UI is a
-   reasonable later CMS iteration; pasting an id (visible in that
-   article's own edit URL) is Checkpoint 3's minimal v1.
+5. **`translationOf` is set through a search-by-title picker**
+   (`TranslationPicker.tsx`), not a plain id text field. The picker only
+   offers articles in the opposite locale, resolves to the same
+   `translationOf` article id underneath, and submits it through the
+   same hidden form field the Server Action already reads, so
+   `cms/schema.ts` and the `translation_of` column and relationship are
+   unchanged.
 6. **Tag management (creating new tags) has no UI yet** — the CMS form
    can only attach *existing* tags via checkboxes. New tags are created
    directly against `insights_tags` (e.g. via the Supabase dashboard)
@@ -520,4 +527,153 @@ until their own checkpoint).
 - **No scheduler yet** — ingestion and recompute are both manual
   buttons in `/admin/insights/opportunities` (`OpportunitiesToolbar`).
   Checkpoint 8 ("Automation") is where a cron-driven refresh belongs.
+
+---
+
+## 14. Content Intelligence - editorial pipeline
+
+The Content Engine named as future in §1 and §7 is implemented under
+`src/features/content-intelligence/`. Its only write path into the
+Insights system is exactly what §7 scopes: an `insights_articles` row
+with `status = "in_review"`, created through the same `createArticle()`
+function and Zod block schema an editor's own CMS form submits to.
+
+One `content_briefs` row represents one editorial pipeline run,
+optionally linked to a search opportunity. Its `status` column tracks
+progress through four independent stages plus a final promotion step.
+Each stage is a separate, explicit editor action in `PipelineControls.tsx`,
+none runs automatically after another, and an editor can rerun an
+earlier stage after a failure without repeating stages that already
+succeeded.
+
+- **Research** (`research/research.ts`) calls the configured Anthropic
+  provider for a short research brief, stored as plain text for the
+  generation stage to use as grounding.
+- **Generation** (`generation/generate.ts`, `AnthropicProvider.ts`)
+  produces the structured article body, validated against the same block
+  schema public pages and the CMS editor both read through.
+- **Localisation** (`localisation/localise.ts`) translates a generated
+  draft into the brief's other locale.
+- **Quality gate** (`quality/qualityGate.ts`) is a pure, synchronous check
+  (word count, heading count, minimum block count, placeholder text, code
+  blocks missing a language) with no database or provider call. A failed
+  check blocks promotion, not editing.
+- **Promotion** (`briefs/promote.ts`) is the only place a brief's draft
+  becomes real `insights_articles` rows, and only once the brief's status
+  is `quality_passed`. It never sets an article to `published`. That
+  remains the separate, human `transitionArticleStatus` action already
+  described in §10, unaffected by this pipeline.
+
+Every research, generation and localisation call requires editor
+authentication and a positive monthly budget check (`generation/
+costGuard.ts`) before it runs, and is recorded in `ai_usage_log` (§16).
+
+## 15. Article Visual - generation, review, approval and translation sharing
+
+`article_visuals` stores every generated or uploaded candidate cover
+image for an article, independently of `insights_articles`. A database
+constraint allows at most one row with `status = "approved"` per article
+at a time.
+
+- **Generation** (`visuals/articleVisualGenerationService.ts`, via a
+  configured image provider, currently OpenAI,
+  `OpenAiArticleVisualProvider.ts`) and **manual upload**
+  (`visuals/articleVisualStorageService.ts`, reached through a Route
+  Handler rather than a Server Action because of this Next.js version's
+  request body size limit) both only ever create a new `pending_review`
+  candidate. Neither approves, supersedes or replaces the article's live
+  cover.
+- **Review and approval** (`visuals/articleVisualReviewService.ts`) call
+  a single Postgres function, `approve_article_visual`, which supersedes
+  the article's previous approved candidate, marks the selected one
+  approved, and writes the article's live cover fields
+  (`cover_image_url`, `cover_image_alt`, `cover_image_status` on
+  `insights_articles`) as one atomic operation. This is the only place
+  those three columns are allowed to become `approved`.
+- **Deletion** (`visuals/articleVisualDeletionService.ts`) only ever
+  removes a `pending_review` or `superseded` candidate; an `approved`
+  candidate can never be deleted through this path.
+
+**Managed cover ownership.** The ordinary CMS content-save path
+(`updateArticle`, `createArticle` in `cms/service.ts`) never writes
+`cover_image_url`, `cover_image_alt` or `cover_image_status`. Those
+three fields are absent from `articleInputSchema` and from
+`ArticleEditorForm.tsx` entirely. Only `approve_article_visual`, and the
+translation synchronisation it triggers below, may change them.
+
+**EN/PL translation cover sharing.** A linked EN/PL translation pair
+(resolved via `translation_of`, checked in both directions, and only
+acted on when the relationship is unambiguous -
+`find_linked_translation_id`) shares one approved cover without a second
+Storage object or a second `article_visuals` row. `sync_linked_
+translation_cover` propagates the cover fields between the two
+`insights_articles` rows: authoritatively, inside the same transaction as
+an approval, whenever the linked translation does not own an approved
+candidate of its own; and non-authoritatively, as a best-effort follow-up
+from `createArticle`/`updateArticle` whenever a translation link is
+saved, only filling a genuine gap rather than choosing between two
+already-valid covers.
+
+The publication gate (`transitionArticleStatus`, §10) still requires
+`cover_image_status = "approved"` with a non-empty URL and alt text on
+the specific article being published, whether that cover was approved
+directly or synchronised from a linked translation.
+
+## 16. AI operation observability
+
+`ai_usage_log` (introduced with the editorial pipeline) records every
+billable AI call - provider, model, token counts, estimated cost - and is
+what `costGuard.ts` reads to enforce the monthly budget. It was later
+extended, in place, with a provider-neutral operation type, execution
+mode, run id, duration, outcome and a closed failure classification,
+written through `events/aiOperationEventWriter.ts` and read back through
+`events/aiOperationEventQueries.ts`. This is additive instrumentation on
+the same table, not a second cost-tracking system: research, generation,
+localisation and the AI visibility check below all still go through the
+same `costGuard`/budget check as before, and the event log never stores a
+prompt, response body or raw exception text.
+
+## 17. Publishing automation boundary
+
+`src/app/api/v1/scheduler/publish/route.ts` is triggered by an external
+daily cron and publishes whichever articles are already due under their
+own `scheduled_at` value, set earlier by an editor through the ordinary
+`transitionArticleStatus` action described in §10. It does not decide
+what to schedule, generate content, or promote a brief - it only executes
+a publishing decision a human already made. `/admin/insights/queue` is a
+read-only view of the same scheduled articles, ordered by when they are
+due.
+
+## 18. Optimisation and monitoring feedback loop
+
+A set of editor-triggered admin views close the loop from a search
+opportunity through to a published article's real performance, without
+writing back into `insights_articles` or changing any article's status:
+
+- `monitoring/performanceAnalysis.ts` combines the existing page-view and
+  CTA-click reads with search performance data into one per-article read,
+  reused by the modules below rather than each recomputing its own
+  version.
+- `refresh/staleness.ts` ranks published articles by age past a
+  configurable threshold and by a worsening search-position trend, for
+  editorial attention, not automatic action.
+- `conversion/conversionIntelligence.ts` matches a lead submission's
+  captured landing page back to the article that produced it. Admin-only,
+  matching the existing admin-only RLS on the lead tables it reads.
+- `monitoring/aiVisibility.ts` asks the configured Anthropic provider a
+  representative query and records whether the studio was mentioned - a
+  proxy signal for one provider, not a measurement of any specific
+  real-world AI search product.
+- `opportunities/cannibalisation.ts` flags search queries where two or
+  more published articles both receive impressions, a sign the site is
+  competing with itself rather than one article owning the term.
+- `learning/calibration.ts` compares each promoted opportunity's score at
+  promotion (`content_opportunities.score_at_promotion`, set once by
+  `briefs/promote.ts`) against that article's actual performance, and
+  folds the result into one multiplier the existing opportunity scoring
+  formula applies going forward.
+
+All of the above are manually triggered reads or recomputations from the
+relevant `/admin/insights/*` page; none of them is scheduled or runs
+automatically.
 
