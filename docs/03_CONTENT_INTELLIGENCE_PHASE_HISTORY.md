@@ -289,3 +289,24 @@ Production verification:
 - `npm run build` completed successfully, 67/67 static pages generated
 - PM2 process `ccs-next-test` restarted successfully
 - local production process check on `http://127.0.0.1:3001` returned HTTP 200
+
+## AI Operations and Cost Visibility (Admin Dashboard)
+
+Goal: surface the AI operation event data collected by Phase 3C.4C.1/3C.4C.2 (`ai_usage_log`, via `aiOperationEventWriter.ts`) somewhere an editor can actually see it. Before this work, `aiOperationEventQueries.ts` had no caller anywhere under `src/app` - every research/generation/localisation/AI-visibility call was already being recorded, but nothing read it back except `costGuard.checkBudget()`'s own pass/fail decision.
+
+Added `/admin/insights/ai-operations`, a read-only server-rendered admin page consuming only functions that already existed:
+
+- `getAiOperationEventsInRange` (`aiOperationEventQueries.ts`, unchanged) for a fixed 30-day window of recent operations
+- a new `getMonthlyBudgetUsage()` in `costGuard.ts`, extracted from `checkBudget()` so the admin page can read the same monthly spend/budget figures the guard enforces against, without depending on a function whose contract is "may this AI call proceed". `checkBudget()` now delegates to it and its allow/deny outcome, including failing closed when Supabase isn't configured, is unchanged.
+
+The page shows: current-month spend/budget/remaining/percentage used, a per-`operationType` summary (call count, success/failure count, total estimated cost) computed in application code by a new pure helper (`aiOperationEventSummary.ts`, `summariseAiOperationEventsByType`) rather than a new SQL aggregation, and a recent-operations table (stage, provider/model, execution mode, tokens, estimated cost, cost basis, duration, outcome, error kind on failure, timestamp). All cost figures are explicitly labelled as estimated, not provider billing or invoice cost, matching `costGuard.ts`'s own documented rate caveat.
+
+Access control: the page relies on the same `(dashboard)` layout auth gate every other Insights admin page uses; no new session check, no privileged/service-role client, no RLS change. `ai_usage_log`'s existing "editor select" RLS policy already scopes every read.
+
+Deliberate exclusion: Article Visual (image) generation is not instrumented into `ai_usage_log` at all - confirmed by inspection, `ArticleVisualProvider.ts` only mentions `costGuard`/`recordAiOperationEvent` in a comment and calls neither. The page carries an explicit note that it does not reflect every AI-related cost in Code Consulting Studio. Instrumenting image generation is out of scope for this phase and remains unbuilt.
+
+Navigation: added an "AI operations" link from the Insights admin index and from the Performance admin page, matching the existing sibling cross-link convention - no navigation redesign.
+
+Tests: `aiOperationEventSummary.test.ts` (6/6 - empty events, single/multiple operation types, cost totals, sort order, success/failure counts, ungrouped `operationType`), `costGuard.test.ts` (7/7 - `getMonthlyBudgetUsage` sum/not-configured/default-budget cases, `checkBudget` allow/block/fail-closed cases). Full `content-intelligence`/`insights` suites re-run unmodified: 43 files, 1042 tests passing.
+
+Verification: `tsc --noEmit` clean; ESLint clean on every changed/new file; `npm run build`'s compile and TypeScript steps both completed successfully, but the subsequent static-page-generation step crashed with a native Turbopack worker access violation on this local Windows environment - confirmed pre-existing by reproducing the identical crash on the unmodified base commit (`1173512`) with this change fully removed, so it is an environment issue and not caused by this phase.

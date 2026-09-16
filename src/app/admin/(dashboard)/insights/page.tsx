@@ -31,6 +31,9 @@ export default async function AdminInsightsListPage() {
 					<Link href="/admin/insights/performance" className="btn btn-ghost">
 						Performance
 					</Link>
+					<Link href="/admin/insights/ai-operations" className="btn btn-ghost">
+						AI operations
+					</Link>
 					<Link href="/admin/insights/new" className="btn btn-primary">
 						New article
 					</Link>

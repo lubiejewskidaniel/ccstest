@@ -633,6 +633,15 @@ localisation and the AI visibility check below all still go through the
 same `costGuard`/budget check as before, and the event log never stores a
 prompt, response body or raw exception text.
 
+The read side is consumed by `/admin/insights/ai-operations`, a read-only
+admin page showing the current month's spend against the configured
+budget, a per-operation-type summary, and a recent-operations table -
+built entirely on `aiOperationEventQueries.ts` and a small extracted
+`costGuard.getMonthlyBudgetUsage()` read, with no new query, migration or
+RLS change. Article Visual (image) generation is not yet instrumented
+into `ai_usage_log`, so this page does not reflect every AI-related cost
+in the app; the page states this limitation explicitly.
+
 ## 17. Publishing automation boundary
 
 `src/app/api/v1/scheduler/publish/route.ts` is triggered by an external

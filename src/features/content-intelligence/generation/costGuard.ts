@@ -29,6 +29,8 @@ export function estimateCostUsd(inputTokens: number, outputTokens: number): numb
 
 export type BudgetStatus = { allowed: boolean; spentUsd: number; budgetUsd: number };
 
+export type MonthlyBudgetUsage = { spentUsd: number; budgetUsd: number; configured: boolean };
+
 /**
  * NOTE ON RATES: `inputCostPer1k`/`outputCostPer1k` above are
  * placeholder defaults, not a live pricing feed — publicly listed model
@@ -38,11 +40,26 @@ export type BudgetStatus = { allowed: boolean; spentUsd: number; budgetUsd: numb
  * enforcement; treat the defaults as "some non-zero number so the guard
  * still functions", not as accurate accounting.
  */
-export async function checkBudget(): Promise<BudgetStatus> {
+
+/**
+ * The read-only half of the budget guard -- how much has been spent this
+ * calendar month against `ai_usage_log`, and what the configured monthly
+ * budget is. Deliberately returns no allow/deny decision (`checkBudget()`
+ * below owns that) so a read-only consumer, such as the admin AI
+ * Operations page, can display the same figures the guard enforces
+ * against without duplicating the monthly-sum query or depending on a
+ * function whose contract is "may this call proceed".
+ *
+ * `configured: false` means Supabase itself isn't reachable in this
+ * environment -- `spentUsd` is `0` in that case because it couldn't be
+ * measured, not because it is actually zero. `checkBudget()` uses this
+ * distinction to keep failing closed exactly as before.
+ */
+export async function getMonthlyBudgetUsage(): Promise<MonthlyBudgetUsage> {
 	const budgetUsd = Number(process.env.CONTENT_AI_MONTHLY_BUDGET_USD) || 0;
 
 	const supabase = await createSupabaseServerClient();
-	if (!supabase) return { allowed: false, spentUsd: 0, budgetUsd };
+	if (!supabase) return { spentUsd: 0, budgetUsd, configured: false };
 
 	const monthStart = new Date();
 	monthStart.setUTCDate(1);
@@ -55,7 +72,14 @@ export async function checkBudget(): Promise<BudgetStatus> {
 
 	const spentUsd = (data ?? []).reduce((sum, row) => sum + Number(row.estimated_cost_usd ?? 0), 0);
 
-	return { allowed: budgetUsd > 0 && spentUsd < budgetUsd, spentUsd, budgetUsd };
+	return { spentUsd, budgetUsd, configured: true };
+}
+
+export async function checkBudget(): Promise<BudgetStatus> {
+	const usage = await getMonthlyBudgetUsage();
+	if (!usage.configured) return { allowed: false, spentUsd: usage.spentUsd, budgetUsd: usage.budgetUsd };
+
+	return { allowed: usage.budgetUsd > 0 && usage.spentUsd < usage.budgetUsd, spentUsd: usage.spentUsd, budgetUsd: usage.budgetUsd };
 }
 
 /** Records one provider call's token usage and estimated cost. Never

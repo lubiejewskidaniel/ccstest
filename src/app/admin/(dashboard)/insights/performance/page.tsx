@@ -32,6 +32,9 @@ export default async function InsightsPerformancePage() {
 					<Link href="/admin/insights/ai-visibility" className="btn btn-ghost">
 						AI visibility
 					</Link>
+					<Link href="/admin/insights/ai-operations" className="btn btn-ghost">
+						AI operations
+					</Link>
 					<Link href="/admin/insights" className="btn btn-ghost">
 						Back to articles
 					</Link>
