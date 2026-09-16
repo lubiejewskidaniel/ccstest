@@ -1,7 +1,7 @@
 import { getAdminSession } from "@/lib/supabase/adminAuth";
 import { getBrief, updateBriefRow } from "../briefs/service";
 import { createAnthropicProvider } from "../generation/AnthropicProvider";
-import { checkBudget, estimateCostUsd, logUsage } from "../generation/costGuard";
+import { checkBudget, estimateCostUsd } from "../generation/costGuard";
 import { recordAiOperationEvent } from "../events/aiOperationEventWriter";
 import type { AiCompletionResult, StageResult, TextAiOperationOptions } from "../types/contentAi";
 
@@ -98,15 +98,12 @@ export async function runResearch(briefId: string, categoryName: string, options
 		}
 		const durationMs = Math.round(performance.now() - startedAt);
 
-		await logUsage({
-			briefId,
-			stage: "research",
-			provider: provider.id,
-			model: provider.model,
-			inputTokens: result.inputTokens,
-			outputTokens: result.outputTokens,
-		});
-
+		// recordAiOperationEvent is the sole ai_usage_log writer for a
+		// successful call -- a second, separate insert (the removed
+		// logUsage()) previously wrote the same cost to the same table
+		// twice, silently doubling budget spend. Best-effort only: the
+		// research notes below were already produced and are saved
+		// regardless of whether this insert lands.
 		try {
 			await recordAiOperationEvent({
 				briefId,
@@ -125,8 +122,7 @@ export async function runResearch(briefId: string, categoryName: string, options
 				errorKind: null,
 			});
 		} catch {
-			// Best-effort observability only -- the research notes below
-			// were already produced and are saved regardless.
+			// Ignored -- see comment above.
 		}
 
 		await updateBriefRow(briefId, { status: "researched", research_notes: result.text, error_message: null });

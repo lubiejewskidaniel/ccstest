@@ -44,7 +44,7 @@ import type { ArticleVisualBrief } from "./articleVisualBrief";
  *     the Phase 3C.4A publication gate and a future review workflow.
  *     A successful `generate()` call is not an approval and must never
  *     be treated as one by any caller.
- *   - Cost logging: `costGuard.ts`'s `checkBudget()`/`logUsage()` are
+ *   - Cost logging: `costGuard.ts`'s `checkBudget()`/`estimateCostUsd()` are
  *     shaped around per-1k-token text pricing (input/output token
  *     counts), which does not fit typical flat-per-image provider
  *     pricing. This phase does not call, extend, or duplicate that

@@ -100,8 +100,7 @@ export type AiOperationEventInput = {
 	 * operation outside that closed set (e.g. image generation) — see
 	 * migration `014_ai_operation_events.sql`'s note on relaxing this
 	 * column's `not null` constraint for exactly this reason. A text-
-	 * pipeline caller should keep supplying its real stage here, exactly
-	 * as `costGuard.logUsage()` does today. */
+	 * pipeline caller should keep supplying its real stage here. */
 	stage: PipelineStage | null;
 
 	/** Provider-neutral logical operation name — e.g. `"research"`,

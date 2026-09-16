@@ -31,10 +31,8 @@ vi.mock("../../generation/AnthropicProvider", () => ({
 }));
 
 const mockCheckBudget = vi.fn();
-const mockLogUsage = vi.fn();
 vi.mock("../../generation/costGuard", () => ({
 	checkBudget: () => mockCheckBudget(),
-	logUsage: (params: unknown) => mockLogUsage(params),
 	estimateCostUsd: (inputTokens: number, outputTokens: number) => inputTokens / 1000 + outputTokens / 1000,
 }));
 
@@ -52,7 +50,6 @@ beforeEach(() => {
 	mockGetAdminSession.mockReset().mockResolvedValue(EDITOR_SESSION);
 	mockComplete.mockReset();
 	mockCheckBudget.mockReset().mockResolvedValue({ allowed: true, spentUsd: 0, budgetUsd: 50 });
-	mockLogUsage.mockReset().mockResolvedValue(undefined);
 	mockRecordAiOperationEvent.mockReset().mockResolvedValue({ ok: true, id: "event-1" });
 	mockFrom.mockReset().mockReturnValue({ insert: vi.fn().mockResolvedValue({ error: null }) });
 	mockCreateSupabaseServerClient.mockReset().mockResolvedValue({ from: mockFrom });
@@ -88,7 +85,7 @@ describe("7. AI visibility provider calls are instrumented", () => {
 
 		expect(result.ok).toBe(false);
 		if (!result.ok) expect(result.message).toBe("anthropic unavailable");
-		expect(mockLogUsage).not.toHaveBeenCalled();
+		expect(mockRecordAiOperationEvent).toHaveBeenCalledTimes(1);
 		expect(mockRecordAiOperationEvent.mock.calls[0]?.[0]).toMatchObject({
 			outcome: "failure",
 			errorKind: "provider_error",

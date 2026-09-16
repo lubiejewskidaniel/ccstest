@@ -1,7 +1,7 @@
 import { getAdminSession } from "@/lib/supabase/adminAuth";
 import { getBrief, updateBriefRow } from "../briefs/service";
 import { createAnthropicProvider } from "./AnthropicProvider";
-import { checkBudget, estimateCostUsd, logUsage } from "./costGuard";
+import { checkBudget, estimateCostUsd } from "./costGuard";
 import { recordAiOperationEvent } from "../events/aiOperationEventWriter";
 import { slugify } from "@/lib/slugify";
 import { articleBodySchema, assignHeadingIds, type ContentBlock } from "@/features/insights/types/blocks";
@@ -132,15 +132,13 @@ export async function runGeneration(briefId: string, categoryName: string, optio
 		}
 		const durationMs = Math.round(performance.now() - startedAt);
 
-		await logUsage({
-			briefId,
-			stage: "generation",
-			provider: provider.id,
-			model: provider.model,
-			inputTokens: result.inputTokens,
-			outputTokens: result.outputTokens,
-		});
-
+		// recordAiOperationEvent is the sole ai_usage_log writer for a
+		// successful call -- a second, separate insert (the removed
+		// logUsage()) previously wrote the same cost to the same table
+		// twice, silently doubling budget spend. Best-effort only: a
+		// failure here must never fail a provider call that already
+		// succeeded, so the model response below is still parsed and
+		// validated regardless of whether this insert lands.
 		try {
 			await recordAiOperationEvent({
 				briefId,
@@ -159,8 +157,7 @@ export async function runGeneration(briefId: string, categoryName: string, optio
 				errorKind: null,
 			});
 		} catch {
-			// Best-effort observability only -- the model response below is
-			// still parsed and validated regardless.
+			// Ignored -- see comment above.
 		}
 
 		// The model was cut off before finishing -- `result.text` is a

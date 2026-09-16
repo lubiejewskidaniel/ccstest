@@ -1,5 +1,4 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { PipelineStage } from "../types/contentAi";
 
 /**
  * Cost control for every AI provider call this pipeline makes. Two
@@ -80,37 +79,4 @@ export async function checkBudget(): Promise<BudgetStatus> {
 	if (!usage.configured) return { allowed: false, spentUsd: usage.spentUsd, budgetUsd: usage.budgetUsd };
 
 	return { allowed: usage.budgetUsd > 0 && usage.spentUsd < usage.budgetUsd, spentUsd: usage.spentUsd, budgetUsd: usage.budgetUsd };
-}
-
-/** Records one provider call's token usage and estimated cost. Never
- * throws — a logging failure must not fail the generation call it's
- * logging (the pipeline stage that calls this has already gotten its
- * real result back by the time this runs). `briefId` is nullable —
- * widened for Checkpoint 9's AI-visibility checks, which reuse this same
- * cost-guard/usage-log rather than a second tracking mechanism, but
- * aren't tied to any one brief. */
-export async function logUsage(params: {
-	briefId: string | null;
-	stage: PipelineStage;
-	provider: string;
-	model: string;
-	inputTokens: number;
-	outputTokens: number;
-}) {
-	const supabase = await createSupabaseServerClient();
-	if (!supabase) return;
-
-	const estimatedCostUsd = estimateCostUsd(params.inputTokens, params.outputTokens);
-
-	const { error } = await supabase.from("ai_usage_log").insert({
-		brief_id: params.briefId,
-		stage: params.stage,
-		provider: params.provider,
-		model: params.model,
-		input_tokens: params.inputTokens,
-		output_tokens: params.outputTokens,
-		estimated_cost_usd: estimatedCostUsd,
-	});
-
-	if (error) console.error("[content-intelligence] ai_usage_log insert failed:", error.message);
 }

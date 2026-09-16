@@ -436,17 +436,27 @@ describe("20. no automation introduced", () => {
 	});
 });
 
-describe("18. costGuard remains untouched by this phase", () => {
-	it("costGuard.ts does not import the new event writer or its types", () => {
+describe("18. costGuard does not depend on the event writer, and no longer duplicates it", () => {
+	it("costGuard.ts does not import the event writer or its types", () => {
 		const source = readProjectFile("src/features/content-intelligence/generation/costGuard.ts");
 		expect(source).not.toMatch(/aiOperationEventWriter/);
 		expect(source).not.toMatch(/aiOperationEvent/);
-		// costGuard's own three exports are still exactly what Phase
-		// 3C.4C's audit found -- this phase does not add, remove, or
-		// rename any of them.
+	});
+
+	it("costGuard.ts no longer exports a second ai_usage_log writer (the removed logUsage duplicate-accounting fix)", () => {
+		const source = readProjectFile("src/features/content-intelligence/generation/costGuard.ts");
+		// estimateCostUsd/checkBudget/getMonthlyBudgetUsage are the only
+		// remaining exports: two read/estimate-only functions plus the
+		// budget-enforcement decision. logUsage() used to insert its own
+		// row into ai_usage_log in parallel with recordAiOperationEvent(),
+		// double-counting every successful call's cost -- it has been
+		// removed so recordAiOperationEvent() is the only path that can
+		// insert into that table.
 		expect(source).toMatch(/export function estimateCostUsd/);
 		expect(source).toMatch(/export async function checkBudget/);
-		expect(source).toMatch(/export async function logUsage/);
+		expect(source).toMatch(/export async function getMonthlyBudgetUsage/);
+		expect(source).not.toMatch(/logUsage/);
+		expect(source).not.toMatch(/\.insert\(/);
 	});
 });
 

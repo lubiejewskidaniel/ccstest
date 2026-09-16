@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getAdminSession } from "@/lib/supabase/adminAuth";
 import { createAnthropicProvider } from "../generation/AnthropicProvider";
-import { checkBudget, estimateCostUsd, logUsage } from "../generation/costGuard";
+import { checkBudget, estimateCostUsd } from "../generation/costGuard";
 import { recordAiOperationEvent } from "../events/aiOperationEventWriter";
 import { siteName } from "@/lib/seo/metadata";
 import type { Locale } from "@/lib/routes";
@@ -92,15 +92,12 @@ export async function checkAiVisibility(query: string, locale: Locale | null = n
 		}
 		const durationMs = Math.round(performance.now() - startedAt);
 
-		await logUsage({
-			briefId: null,
-			stage: "ai_visibility",
-			provider: provider.id,
-			model: provider.model,
-			inputTokens: result.inputTokens,
-			outputTokens: result.outputTokens,
-		});
-
+		// recordAiOperationEvent is the sole ai_usage_log writer for a
+		// successful call -- a second, separate insert (the removed
+		// logUsage()) previously wrote the same cost to the same table
+		// twice, silently doubling budget spend. Best-effort only: a
+		// failure here must never fail a provider call that already
+		// succeeded.
 		try {
 			await recordAiOperationEvent({
 				briefId: null,
@@ -119,7 +116,7 @@ export async function checkAiVisibility(query: string, locale: Locale | null = n
 				errorKind: null,
 			});
 		} catch {
-			// Best-effort observability only.
+			// Ignored -- see comment above.
 		}
 
 		const mentioned = result.text.toLowerCase().includes(siteName.toLowerCase());

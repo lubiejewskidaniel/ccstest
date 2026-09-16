@@ -625,13 +625,23 @@ directly or synchronised from a linked translation.
 billable AI call - provider, model, token counts, estimated cost - and is
 what `costGuard.ts` reads to enforce the monthly budget. It was later
 extended, in place, with a provider-neutral operation type, execution
-mode, run id, duration, outcome and a closed failure classification,
-written through `events/aiOperationEventWriter.ts` and read back through
-`events/aiOperationEventQueries.ts`. This is additive instrumentation on
-the same table, not a second cost-tracking system: research, generation,
-localisation and the AI visibility check below all still go through the
-same `costGuard`/budget check as before, and the event log never stores a
-prompt, response body or raw exception text.
+mode, run id, duration, outcome and a closed failure classification, read
+back through `events/aiOperationEventQueries.ts`. The event log never
+stores a prompt, response body or raw exception text.
+
+**Write invariant: one provider attempt produces at most one row.**
+`events/aiOperationEventWriter.ts`'s `recordAiOperationEvent()` is the
+single canonical writer for research, generation, localisation and the AI
+visibility check below, on both the success and failure branch. A
+duplicate-accounting defect briefly existed where a legacy
+`costGuard.logUsage()` call also wrote its own row for the same
+successful call, with the same `estimated_cost_usd` - since
+`checkBudget()`/`getMonthlyBudgetUsage()` sum that column unconditionally
+across the whole table, every successful call's cost was counted twice
+toward the monthly budget. `logUsage()` has been removed entirely (not
+just its call sites) so this table has exactly one writer going forward;
+`checkBudget()`'s query itself needed no change, no migration was run,
+and existing historical/duplicate rows were left untouched.
 
 The read side is consumed by `/admin/insights/ai-operations`, a read-only
 admin page showing the current month's spend against the configured

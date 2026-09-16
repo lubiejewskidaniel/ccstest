@@ -41,10 +41,8 @@ vi.mock("../../generation/AnthropicProvider", () => ({
 }));
 
 const mockCheckBudget = vi.fn();
-const mockLogUsage = vi.fn();
 vi.mock("../../generation/costGuard", () => ({
 	checkBudget: () => mockCheckBudget(),
-	logUsage: (params: unknown) => mockLogUsage(params),
 	estimateCostUsd: (inputTokens: number, outputTokens: number) => inputTokens / 1000 + outputTokens / 1000,
 }));
 
@@ -67,7 +65,6 @@ beforeEach(() => {
 	mockUpdateBriefRow.mockReset().mockResolvedValue({ ok: true });
 	mockComplete.mockReset();
 	mockCheckBudget.mockReset().mockResolvedValue({ allowed: true, spentUsd: 0, budgetUsd: 50 });
-	mockLogUsage.mockReset().mockResolvedValue(undefined);
 	mockRecordAiOperationEvent.mockReset().mockResolvedValue({ ok: true, id: "event-1" });
 });
 
@@ -111,7 +108,6 @@ describe("2. failed research", () => {
 			expect(result.kind).toBe("provider_error");
 			expect(result.message).toBe("anthropic request failed");
 		}
-		expect(mockLogUsage).not.toHaveBeenCalled();
 		expect(mockRecordAiOperationEvent).toHaveBeenCalledTimes(1);
 		expect(mockRecordAiOperationEvent.mock.calls[0]?.[0]).toMatchObject({
 			outcome: "failure",
@@ -205,28 +201,49 @@ describe("15. no sensitive content passed to the event writer", () => {
 	});
 });
 
-describe("17. existing costGuard/logUsage behaviour is preserved", () => {
-	it("logUsage is still called with the same shape as before this phase", async () => {
-		mockComplete.mockResolvedValue({ text: "notes", inputTokens: 55, outputTokens: 66 });
+describe("17. one provider attempt produces at most one ai_usage_log row", () => {
+	/**
+	 * Duplicate-accounting fix: every successful call across all four
+	 * instrumented stages used to write `ai_usage_log` twice -- once via
+	 * `costGuard.logUsage()` (legacy, narrow columns) and once via
+	 * `recordAiOperationEvent()` (rich columns), both carrying the same
+	 * `estimated_cost_usd` and both counted by `checkBudget()`'s
+	 * unconditional sum. `logUsage()` has been removed entirely so
+	 * `recordAiOperationEvent()` is the only path that can ever insert a
+	 * row, on both the success and failure branch. These are structural
+	 * assertions (not mock-call-count checks) so a future re-introduction
+	 * of a second writer, under any name, fails this suite even if it
+	 * isn't literally named `logUsage`.
+	 */
+	const instrumentedFiles = [
+		"src/features/content-intelligence/research/research.ts",
+		"src/features/content-intelligence/generation/generate.ts",
+		"src/features/content-intelligence/localisation/localise.ts",
+		"src/features/content-intelligence/monitoring/aiVisibility.ts",
+	];
 
-		await runResearch(BRIEF_ID, "Engineering");
-
-		expect(mockLogUsage).toHaveBeenCalledWith({
-			briefId: BRIEF_ID,
-			stage: "research",
-			provider: "anthropic",
-			model: "claude-sonnet-4-6",
-			inputTokens: 55,
-			outputTokens: 66,
-		});
-	});
-
-	it("costGuard.ts itself was not modified by this phase", () => {
+	it("costGuard.ts no longer exports a second ai_usage_log writer", () => {
 		const source = readProjectFile("src/features/content-intelligence/generation/costGuard.ts");
-		expect(source).not.toMatch(/aiOperationEventWriter/);
+		expect(source).not.toMatch(/logUsage/);
+		expect(source).not.toMatch(/\.insert\(/);
 		expect(source).toMatch(/export function estimateCostUsd/);
 		expect(source).toMatch(/export async function checkBudget/);
-		expect(source).toMatch(/export async function logUsage/);
+		expect(source).toMatch(/export async function getMonthlyBudgetUsage/);
+	});
+
+	it("none of the four instrumented stages import or call the legacy logUsage writer", () => {
+		for (const file of instrumentedFiles) {
+			const code = stripComments(readProjectFile(file));
+			expect(code).not.toMatch(/logUsage/);
+		}
+	});
+
+	it("each instrumented stage calls recordAiOperationEvent on both its success and failure branch", () => {
+		for (const file of instrumentedFiles) {
+			const code = stripComments(readProjectFile(file));
+			const callCount = (code.match(/recordAiOperationEvent\s*\(/g) ?? []).length;
+			expect(callCount).toBe(2);
+		}
 	});
 });
 

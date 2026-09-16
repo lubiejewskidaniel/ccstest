@@ -28,10 +28,8 @@ vi.mock("../../generation/AnthropicProvider", () => ({
 }));
 
 const mockCheckBudget = vi.fn();
-const mockLogUsage = vi.fn();
 vi.mock("../../generation/costGuard", () => ({
 	checkBudget: () => mockCheckBudget(),
-	logUsage: (params: unknown) => mockLogUsage(params),
 	estimateCostUsd: (inputTokens: number, outputTokens: number) => inputTokens / 1000 + outputTokens / 1000,
 }));
 
@@ -63,7 +61,6 @@ beforeEach(() => {
 	mockUpdateBriefRow.mockReset().mockResolvedValue({ ok: true });
 	mockComplete.mockReset();
 	mockCheckBudget.mockReset().mockResolvedValue({ allowed: true, spentUsd: 0, budgetUsd: 50 });
-	mockLogUsage.mockReset().mockResolvedValue(undefined);
 	mockRecordAiOperationEvent.mockReset().mockResolvedValue({ ok: true, id: "event-1" });
 });
 
@@ -122,7 +119,7 @@ describe("6. failed localisation", () => {
 
 		expect(result.ok).toBe(false);
 		if (!result.ok) expect(result.message).toBe("anthropic unavailable");
-		expect(mockLogUsage).not.toHaveBeenCalled();
+		expect(mockRecordAiOperationEvent).toHaveBeenCalledTimes(1);
 		expect(mockRecordAiOperationEvent.mock.calls[0]?.[0]).toMatchObject({
 			outcome: "failure",
 			errorKind: "provider_error",
