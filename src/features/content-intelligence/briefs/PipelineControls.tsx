@@ -31,6 +31,11 @@ const STAGE_ORDER: { key: string; label: string; run: (id: string) => Promise<St
  * or research that already succeeded. */
 function relevantStageKeys(status: BriefStatus, hasResearch: boolean, hasGenerated: boolean): string[] {
 	if (status === "draft") return ["research", "generation"];
+	// Promotion is the pipeline's terminal step (see promote.ts) -- once a
+	// brief is promoted, re-running an earlier stage here can never
+	// update the already-created article(s), it can only silently desync
+	// the brief from them. No stage-rerun action makes sense once here.
+	if (status === "promoted") return [];
 	if (status === "failed") {
 		if (hasGenerated) return ["localisation", "generation", "quality"];
 		if (hasResearch) return ["generation", "research"];
@@ -59,6 +64,7 @@ export function PipelineControls({
 	const router = useRouter();
 
 	const visibleStages = STAGE_ORDER.filter((stage) => relevantStageKeys(status, hasResearch, hasGenerated).includes(stage.key));
+	const isPromoted = status === "promoted";
 	const canPromote = status === "quality_passed";
 
 	function run(stage: { label: string; run: (id: string) => Promise<StageResult> }) {
@@ -95,12 +101,19 @@ export function PipelineControls({
 						{pending ? "Working…" : stage.label}
 					</button>
 				))}
-				<button type="button" className="btn btn-primary" disabled={pending || !canPromote} onClick={runPromote}>
-					{pending ? "Working…" : "Promote to draft article(s)"}
-				</button>
+				{!isPromoted ? (
+					<button type="button" className="btn btn-primary" disabled={pending || !canPromote} onClick={runPromote}>
+						{pending ? "Working…" : "Promote to draft article(s)"}
+					</button>
+				) : null}
 			</div>
 			{message ? <p style={{ fontSize: 12.5, color: "var(--ink-3)" }}>{message}</p> : null}
-			{!canPromote ? (
+			{isPromoted ? (
+				<p style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 10 }}>
+					This brief has already been promoted. The resulting draft article(s) are awaiting human review — further content
+					changes should be made directly in the article editor, not by re-running this pipeline.
+				</p>
+			) : !canPromote ? (
 				<p style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 10 }}>
 					Promotion is only available once the brief has passed the quality check.
 				</p>

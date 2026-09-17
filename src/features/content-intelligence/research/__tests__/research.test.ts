@@ -120,6 +120,92 @@ describe("2. failed research", () => {
 	});
 });
 
+describe("A3 - reject truncated research (max_tokens)", () => {
+	it("fails cleanly with a human-readable truncation message when stopReason is max_tokens", async () => {
+		mockComplete.mockResolvedValue({
+			text: "1. The 3-5 most important angles... (cut off partway thro",
+			inputTokens: 200,
+			outputTokens: 800,
+			stopReason: "max_tokens",
+		});
+
+		const result = await runResearch(BRIEF_ID, "Engineering");
+
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.message).toBe("Research response was truncated because the output token limit was reached.");
+		}
+	});
+
+	it("never stores the truncated text as research_notes with status researched", async () => {
+		mockComplete.mockResolvedValue({
+			text: "1. The 3-5 most important angles... (cut off partway thro",
+			inputTokens: 200,
+			outputTokens: 800,
+			stopReason: "max_tokens",
+		});
+
+		await runResearch(BRIEF_ID, "Engineering");
+
+		expect(mockUpdateBriefRow).not.toHaveBeenCalledWith(BRIEF_ID, expect.objectContaining({ status: "researched" }));
+		expect(mockUpdateBriefRow).not.toHaveBeenCalledWith(
+			BRIEF_ID,
+			expect.objectContaining({ research_notes: expect.stringContaining("cut off partway thro") }),
+		);
+		// The only write for a truncated attempt is the shared catch
+		// block's own "failed" status update, same as any other thrown error.
+		expect(mockUpdateBriefRow).toHaveBeenCalledWith(
+			BRIEF_ID,
+			expect.objectContaining({ status: "failed", error_message: "Research response was truncated because the output token limit was reached." }),
+		);
+	});
+
+	it("still records the real, paid provider call accurately even though the stage itself fails", async () => {
+		mockComplete.mockResolvedValue({
+			text: "1. The 3-5 most important angles... (cut off partway thro",
+			inputTokens: 200,
+			outputTokens: 800,
+			stopReason: "max_tokens",
+		});
+
+		await runResearch(BRIEF_ID, "Engineering");
+
+		// Exactly one event, recorded as a successful (paid) provider call
+		// with the real token counts -- truncation is a content-validity
+		// failure discovered afterwards, not a provider/API failure, so the
+		// cost accounting must not be suppressed or double-recorded.
+		expect(mockRecordAiOperationEvent).toHaveBeenCalledTimes(1);
+		expect(mockRecordAiOperationEvent.mock.calls[0]?.[0]).toMatchObject({
+			outcome: "success",
+			errorKind: null,
+			inputTokens: 200,
+			outputTokens: 800,
+			cost: 1,
+			costBasis: "estimated",
+		});
+	});
+
+	it("still succeeds and stores research_notes normally when stopReason is not max_tokens", async () => {
+		mockComplete.mockResolvedValue({ text: "A complete, well-formed research brief.", inputTokens: 120, outputTokens: 300, stopReason: "end_turn" });
+
+		const result = await runResearch(BRIEF_ID, "Engineering");
+
+		expect(result.ok).toBe(true);
+		expect(mockUpdateBriefRow).toHaveBeenCalledWith(
+			BRIEF_ID,
+			expect.objectContaining({ status: "researched", research_notes: "A complete, well-formed research brief." }),
+		);
+	});
+
+	it("still succeeds when stopReason is absent entirely (a provider that doesn't report one)", async () => {
+		mockComplete.mockResolvedValue({ text: "A complete, well-formed research brief.", inputTokens: 120, outputTokens: 300 });
+
+		const result = await runResearch(BRIEF_ID, "Engineering");
+
+		expect(result.ok).toBe(true);
+	});
+});
+
 describe("9. execution mode", () => {
 	it("records 'manual' by default when no options are supplied", async () => {
 		mockComplete.mockResolvedValue({ text: "notes", inputTokens: 10, outputTokens: 10 });

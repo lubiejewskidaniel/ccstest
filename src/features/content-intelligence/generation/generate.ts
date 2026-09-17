@@ -225,6 +225,19 @@ export async function runGeneration(briefId: string, categoryName: string, optio
 			generated_slug: slug,
 			generated_body: bodyResult.data,
 			error_message: null,
+			// A previously stored localized draft is a translation of the
+			// primary draft this call just replaced -- it no longer
+			// corresponds to anything and must not survive to a later
+			// quality check/promotion looking like a valid translation of
+			// the new content. Cleared only here, in the same successful
+			// update, never on a failed/truncated attempt above (which
+			// exits through the catch block below without ever reaching
+			// this line, leaving prior valid data untouched).
+			localized_title: null,
+			localized_excerpt: null,
+			localized_slug: null,
+			localized_body: null,
+			localized_locale: null,
 		});
 
 		return { ok: true };

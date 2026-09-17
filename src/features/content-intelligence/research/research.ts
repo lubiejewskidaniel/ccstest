@@ -132,6 +132,16 @@ export async function runResearch(briefId: string, categoryName: string, options
 			// Ignored -- see comment above.
 		}
 
+		// The model was cut off before finishing -- result.text is partial
+		// prose, not a complete research brief, so it must never be stored
+		// as a successful "researched" result. Mirrors the same check
+		// already made in generate.ts/localise.ts for their own provider
+		// calls. Placed after the cost-accounting event above so the real,
+		// paid call is still recorded accurately regardless of this failure.
+		if (result.stopReason === "max_tokens") {
+			throw new Error("Research response was truncated because the output token limit was reached.");
+		}
+
 		await updateBriefRow(briefId, { status: "researched", research_notes: result.text, error_message: null });
 		return { ok: true };
 	} catch (err) {

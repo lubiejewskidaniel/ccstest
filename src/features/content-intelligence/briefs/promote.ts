@@ -64,6 +64,23 @@ export async function promoteToArticles(briefId: string): Promise<StageResult> {
 		return { ok: false, kind: "validation", message: "No generated draft to promote." };
 	}
 
+	// A brief that has already been fully promoted must never be promoted
+	// again as if new draft articles were being created. Status alone
+	// can't distinguish this from a genuine partial-failure retry below:
+	// a regenerate + re-quality-check cycle after a full promotion also
+	// lands back on "quality_passed" (see PipelineControls.tsx, which
+	// hides this path in the normal UI but cannot be the only guard).
+	// The real signal is whether a localized half is still genuinely
+	// pending -- the same condition the retry logic below already uses.
+	const hasPendingLocalizedHalf = Boolean(brief.localized && brief.localizedLocale && !brief.localizedArticleId);
+	if (brief.primaryArticleId && !hasPendingLocalizedHalf) {
+		return {
+			ok: false,
+			kind: "validation",
+			message: "This brief has already been promoted. Make further content changes directly in the article editor, not by promoting again.",
+		};
+	}
+
 	// Retry safety: if a previous attempt already created the primary
 	// article (e.g. the localized half failed afterwards, or a prior bug
 	// caused a failure after this row existed), reuse that id instead of

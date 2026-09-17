@@ -248,6 +248,86 @@ describe("locale-aware generation language", () => {
 	});
 });
 
+describe("A1 - stale localisation invalidation on regeneration", () => {
+	it("clears all localized draft fields in the same successful update that stores the new generated draft", async () => {
+		mockComplete.mockResolvedValue({ text: VALID_MODEL_JSON, inputTokens: 10, outputTokens: 10 });
+
+		const result = await runGeneration(BRIEF_ID, "Engineering");
+
+		expect(result.ok).toBe(true);
+		expect(mockUpdateBriefRow).toHaveBeenCalledWith(
+			BRIEF_ID,
+			expect.objectContaining({
+				status: "generated",
+				localized_title: null,
+				localized_excerpt: null,
+				localized_slug: null,
+				localized_body: null,
+				localized_locale: null,
+			}),
+		);
+	});
+
+	it("does not perform the successful generated/localized-clearing update when the provider call fails outright", async () => {
+		mockComplete.mockRejectedValue(new Error("anthropic timed out"));
+
+		const result = await runGeneration(BRIEF_ID, "Engineering");
+
+		expect(result.ok).toBe(false);
+		// Only the "failed" status update happens -- the previously valid
+		// generated/localized data on the brief is never touched.
+		expect(mockUpdateBriefRow).not.toHaveBeenCalledWith(BRIEF_ID, expect.objectContaining({ localized_title: null }));
+		expect(mockUpdateBriefRow).not.toHaveBeenCalledWith(BRIEF_ID, expect.objectContaining({ status: "generated" }));
+	});
+
+	it("does not perform the successful generated/localized-clearing update when the response is truncated at max_tokens", async () => {
+		mockComplete.mockResolvedValue({
+			text: '{"title": "Cut off partway thro',
+			inputTokens: 500,
+			outputTokens: 6000,
+			stopReason: "max_tokens",
+		});
+
+		const result = await runGeneration(BRIEF_ID, "Engineering");
+
+		expect(result.ok).toBe(false);
+		expect(mockUpdateBriefRow).not.toHaveBeenCalledWith(BRIEF_ID, expect.objectContaining({ localized_title: null }));
+		expect(mockUpdateBriefRow).not.toHaveBeenCalledWith(BRIEF_ID, expect.objectContaining({ status: "generated" }));
+	});
+
+	it("does not perform the clearing update when the model's JSON fails validation after a successful call", async () => {
+		mockComplete.mockResolvedValue({ text: "not valid json", inputTokens: 40, outputTokens: 5, stopReason: "end_turn" });
+
+		const result = await runGeneration(BRIEF_ID, "Engineering");
+
+		expect(result.ok).toBe(false);
+		expect(mockUpdateBriefRow).not.toHaveBeenCalledWith(BRIEF_ID, expect.objectContaining({ localized_title: null }));
+	});
+
+	it("a regenerated brief requires localisation again before a complete bilingual pair exists -- the cleared fields mean brief.localized is gone", async () => {
+		// This documents the resulting workflow shape rather than calling
+		// localise.ts directly: after a successful regeneration, the patch
+		// sent to updateBriefRow nulls out every localized_* column, so the
+		// next getBrief() read (service.ts's mapBrief) would map
+		// brief.localized back to null -- exactly the same shape as a brief
+		// that has never been localised, which PipelineControls.tsx's own
+		// gating (localisation only relevant once generated, quality only
+		// meaningful once both drafts agree) already treats correctly.
+		mockComplete.mockResolvedValue({ text: VALID_MODEL_JSON, inputTokens: 10, outputTokens: 10 });
+
+		await runGeneration(BRIEF_ID, "Engineering");
+
+		const patch = mockUpdateBriefRow.mock.calls.find((call) => call[1]?.status === "generated")?.[1];
+		expect(patch).toBeDefined();
+		expect(Object.keys(patch)).toEqual(
+			expect.arrayContaining(["localized_title", "localized_excerpt", "localized_slug", "localized_body", "localized_locale"]),
+		);
+		for (const key of ["localized_title", "localized_excerpt", "localized_slug", "localized_body", "localized_locale"]) {
+			expect(patch[key]).toBeNull();
+		}
+	});
+});
+
 describe("no generated article content passed to the event writer", () => {
 	it("the recorded event never contains the generated title, excerpt, or body", async () => {
 		mockComplete.mockResolvedValue({ text: VALID_MODEL_JSON, inputTokens: 10, outputTokens: 10 });
