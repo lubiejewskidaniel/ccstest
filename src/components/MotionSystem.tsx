@@ -15,6 +15,19 @@ import { events, getBaseContext } from "@/lib/analytics";
 const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 /**
+ * The admin dashboard (everything under `/admin/**` except `/admin/login`,
+ * matching `PublicChrome`/`SiteChrome`'s own exact exclusion) never
+ * renders `#bootCurtain` -- so it must never be left `boot-lock`ed
+ * either. Exported as a small pure function (not just inlined in the
+ * effect below) so this condition -- the one that decides whether
+ * `boot-lock` may legitimately be present -- can be tested directly with
+ * real inputs, without needing to render the component.
+ */
+export function isBootExcludedRoute(pathname: string | null): boolean {
+  return Boolean(pathname?.startsWith("/admin")) && pathname !== "/admin/login";
+}
+
+/**
  * Site-wide "delight" layer: boot-in curtain, scroll-progress rail, header
  * scroll state, back-to-top, button spark ripple and subtle card tilt.
  * Mounted once from the root layout. Everything here is inert under
@@ -55,7 +68,27 @@ export function MotionSystem() {
   // before the browser paints, so a reappearing or /admin/login curtain
   // gets marked done before it's ever visible -- no flash, no perceived
   // replay of the animation.
+  //
+  // Lifecycle bug fixed here: `boot-lock` could survive on `<html>` after
+  // navigating into the admin dashboard. The class was added, then its
+  // own removal was a `setTimeout` guarded only by the effect's cleanup
+  // cancelling that timer -- if the effect ever re-ran or unmounted
+  // before the 620ms timer fired (a fast pathname change, or React
+  // Strict Mode's dev-only double-invoke), the timer was cancelled but
+  // the class was never actually removed, and nothing on the admin route
+  // (which never renders `#bootCurtain`) could ever put it there again to
+  // finish the job. The fix is two-part: (1) an admin route now asserts
+  // its own "never locked" invariant directly, every time this effect
+  // runs for it, rather than depending on the public boot effect's own
+  // cleanup having already run cleanly; (2) that cleanup itself now also
+  // removes the class, not just the timer, so the general case is
+  // correct too.
   useIsomorphicLayoutEffect(() => {
+    if (isBootExcludedRoute(pathname)) {
+      document.documentElement.classList.remove("boot-lock");
+      return;
+    }
+
     const curtain = document.getElementById("bootCurtain");
     if (!curtain || curtain.classList.contains("done")) return;
 
@@ -78,7 +111,10 @@ export function MotionSystem() {
         curtain.classList.add("done");
         document.documentElement.classList.remove("boot-lock");
       }, 620);
-      return () => window.clearTimeout(t);
+      return () => {
+        window.clearTimeout(t);
+        document.documentElement.classList.remove("boot-lock");
+      };
     }
 
     // The real boot already happened elsewhere in this tab -- complete
