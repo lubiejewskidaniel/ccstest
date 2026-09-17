@@ -5,7 +5,13 @@ import { checkBudget, estimateCostUsd } from "./costGuard";
 import { recordAiOperationEvent } from "../events/aiOperationEventWriter";
 import { slugify } from "@/lib/slugify";
 import { articleBodySchema, assignHeadingIds, type ContentBlock } from "@/features/insights/types/blocks";
+import type { Locale } from "@/lib/routes";
 import type { AiCompletionResult, StageResult, TextAiOperationOptions } from "../types/contentAi";
+
+/** Same locale-name mapping `localisation/localise.ts` uses for its own
+ * target-language instruction -- kept in sync rather than duplicated with
+ * different wording. */
+const LOCALE_NAME: Record<Locale, string> = { en: "English", pl: "Polish" };
 
 const SYSTEM_PROMPT = `You are a senior software engineer writing for a code consulting studio's engineering blog. Voice: calm, technical, honest, no hype, no invented statistics, no fake case studies, no fabricated quotes or named sources. If something would need a citation, describe it generally instead of inventing a specific number or source. Write like you're explaining it to a competent client, not writing SEO filler.
 
@@ -31,8 +37,10 @@ Rules:
 - Include at least 2 "heading" blocks (level 2) to structure the article.
 - Never fabricate specific statistics, percentages, named clients, or quotes attributed to real people.`;
 
-function buildPrompt(topic: string, researchNotes: string | null, categoryName: string, keyPoints: string | null): string {
+function buildPrompt(locale: Locale, topic: string, researchNotes: string | null, categoryName: string, keyPoints: string | null): string {
+	const languageName = LOCALE_NAME[locale];
 	return [
+		`Write the entire article in natural, idiomatic ${languageName}. This is the brief's own primary language and is the language the article must be published in -- write in ${languageName} regardless of what language the topic, notes, or category below happen to be written in.`,
 		`Topic: ${topic}`,
 		`Content pillar / category: ${categoryName}`,
 		keyPoints ? `Editor's starting notes:\n${keyPoints}` : null,
@@ -102,8 +110,13 @@ export async function runGeneration(briefId: string, categoryName: string, optio
 		try {
 			result = await provider.complete({
 				system: SYSTEM_PROMPT,
-				prompt: buildPrompt(brief.topic, brief.researchNotes, categoryName, brief.keyPoints),
-				maxTokens: 4000,
+				prompt: buildPrompt(brief.primaryLocale, brief.topic, brief.researchNotes, categoryName, brief.keyPoints),
+				// AnthropicProvider.ts sends Math.min(this, CONTENT_AI_MAX_OUTPUT_TOKENS),
+				// so a low request-level value here silently wastes whatever
+				// headroom the operator configures via the env var. 6000 gives a
+				// full 6-20 block article (native Polish especially -- it tokenizes
+				// less efficiently than English) realistic room to finish.
+				maxTokens: 6000,
 			});
 		} catch (err) {
 			// Best-effort observability only -- never masks the real

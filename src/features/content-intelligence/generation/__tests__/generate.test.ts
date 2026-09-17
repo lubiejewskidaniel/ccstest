@@ -185,12 +185,66 @@ describe("max_tokens truncation", () => {
 		if (!result.ok) expect(result.message).toBe("Model response was not valid JSON.");
 	});
 
-	it("requests the new 4000 output token limit from the provider", async () => {
+	it("requests the new 6000 output token limit from the provider, matching CONTENT_AI_MAX_OUTPUT_TOKENS's ceiling", async () => {
 		mockComplete.mockResolvedValue({ text: VALID_MODEL_JSON, inputTokens: 10, outputTokens: 10 });
 
 		await runGeneration(BRIEF_ID, "Engineering");
 
-		expect(mockComplete.mock.calls[0]?.[0]).toMatchObject({ maxTokens: 4000 });
+		expect(mockComplete.mock.calls[0]?.[0]).toMatchObject({ maxTokens: 6000 });
+	});
+
+	it("a response truncated at the (now higher) max_tokens limit still fails cleanly rather than being parsed or promoted", async () => {
+		mockComplete.mockResolvedValue({
+			text: '{"title": "Cut off partway thro',
+			inputTokens: 500,
+			outputTokens: 6000,
+			stopReason: "max_tokens",
+		});
+
+		const result = await runGeneration(BRIEF_ID, "Engineering");
+
+		expect(result.ok).toBe(false);
+		if (!result.ok) expect(result.message).toBe("Model response was truncated because the output token limit was reached.");
+		expect(mockUpdateBriefRow).not.toHaveBeenCalledWith(BRIEF_ID, expect.objectContaining({ status: "generated" }));
+	});
+});
+
+describe("locale-aware generation language", () => {
+	it("instructs the model to write in natural Polish when the brief's primary locale is pl", async () => {
+		mockGetBrief.mockResolvedValue({ ...BRIEF, primaryLocale: "pl" });
+		mockComplete.mockResolvedValue({ text: VALID_MODEL_JSON, inputTokens: 10, outputTokens: 10 });
+
+		await runGeneration(BRIEF_ID, "Engineering");
+
+		const prompt = mockComplete.mock.calls[0]?.[0]?.prompt as string;
+		expect(prompt).toMatch(/Write the entire article in natural, idiomatic Polish\b/);
+		expect(prompt).not.toMatch(/natural, idiomatic English/);
+	});
+
+	it("instructs the model to write in natural English when the brief's primary locale is en", async () => {
+		mockGetBrief.mockResolvedValue({ ...BRIEF, primaryLocale: "en" });
+		mockComplete.mockResolvedValue({ text: VALID_MODEL_JSON, inputTokens: 10, outputTokens: 10 });
+
+		await runGeneration(BRIEF_ID, "Engineering");
+
+		const prompt = mockComplete.mock.calls[0]?.[0]?.prompt as string;
+		expect(prompt).toMatch(/Write the entire article in natural, idiomatic English\b/);
+		expect(prompt).not.toMatch(/natural, idiomatic Polish/);
+	});
+
+	it("the language instruction is driven by primaryLocale alone, not by the language of researchNotes/keyPoints/category", async () => {
+		mockGetBrief.mockResolvedValue({
+			...BRIEF,
+			primaryLocale: "pl",
+			keyPoints: "Please cover the main points in detail.",
+			researchNotes: "This research brief is written entirely in English prose.",
+		});
+		mockComplete.mockResolvedValue({ text: VALID_MODEL_JSON, inputTokens: 10, outputTokens: 10 });
+
+		await runGeneration(BRIEF_ID, "English-titled category");
+
+		const prompt = mockComplete.mock.calls[0]?.[0]?.prompt as string;
+		expect(prompt).toMatch(/Write the entire article in natural, idiomatic Polish\b/);
 	});
 });
 
