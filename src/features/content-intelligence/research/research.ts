@@ -3,15 +3,22 @@ import { getBrief, updateBriefRow } from "../briefs/service";
 import { createAnthropicProvider } from "../generation/AnthropicProvider";
 import { checkBudget, estimateCostUsd } from "../generation/costGuard";
 import { recordAiOperationEvent } from "../events/aiOperationEventWriter";
+import type { Locale } from "@/lib/routes";
 import type { AiCompletionResult, StageResult, TextAiOperationOptions } from "../types/contentAi";
 
 export type { StageResult };
 
+/** Same locale-name mapping `generation/generate.ts` uses for its own
+ * primary-language instruction -- kept local rather than shared, matching
+ * generate.ts's own precedent. */
+const LOCALE_NAME: Record<Locale, string> = { en: "English", pl: "Polish" };
 
 const SYSTEM_PROMPT = `You are a research assistant for a software consulting studio's engineering blog. You produce a short, honest research brief — an outline and a list of concrete angles/points to cover — for a human editor and an AI writer to use. You never invent statistics, case studies, named sources, or quotes. When you don't have verified facts, say so and suggest what a human should verify before publishing, rather than fabricating something plausible-sounding.`;
 
-function buildPrompt(topic: string, keyPoints: string | null, category: string): string {
+function buildPrompt(locale: Locale, topic: string, keyPoints: string | null, category: string): string {
+	const languageName = LOCALE_NAME[locale];
 	return [
+		`Write these research notes in natural, idiomatic ${languageName}. This is the brief's own primary language -- write in ${languageName} regardless of what language the topic, notes, or category below happen to be written in.`,
 		`Topic: ${topic}`,
 		`Content pillar / category: ${category}`,
 		keyPoints ? `Editor's starting notes:\n${keyPoints}` : null,
@@ -66,7 +73,7 @@ export async function runResearch(briefId: string, categoryName: string, options
 		try {
 			result = await provider.complete({
 				system: SYSTEM_PROMPT,
-				prompt: buildPrompt(brief.topic, brief.keyPoints, categoryName),
+				prompt: buildPrompt(brief.primaryLocale, brief.topic, brief.keyPoints, categoryName),
 				maxTokens: 800,
 			});
 		} catch (err) {

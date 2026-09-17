@@ -9,7 +9,12 @@ export const createBriefSchema = z.object({
 	primaryLocale: z.enum(["en", "pl"]),
 	categoryId: z.string().uuid(),
 	topic: z.string().trim().min(3, "Topic must be at least 3 characters.").max(200, "Topic is too long."),
-	keyPoints: z.string().trim().max(4000).optional().transform((v) => v || null),
+	keyPoints: z
+		.string()
+		.trim()
+		.max(4000, "Starting notes must be 4000 characters or fewer.")
+		.optional()
+		.transform((v) => v || null),
 });
 
 export type CreateBriefInput = z.infer<typeof createBriefSchema>;

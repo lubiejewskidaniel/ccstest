@@ -283,6 +283,54 @@ describe("16/19/20. no pricing, automation, or privileged client introduced", ()
 	});
 });
 
+describe("locale-aware research language", () => {
+	it("instructs the model to write research notes in natural Polish when the brief's primary locale is pl", async () => {
+		mockGetBrief.mockResolvedValue({ ...BRIEF, primaryLocale: "pl" });
+		mockComplete.mockResolvedValue({ text: "notes", inputTokens: 10, outputTokens: 10 });
+
+		await runResearch(BRIEF_ID, "Engineering");
+
+		const prompt = mockComplete.mock.calls[0]?.[0]?.prompt as string;
+		expect(prompt).toMatch(/Write these research notes in natural, idiomatic Polish\b/);
+		expect(prompt).not.toMatch(/natural, idiomatic English/);
+	});
+
+	it("instructs the model to write research notes in natural English when the brief's primary locale is en", async () => {
+		mockGetBrief.mockResolvedValue({ ...BRIEF, primaryLocale: "en" });
+		mockComplete.mockResolvedValue({ text: "notes", inputTokens: 10, outputTokens: 10 });
+
+		await runResearch(BRIEF_ID, "Engineering");
+
+		const prompt = mockComplete.mock.calls[0]?.[0]?.prompt as string;
+		expect(prompt).toMatch(/Write these research notes in natural, idiomatic English\b/);
+		expect(prompt).not.toMatch(/natural, idiomatic Polish/);
+	});
+
+	it("the language instruction is driven by primaryLocale alone, not by the language of topic/keyPoints/category", async () => {
+		mockGetBrief.mockResolvedValue({
+			...BRIEF,
+			primaryLocale: "pl",
+			topic: "Edge caching strategies",
+			keyPoints: "Please cover the main points in detail.",
+		});
+		mockComplete.mockResolvedValue({ text: "notes", inputTokens: 10, outputTokens: 10 });
+
+		await runResearch(BRIEF_ID, "English-titled category");
+
+		const prompt = mockComplete.mock.calls[0]?.[0]?.prompt as string;
+		expect(prompt).toMatch(/Write these research notes in natural, idiomatic Polish\b/);
+	});
+
+	it("still requests maxTokens: 800, unchanged by the locale instruction", async () => {
+		mockGetBrief.mockResolvedValue({ ...BRIEF, primaryLocale: "pl" });
+		mockComplete.mockResolvedValue({ text: "notes", inputTokens: 10, outputTokens: 10 });
+
+		await runResearch(BRIEF_ID, "Engineering");
+
+		expect(mockComplete.mock.calls[0]?.[0]).toMatchObject({ maxTokens: 800 });
+	});
+});
+
 describe("18. no visual-generation file is modified", () => {
 	it("visual generation files do not reference the text-pipeline event options or writer", () => {
 		const visualFiles = [

@@ -1,13 +1,21 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 import { createBriefAction } from "@/lib/actions/contentIntelligence";
 import type { BriefResult } from "./service";
 import type { Category } from "@/features/insights/types/article";
 
 const idle: BriefResult = { ok: false, kind: "validation", fieldErrors: {} };
+
+/** Mirrors createBriefSchema's own keyPoints.max(4000, ...) limit -- kept
+ * as a plain number here rather than imported, since the schema lives in
+ * a server-only module tree and this is a client component; the message
+ * text is duplicated deliberately so a client-side over-limit and the
+ * server's own fieldErrors.keyPoints message read identically to the
+ * user (see keyPointsError below, which shows at most one of them). */
+const KEY_POINTS_LIMIT = 4000;
+const KEY_POINTS_OVER_LIMIT_MESSAGE = "Starting notes must be 4000 characters or fewer.";
 
 export function CreateBriefForm({
 	categories,
@@ -28,6 +36,7 @@ export function CreateBriefForm({
 }) {
 	const [state, formAction, pending] = useActionState(createBriefAction, idle);
 	const router = useRouter();
+	const [keyPoints, setKeyPoints] = useState(defaultKeyPoints ?? "");
 
 	useEffect(() => {
 		if (state.ok) router.push(`/admin/insights/briefs/${state.id}`);
@@ -35,6 +44,16 @@ export function CreateBriefForm({
 
 	const fieldError = (name: string) => (!state.ok && state.kind === "validation" ? state.fieldErrors[name] : undefined);
 	const generalError = !state.ok && state.kind !== "validation" ? state.message : undefined;
+
+	// A prefilled defaultKeyPoints (e.g. a Market Opportunity handoff query
+	// param) can already exceed the limit before the user types anything --
+	// maxLength on the textarea only stops further typing, it can't clamp
+	// an initial value, so the over-limit state has to be tracked here too.
+	const keyPointsOverLimit = keyPoints.length > KEY_POINTS_LIMIT;
+	// At most one of these is ever shown -- an over-limit textarea can't
+	// also have been submitted to the server, and once fieldErrors.keyPoints
+	// exists the value is back under the client's own maxLength.
+	const keyPointsError = keyPointsOverLimit ? KEY_POINTS_OVER_LIMIT_MESSAGE : fieldError("keyPoints");
 
 	return (
 		<form action={formAction} className="field-row" style={{ display: "block", maxWidth: 640 }} noValidate>
@@ -80,12 +99,24 @@ export function CreateBriefForm({
 					id="keyPoints"
 					name="keyPoints"
 					rows={4}
-					defaultValue={defaultKeyPoints}
+					value={keyPoints}
+					onChange={(e) => setKeyPoints(e.target.value)}
+					maxLength={KEY_POINTS_LIMIT}
 					placeholder="Anything the article should definitely cover, an angle to take, etc."
+					aria-invalid={keyPointsError ? true : undefined}
+					aria-describedby={keyPointsError ? "keyPoints-count keyPoints-error" : "keyPoints-count"}
 				/>
+				<span id="keyPoints-count" className={`char-count ${keyPointsOverLimit ? "char-count-over" : ""}`}>
+					{keyPoints.length} / {KEY_POINTS_LIMIT}
+				</span>
+				{keyPointsError ? (
+					<span id="keyPoints-error" className="field-error">
+						{keyPointsError}
+					</span>
+				) : null}
 			</div>
 
-			<button type="submit" className="btn btn-primary form-submit" disabled={pending}>
+			<button type="submit" className="btn btn-primary form-submit" disabled={pending || keyPointsOverLimit}>
 				{pending ? "Creating…" : "Create brief"}
 			</button>
 		</form>
