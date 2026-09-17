@@ -10,11 +10,19 @@ import { ArticleVisualReviewPanel } from "@/features/content-intelligence/visual
 import { updateArticleAction } from "@/lib/actions/insightsCms";
 
 type Params = { id: string };
+type SearchParams = { refreshCandidate?: string };
 
 export const metadata: Metadata = { title: "Edit article" };
 
-export default async function EditArticlePage({ params }: { params: Promise<Params> }) {
+export default async function EditArticlePage({
+	params,
+	searchParams,
+}: {
+	params: Promise<Params>;
+	searchParams: Promise<SearchParams>;
+}) {
 	const { id } = await params;
+	const { refreshCandidate } = await searchParams;
 	const [article, session] = await Promise.all([getArticleForAdmin(id), getAdminSession()]);
 	if (!article) notFound();
 
@@ -55,6 +63,7 @@ export default async function EditArticlePage({ params }: { params: Promise<Para
 				categories={categories}
 				tags={tags}
 				translationCandidates={translationCandidates}
+				refreshIntent={refreshCandidate === "1"}
 			/>
 		</div>
 	);

@@ -1,7 +1,9 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { listArticlesForAdmin, getTopArticles, getCtaClickCounts } from "@/features/insights/cms/queries";
+import { listArticlesForAdmin, getTopArticles, getCtaClickCounts, type PerformanceWindow } from "@/features/insights/cms/queries";
 import { matchArticleUrl } from "./matchArticleUrl";
 import type { Locale } from "@/lib/routes";
+
+export type { PerformanceWindow };
 
 export type ArticlePerformanceRow = {
 	articleId: string;
@@ -29,24 +31,39 @@ export type ArticlePerformanceRow = {
  * `insights_cta_click_counts` RPCs). Only the search-performance join
  * (`search_performance_metrics` → article, via `matchArticleUrl`) is new
  * — everything else is composition, not duplication.
+ *
+ * `window`, when given, replaces the default trailing-from-now behaviour
+ * with an explicit `[start, end)` range — used by refresh evaluation so a
+ * baseline/after comparison is anchored to the refresh date, not to
+ * whenever the comparison happens to run (see
+ * `content-intelligence/refresh/refreshLog.ts`). Every other caller keeps
+ * calling this with just `daysBack`, unaffected.
  */
-export async function getArticlePerformance(daysBack = 30): Promise<ArticlePerformanceRow[]> {
+export async function getArticlePerformance(daysBack = 30, window?: PerformanceWindow): Promise<ArticlePerformanceRow[]> {
 	const supabase = await createSupabaseServerClient();
 	if (!supabase) return [];
 
 	const [articles, viewRows, ctaRows] = await Promise.all([
 		listArticlesForAdmin({ status: "published" }),
-		getTopArticles(daysBack, 500),
-		getCtaClickCounts(daysBack),
+		getTopArticles(daysBack, 500, window),
+		getCtaClickCounts(daysBack, window),
 	]);
 
 	if (articles.length === 0) return [];
 
-	const cutoff = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-	const { data: searchRows } = await supabase
-		.from("search_performance_metrics")
-		.select("page_url, impressions, clicks, avg_position")
-		.gte("metric_date", cutoff);
+	// search_performance_metrics is daily data (metric_date, not a
+	// timestamp) -- window.start/end get truncated to a calendar date
+	// here, unlike the first-party side above which keeps full precision.
+	let searchQuery = supabase.from("search_performance_metrics").select("page_url, impressions, clicks, avg_position");
+	if (window) {
+		searchQuery = searchQuery
+			.gte("metric_date", window.start.toISOString().slice(0, 10))
+			.lt("metric_date", window.end.toISOString().slice(0, 10));
+	} else {
+		const cutoff = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+		searchQuery = searchQuery.gte("metric_date", cutoff);
+	}
+	const { data: searchRows } = await searchQuery;
 
 	const viewsByKey = new Map<string, number>();
 	for (const row of viewRows) viewsByKey.set(`${row.locale}:${row.slug}`, row.viewCount);

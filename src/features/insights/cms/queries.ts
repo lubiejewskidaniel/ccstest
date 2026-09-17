@@ -59,6 +59,13 @@ export async function getArticleForAdmin(id: string): Promise<Article | null> {
 export type TopArticleRow = { slug: string; locale: string; viewCount: number };
 export type CtaClickRow = { slug: string; ctaLocation: string; clickCount: number };
 
+/** An explicit, reproducible window -- as opposed to the default
+ * trailing-from-now behaviour both RPCs still have when this is omitted.
+ * Used by refresh evaluation (`content-intelligence/refresh/refreshLog.ts`)
+ * so a baseline/after comparison gives the same result no matter when
+ * it's actually run. See `supabase/migrations/016_refresh_intelligence.sql`. */
+export type PerformanceWindow = { start: Date; end: Date };
+
 /** Reads the `insights_top_articles` SECURITY DEFINER RPC
  * (`supabase/migrations/004_analytics_events.sql`) — the function itself
  * re-checks `is_active_editor_or_admin()` before returning anything, so
@@ -66,22 +73,30 @@ export type CtaClickRow = { slug: string; ctaLocation: string; clickCount: numbe
  * than needing a privileged one. Returns an empty array (never throws)
  * when Supabase isn't configured or the caller isn't authorized, same
  * safe-degradation pattern as every other read in this app. */
-export async function getTopArticles(daysBack = 30, limit = 10): Promise<TopArticleRow[]> {
+export async function getTopArticles(daysBack = 30, limit = 10, window?: PerformanceWindow): Promise<TopArticleRow[]> {
 	const supabase = await createSupabaseServerClient();
 	if (!supabase) return [];
 
-	const { data, error } = await supabase.rpc("insights_top_articles", { days_back: daysBack, result_limit: limit });
+	const { data, error } = await supabase.rpc(
+		"insights_top_articles",
+		window
+			? { days_back: daysBack, result_limit: limit, start_at: window.start.toISOString(), end_at: window.end.toISOString() }
+			: { days_back: daysBack, result_limit: limit },
+	);
 	if (error || !data) return [];
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return (data as any[]).map((row) => ({ slug: row.slug, locale: row.locale, viewCount: Number(row.view_count) }));
 }
 
-export async function getCtaClickCounts(daysBack = 30): Promise<CtaClickRow[]> {
+export async function getCtaClickCounts(daysBack = 30, window?: PerformanceWindow): Promise<CtaClickRow[]> {
 	const supabase = await createSupabaseServerClient();
 	if (!supabase) return [];
 
-	const { data, error } = await supabase.rpc("insights_cta_click_counts", { days_back: daysBack });
+	const { data, error } = await supabase.rpc(
+		"insights_cta_click_counts",
+		window ? { days_back: daysBack, start_at: window.start.toISOString(), end_at: window.end.toISOString() } : { days_back: daysBack },
+	);
 	if (error || !data) return [];
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -3,9 +3,11 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createArticle, updateArticle, transitionArticleStatus, deleteArticle } from "@/features/insights/cms/service";
+import { getArticleForAdmin } from "@/features/insights/cms/queries";
 import { approveArticleVisual } from "@/features/content-intelligence/visuals/articleVisualReviewService";
 import { generateArticleVisualCandidate } from "@/features/content-intelligence/visuals/articleVisualGenerationService";
 import { deleteArticleVisual } from "@/features/content-intelligence/visuals/articleVisualDeletionService";
+import { recordRefreshIfEligible } from "@/features/content-intelligence/refresh/refreshLog";
 import { routes } from "@/lib/routes";
 import { articlePath } from "@/features/insights/seo/paths";
 
@@ -90,11 +92,28 @@ export async function updateArticleAction(
 	const body = parseBodyJson(formData.get("bodyJson"));
 	if ("error" in body) return { status: "error", fieldErrors: { body: body.error } };
 
+	// "refreshIntent" is only ever an intent flag -- a normal edit never
+	// sets it. When present, the article's updated_at is read here, before
+	// the write below, so article_updated_at_before is genuinely the
+	// pre-refresh value rather than whatever updateArticle just set it to.
+	const isRefreshSave = formData.get("refreshIntent") === "1";
+	const articleBeforeSave = isRefreshSave ? await getArticleForAdmin(id) : null;
+
 	const result = await updateArticle(id, articleInputFromFormData(formData, body.value));
 
 	if (!result.ok) {
 		if (result.kind === "validation") return { status: "error", fieldErrors: result.fieldErrors };
 		return { status: "error", message: result.message };
+	}
+
+	// A failed save above never reaches this line. triggeredAt is captured
+	// right here, immediately after the save succeeds -- the closest this
+	// action gets to "the save boundary" without updateArticle itself
+	// returning the row's new updated_at. Everything actually persisted
+	// (reasons, baseline numbers) is re-derived server-side inside
+	// recordRefreshIfEligible, never taken from this form.
+	if (isRefreshSave && articleBeforeSave) {
+		await recordRefreshIfEligible(id, { triggeredAt: new Date(), articleUpdatedAtBefore: articleBeforeSave.updatedAt });
 	}
 
 	const locale = String(formData.get("locale")) as "en" | "pl";

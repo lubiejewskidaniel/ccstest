@@ -20,11 +20,17 @@ export function ArticleEditorForm({
 	categories,
 	tags,
 	translationCandidates,
+	refreshIntent,
 }: {
 	mode: Mode;
 	categories: Category[];
 	tags: Tag[];
 	translationCandidates: TranslationCandidate[];
+	/** Set when this edit was opened from the refresh workflow
+	 * (/admin/insights/refresh) — a save from here may create a refresh
+	 * measurement episode (src/lib/actions/insightsCms.ts). Opening the
+	 * form alone never does. */
+	refreshIntent?: boolean;
 }) {
 	const [state, formAction, pending] = useActionState(mode.action, idle);
 	const article = mode.kind === "edit" ? mode.article : null;
@@ -218,6 +224,7 @@ export function ArticleEditorForm({
 					    AI-promoted article's "ai_generated"/"ai_assisted" source
 					    back to "human" on its very first human edit. */}
 					<input type="hidden" name="source" value={article?.source} />
+					{refreshIntent ? <input type="hidden" name="refreshIntent" value="1" /> : null}
 				</>
 			)}
 
