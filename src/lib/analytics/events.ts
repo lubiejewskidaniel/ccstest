@@ -65,6 +65,9 @@ export const events = {
   insightsSearch: (query: string, resultCount: number, context: EventContext) =>
     send("insights_search", context, { query, result_count: resultCount }),
 
+  articleShare: (slug: string, channel: "linkedin" | "facebook" | "x" | "copy", context: EventContext) =>
+    send("article_share", context, { slug, channel }),
+
   externalLinkClick: (href: string, context: EventContext) => send("external_link_click", context, { href }),
   languageSwitch: (from: "en" | "pl", to: "en" | "pl", context: EventContext) =>
     send("language_switch", context, { from_locale: from, to_locale: to }),

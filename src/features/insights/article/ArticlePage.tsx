@@ -2,9 +2,11 @@ import type { Article } from "../types/article";
 import type { Locale } from "@/lib/routes";
 import { routes } from "@/lib/routes";
 import { extractHeadings } from "../types/blocks";
+import { articleUrl } from "../seo/paths";
 import { ArticleHero } from "../components/ArticleHero";
 import { ArticleToc } from "../components/ArticleToc";
 import { TagList } from "../components/TagList";
+import { ArticleShare } from "../components/ArticleShare";
 import { ArticleViewTracker } from "../components/ArticleViewTracker";
 import { ReadProgressTracker } from "../components/ReadProgressTracker";
 import { ArticleCtaLink } from "../components/ArticleCtaLink";
@@ -71,6 +73,8 @@ export function ArticlePage({
 						</footer>
 					</article>
 				</div>
+
+				<ArticleShare slug={article.slug} locale={locale} url={articleUrl(article.slug, locale)} />
 
 				<section className={styles.cta}>
 					<div className={styles.ctaInner}>

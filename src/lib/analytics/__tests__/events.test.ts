@@ -61,6 +61,22 @@ describe("events taxonomy", () => {
     });
   });
 
+  it("articleShare attaches slug and channel, under the name article_share", () => {
+    events.articleShare("how-we-cut-build-times-in-half", "linkedin", ctx);
+    expect(mockDispatchEvent).toHaveBeenCalledWith({
+      name: "article_share",
+      properties: { ...ctx, slug: "how-we-cut-build-times-in-half", channel: "linkedin" },
+    });
+  });
+
+  it.each(["linkedin", "facebook", "x", "copy"] as const)("articleShare accepts channel %j", (channel) => {
+    events.articleShare("some-article", channel, ctx);
+    expect(mockDispatchEvent).toHaveBeenCalledWith({
+      name: "article_share",
+      properties: { ...ctx, slug: "some-article", channel },
+    });
+  });
+
   it("externalLinkClick attaches the outbound href", () => {
     events.externalLinkClick("https://github.com/example", ctx);
     expect(mockDispatchEvent).toHaveBeenCalledWith({

@@ -78,3 +78,37 @@
 		order: 2;
 	}
 }
+
+/* Wide desktop: the reading column becomes the page's own centred axis
+   (matching --insights-content-width, the same measure ArticleHero and
+   the image/callout/code blocks already use), and the TOC detaches into
+   the right margin instead of sharing a centred box with the content --
+   see ArticlePage.tsx's own module doc comment for why min-width:900px
+   above only ever centred the CONTENT+TOC pair as a unit, not the
+   reading column itself.
+
+   1440px (not an arbitrary guess -- it matches --edge, this site's own
+   "full design width" constant) is the point at which a 780px-wide
+   centred column leaves enough room on each side for a 220px TOC plus
+   its 40px gap without ever overlapping or overflowing .body's own
+   padded edge, worked out against --pad's real clamp() range. Below
+   this, the existing min-width:900px two-column arrangement above is
+   left completely unchanged -- narrower desktop widths cannot guarantee
+   both a perfectly centred column AND a non-overlapping fixed-width TOC
+   at the same time, so the already-shipped, working layout stays rather
+   than risking overlap or an unpredictably shrunk TOC. */
+@media (min-width: 1440px) {
+	.grid {
+		display: block;
+		position: relative;
+		max-width: var(--insights-content-width, 780px);
+	}
+
+	.sidebar {
+		position: absolute;
+		top: 0;
+		left: 100%;
+		width: 220px;
+		margin-left: 40px;
+	}
+}
