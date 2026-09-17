@@ -583,6 +583,15 @@ at a time.
   request body size limit) both only ever create a new `pending_review`
   candidate. Neither approves, supersedes or replaces the article's live
   cover.
+- **Prompt relevance and diversity.** `ArticleVisualBrief` carries both
+  `subject` (title) and `coreIdea` (excerpt), both trimmed passthroughs,
+  never paraphrased or inferred - the model derives the actual visual
+  concept from that real content, not from the title alone. Composition
+  and lighting/atmosphere are chosen deterministically (a small string
+  hash over `subject`+`coreIdea`, no external call) from curated pools,
+  so different articles vary in presentation without ever hashing the
+  visual metaphor itself. Category direction remains a secondary,
+  subordinate stylistic cue only.
 - **Review and approval** (`visuals/articleVisualReviewService.ts`) call
   a single Postgres function, `approve_article_visual`, which supersedes
   the article's previous approved candidate, marks the selected one

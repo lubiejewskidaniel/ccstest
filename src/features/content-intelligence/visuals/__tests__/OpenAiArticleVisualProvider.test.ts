@@ -13,6 +13,7 @@ const { createOpenAiArticleVisualProvider } = await import("../OpenAiArticleVisu
 
 const BASE_BRIEF: ArticleVisualBrief = {
 	subject: "How We Cut Build Times in Half",
+	coreIdea: "A practical walkthrough of the caching and pipeline changes that halved our CI build times.",
 	categoryKey: "build",
 	locale: "en",
 	requiredElements: [],
@@ -118,6 +119,27 @@ describe("createOpenAiArticleVisualProvider", () => {
 		expect(requestBody.prompt).toContain(BASE_BRIEF.subject);
 	});
 
+	// 8b. the excerpt-derived core idea reaches the prompt too, giving the
+	// model real content to work from rather than only the title.
+	it("8b. includes the brief's coreIdea in the generated prompt", async () => {
+		const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => jsonResponse({ data: [{ b64_json: pngBase64() }], size: "1600x896", output_format: "png" }));
+		vi.stubGlobal("fetch", fetchMock);
+		await createOpenAiArticleVisualProvider().generate(BASE_BRIEF, OPTIONS);
+		const requestBody = JSON.parse((fetchMock.mock.calls[0]![1] as RequestInit).body as string);
+		expect(requestBody.prompt).toContain(BASE_BRIEF.coreIdea);
+	});
+
+	// 8c. the prompt still never carries a raw article body or seoDescription --
+	// ArticleVisualBrief has no such fields, so there is nothing to leak, but
+	// this proves it at the actual request-body level, not just the type level.
+	it("8c. never contains article body or seoDescription text (no such field exists on the brief)", async () => {
+		const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => jsonResponse({ data: [{ b64_json: pngBase64() }], size: "1600x896", output_format: "png" }));
+		vi.stubGlobal("fetch", fetchMock);
+		await createOpenAiArticleVisualProvider().generate(BASE_BRIEF, OPTIONS);
+		const requestBody = JSON.parse((fetchMock.mock.calls[0]![1] as RequestInit).body as string);
+		expect(requestBody.prompt).not.toMatch(/seoDescription|\bbody\b/i);
+	});
+
 	// 9-12. each category demonstrably influences the instruction
 	const categories = ["build", "grow", "learn", "studio"] as const;
 	const categoryKeywords: Record<(typeof categories)[number], string> = {
@@ -144,6 +166,34 @@ describe("createOpenAiArticleVisualProvider", () => {
 		const requestBody = JSON.parse((fetchMock.mock.calls[0]![1] as RequestInit).body as string);
 		expect(requestBody.prompt).toContain("fabricated UI screenshots");
 		expect(requestBody.prompt).toContain("real logos or trademarks");
+	});
+
+	// 13b. expanded negative constraints (diversity/relevance correction) --
+	// every original restriction plus every newly named cliche is present.
+	it("13b. includes every original and newly expanded negative constraint", async () => {
+		const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => jsonResponse({ data: [{ b64_json: pngBase64() }], size: "1600x896", output_format: "png" }));
+		vi.stubGlobal("fetch", fetchMock);
+		await createOpenAiArticleVisualProvider().generate(BASE_BRIEF, OPTIONS);
+		const requestBody = JSON.parse((fetchMock.mock.calls[0]![1] as RequestInit).body as string);
+		const prompt = requestBody.prompt as string;
+
+		// Original restrictions, kept.
+		expect(prompt).toContain("smiling office teams");
+		expect(prompt).toContain("handshakes");
+		expect(prompt).toContain("generic stock-photo desks");
+		expect(prompt).toContain("floating random code characters");
+		expect(prompt).toContain("fake software dashboards");
+		expect(prompt).toContain("neon cyberpunk cliches");
+		expect(prompt).toContain("excessive literal AI/robot imagery");
+
+		// Newly named cliches.
+		expect(prompt).toContain("generic futuristic buildings or city skylines");
+		expect(prompt).toContain("glowing brains");
+		expect(prompt).toMatch(/humanoid robots unless directly relevant/);
+		expect(prompt).toContain("hands touching holograms");
+		expect(prompt).toContain("generic circuit boards");
+		expect(prompt).toContain("meaningless floating UI");
+		expect(prompt).toMatch(/blue-and-gold technology colour scheme/);
 	});
 
 	// 14. no article/body dependency (structural: no import of the raw Article
@@ -335,6 +385,78 @@ describe("createOpenAiArticleVisualProvider", () => {
 		await provider.generate(BASE_BRIEF, OPTIONS);
 		await provider.generate(BASE_BRIEF, OPTIONS);
 		expect((fetchMock.mock.calls[0]![1] as RequestInit).body).toBe((fetchMock.mock.calls[1]![1] as RequestInit).body);
+	});
+
+	describe("controlled variation (composition/atmosphere, diversity/relevance correction)", () => {
+		async function promptFor(brief: ArticleVisualBrief): Promise<string> {
+			const fetchMock = vi.fn(async (_url: string, _init: RequestInit) => jsonResponse({ data: [{ b64_json: pngBase64() }], size: "1600x896", output_format: "png" }));
+			vi.stubGlobal("fetch", fetchMock);
+			await createOpenAiArticleVisualProvider().generate(brief, OPTIONS);
+			const requestBody = JSON.parse((fetchMock.mock.calls[0]![1] as RequestInit).body as string);
+			vi.unstubAllGlobals();
+			return requestBody.prompt as string;
+		}
+
+		it("the same subject and coreIdea always produce the same composition/atmosphere direction", async () => {
+			const first = await promptFor(BASE_BRIEF);
+			const second = await promptFor(BASE_BRIEF);
+			expect(first).toBe(second);
+		});
+
+		it("different article subjects/core ideas can produce different presentation directions", async () => {
+			const articles = [
+				{ subject: "How We Cut Build Times in Half", coreIdea: "A practical walkthrough of caching and pipeline changes." },
+				{ subject: "Why Client Feedback Loops Break Down", coreIdea: "What goes wrong when feedback arrives too late to act on." },
+				{ subject: "Choosing a Database for a Growing Product", coreIdea: "Trade-offs between consistency, cost and operational effort." },
+				{ subject: "Onboarding Engineers Without Losing Momentum", coreIdea: "A structured first-month plan that keeps output high." },
+				{ subject: "Refactoring a Decade of Legacy Billing Code", coreIdea: "How we untangled a critical system without breaking it." },
+			];
+
+			const prompts = await Promise.all(
+				articles.map((a) => promptFor({ ...BASE_BRIEF, subject: a.subject, coreIdea: a.coreIdea })),
+			);
+
+			// Extract just the "Controlled variation" sentence so this test
+			// checks presentation direction specifically, not incidental
+			// differences from the subject/coreIdea text itself.
+			const variationSentences = prompts.map((p) => p.match(/Controlled variation, presentation only:[^.]*\.[^.]*\./)?.[0] ?? "");
+			const distinctVariations = new Set(variationSentences);
+			expect(distinctVariations.size).toBeGreaterThan(1);
+		});
+
+		it("composition/atmosphere do not depend on categoryKey -- only on subject and coreIdea", async () => {
+			const prompts = await Promise.all(
+				(["build", "grow", "learn", "studio"] as const).map((categoryKey) => promptFor({ ...BASE_BRIEF, categoryKey })),
+			);
+			const variationSentences = prompts.map((p) => p.match(/Controlled variation, presentation only:[^.]*\.[^.]*\./)?.[0] ?? "");
+			expect(new Set(variationSentences).size).toBe(1);
+		});
+
+		it("the chosen composition and atmosphere phrases actually appear in the prompt", async () => {
+			const prompt = await promptFor(BASE_BRIEF);
+			expect(prompt).toMatch(/Controlled variation, presentation only: composition -- .+\. Atmosphere -- .+\./);
+		});
+
+		it("uses no Math.random, Date.now, or external call to choose the variation (structural)", async () => {
+			const { readFileSync } = await import("node:fs");
+			const { resolve } = await import("node:path");
+			const source = readFileSync(resolve(process.cwd(), "src/features/content-intelligence/visuals/OpenAiArticleVisualProvider.ts"), "utf8");
+			const stripped = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+			expect(stripped).not.toMatch(/Math\.random/);
+			expect(stripped).not.toMatch(/Date\.now/);
+		});
+
+		it("the semantic metaphor is never hash-selected -- stableHash only feeds the composition/atmosphere pools, never CATEGORY_DIRECTION or the subject/coreIdea text (structural)", async () => {
+			const { readFileSync } = await import("node:fs");
+			const { resolve } = await import("node:path");
+			const source = readFileSync(resolve(process.cwd(), "src/features/content-intelligence/visuals/OpenAiArticleVisualProvider.ts"), "utf8");
+			const stripped = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+			const pickFromPoolCalls = stripped.match(/pickFromPool\([A-Za-z_]+,/g) ?? [];
+			expect(pickFromPoolCalls.length).toBe(2);
+			for (const call of pickFromPoolCalls) {
+				expect(call).toMatch(/pickFromPool\((COMPOSITION_STYLES|ATMOSPHERE_STYLES),/);
+			}
+		});
 	});
 
 	// 26. provider-specific size string never leaks into core types (structural)

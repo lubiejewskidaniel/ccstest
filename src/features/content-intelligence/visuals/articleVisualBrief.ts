@@ -19,6 +19,11 @@ import type { CategoryKey } from "@/features/insights/types/article";
  * semantic interpretation belongs to a later provider/adapter layer that
  * does not exist yet and is explicitly out of scope here.
  *
+ * `coreIdea` carries the trimmed excerpt through unchanged, alongside
+ * `subject` (the title) -- a plain passthrough, not an inference. This
+ * gives the provider adapter a real, human-written description of the
+ * article's actual content to work from, not just its title.
+ *
  * Category conceptual directions (documentation only — never encoded
  * into the returned brief, never turned into prompt/provider syntax):
  *   build  — software engineering, systems and construction.
@@ -47,6 +52,12 @@ export type ArticleVisualBrief = {
 	/** The real, already-approved article title, trimmed only — never
 	 * paraphrased, summarized, or rewritten. */
 	subject: string;
+	/** The real, already-approved article excerpt, trimmed only -- never
+	 * paraphrased, summarized, or rewritten. A concise, human-written
+	 * description of what the article is actually about, used so the
+	 * generated visual can relate to the real content rather than just
+	 * the title. */
+	coreIdea: string;
 	/** Passed through unchanged from the input. Carries no compositional
 	 * logic itself; see the module doc comment for the (documentation-
 	 * only) conceptual direction per category. */
@@ -139,6 +150,7 @@ export function buildArticleVisualBrief(input: ArticleVisualBriefInput): Article
 
 	const brief: ArticleVisualBrief = {
 		subject: title,
+		coreIdea: excerpt,
 		categoryKey: input.category.key,
 		locale: input.locale,
 		requiredElements: [],

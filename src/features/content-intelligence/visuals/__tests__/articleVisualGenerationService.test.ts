@@ -204,12 +204,13 @@ describe("generateArticleVisualCandidate", () => {
 		const [brief] = (provider.generate as ReturnType<typeof vi.fn>).mock.calls[0] as [ArticleVisualBrief, unknown];
 
 		expect(brief.subject).toBe(BASE_ARTICLE.title);
+		expect(brief.coreIdea).toBe(BASE_ARTICLE.excerpt);
 		expect(brief.categoryKey).toBe(BASE_ARTICLE.category.key);
 		expect(brief.locale).toBe(BASE_ARTICLE.locale);
 		expect(brief.altText).toContain(BASE_ARTICLE.title);
 
 		// Only the approved brief fields exist on the object passed to the provider.
-		expect(Object.keys(brief).sort()).toEqual(["altText", "avoidElements", "categoryKey", "locale", "requiredElements", "subject"]);
+		expect(Object.keys(brief).sort()).toEqual(["altText", "avoidElements", "categoryKey", "coreIdea", "locale", "requiredElements", "subject"]);
 
 		const serializedBrief = JSON.stringify(brief);
 		expect(serializedBrief).not.toContain("must never reach the image provider");

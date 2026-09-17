@@ -49,6 +49,12 @@ describe("buildArticleVisualBrief — valid inputs", () => {
 		expect(result.brief.subject).toBe("Padded Title With Spaces");
 	});
 
+	it("coreIdea is the trimmed real excerpt -- no paraphrasing, summarising, or rewriting", () => {
+		const result = buildArticleVisualBrief(validInput({ excerpt: "   A padded excerpt with plenty of characters.   " }));
+		if (!result.ok) throw new Error("expected ok:true");
+		expect(result.brief.coreIdea).toBe("A padded excerpt with plenty of characters.");
+	});
+
 	it.each(["build", "grow", "learn", "studio"] as const)("accepts and passes through categoryKey %j unchanged", (key) => {
 		const result = buildArticleVisualBrief(validInput({ category: { key, name: key } }));
 		if (!result.ok) throw new Error("expected ok:true");
@@ -216,7 +222,7 @@ describe("buildArticleVisualBrief — determinism and purity", () => {
 		const result = buildArticleVisualBrief(validInput());
 		if (!result.ok) throw new Error("expected ok:true");
 		expect(Object.keys(result.brief).sort()).toEqual(
-			["altText", "avoidElements", "categoryKey", "locale", "requiredElements", "subject"].sort()
+			["altText", "avoidElements", "categoryKey", "coreIdea", "locale", "requiredElements", "subject"].sort()
 		);
 	});
 });

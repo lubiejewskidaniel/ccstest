@@ -32,6 +32,14 @@ import type {
  * brief and options always produce the same request body, so this is
  * fully unit-testable without a network call.
  *
+ * Prompt structure (diversity/relevance correction): article context
+ * (title + core idea + category) -> editorial intent (derive the
+ * concept from that context) -> CCS visual language -> category
+ * direction (secondary only) -> controlled variation (composition and
+ * atmosphere) -> negative constraints. The article's own content decides
+ * WHAT the image is about; a small deterministic hash only ever decides
+ * HOW it is composed and lit, never the visual metaphor itself.
+ *
  * Explicitly out of scope for this file (mirrors `ArticleVisualProvider.ts`'s
  * own module doc comment): Storage, approval/review state, and
  * token-based cost accounting. On cost specifically: `costGuard.ts`'s
@@ -88,45 +96,131 @@ function toProviderSize(options: ArticleVisualGenerationOptions): { size: string
 	return { size: `${width}x${height}`, width, height };
 }
 
-/** Fixed CCS V1 visual language (Phase 3C.4B.5A brief, Section 5) —
- * identical on every call, never derived from article content. */
-const CCS_VISUAL_IDENTITY =
-	"Premium, modern, technology-focused editorial cover illustration for a professional software consultancy blog. " +
-	"Sophisticated, distinctive, conceptual visual metaphor with depth and restrained technology cues, in the style of " +
-	"professional editorial illustration -- never literal stock photography. Suitable for both English and Polish " +
-	"audiences. Do not include any text, letters, numbers, or words anywhere in the image. Do not depict any real " +
-	"company logo, trademark, or brand mark. Avoid: smiling office teams, handshakes, people pointing at laptops, " +
-	"generic stock-photo desks, floating random code characters, meaningless business charts, fake software " +
-	"dashboards, neon cyberpunk cliches, and excessive literal AI/robot imagery.";
+/** Fixed CCS visual language -- identical on every call, never derived
+ * from article content. Deliberately does not force a technology theme
+ * on every image: restrained technology cues are invited only where the
+ * subject genuinely calls for them, so an article about, say, hiring or
+ * client communication is not pushed toward circuit-board imagery by
+ * default. */
+const CCS_VISUAL_LANGUAGE =
+	"CCS visual language: premium, modern, sophisticated editorial cover illustration for a professional software " +
+	"consultancy's insights blog. Polished, professional, visually striking and contemporary. One strong, clear focal " +
+	"idea, immediately readable even at small thumbnail size. Restrained technology cues only where genuinely relevant " +
+	"to the subject, never as a default look. Conceptual editorial illustration, never literal stock photography or " +
+	"clip art. Suitable for both English and Polish audiences. Do not include any text, letters, numbers, words, or " +
+	"typography anywhere in the image. Do not depict any real company logo, trademark, or brand mark.";
 
-/** Per-category conceptual direction (Phase 3C.4B.5A brief, Section 6).
- * Influences only this adapter's internal prompt text -- `CategoryKey`
- * is never added to `ArticleVisualBrief` beyond the field it already
- * has. */
+/** Tells the model to derive the actual visual concept from the article
+ * context above, rather than defaulting to a generic template. This is
+ * the layer that ties the image's relevance to the article's real
+ * content instead of just its title. */
+const EDITORIAL_INTENT =
+	"Editorial intent: visually communicate the real subject or problem the article actually describes. Derive the " +
+	"central visual metaphor from the article context above, not from a generic template. Choose one strong, clear " +
+	"focal idea rather than several competing ideas.";
+
+/** Per-category conceptual direction. Kept as a light secondary flavour
+ * only -- the article's own title and core idea above always take
+ * priority over this. `CategoryKey` is never added to `ArticleVisualBrief`
+ * beyond the field it already has. */
 const CATEGORY_DIRECTION: Record<CategoryKey, string> = {
-	build: "Conceptual direction: software engineering, systems and construction -- structure, precision, layered architecture.",
-	grow: "Conceptual direction: visibility, growth and business momentum -- upward movement, expanding reach, forward motion.",
-	learn: "Conceptual direction: clarity, knowledge and learning -- illumination, structure emerging from complexity, guided understanding.",
-	studio: "Conceptual direction: creative technology, experimentation and behind-the-scenes craft -- process, iteration, hands-on making.",
+	build: "Secondary stylistic cue, only if it fits the subject: software engineering, systems and construction -- structure, precision, layered architecture.",
+	grow: "Secondary stylistic cue, only if it fits the subject: visibility, growth and business momentum -- upward movement, expanding reach, forward motion.",
+	learn: "Secondary stylistic cue, only if it fits the subject: clarity, knowledge and learning -- illumination, structure emerging from complexity, guided understanding.",
+	studio: "Secondary stylistic cue, only if it fits the subject: creative technology, experimentation and behind-the-scenes craft -- process, iteration, hands-on making.",
 };
+
+/** Curated composition/framing/perspective/depth/scale options. Varied
+ * and mutually distinct on purpose, so different articles rarely land on
+ * the same visual arrangement. Never dictates subject matter -- only how
+ * whatever subject the model chose is framed. */
+const COMPOSITION_STYLES: readonly string[] = [
+	"macro detail on one focal object",
+	"wide composition with generous negative space",
+	"asymmetric, off-centre focal composition",
+	"layered depth, with distinct foreground, midground and background",
+	"aerial or top-down perspective",
+	"strong diagonal, dynamic movement through the frame",
+	"close detail on a single relevant object or structure, where it fits the subject",
+	"restrained, near-abstract composition",
+	"tactile, material-led composition",
+];
+
+/** Curated lighting/atmosphere options -- the main lever against covers
+ * converging on the same palette and mood by default. */
+const ATMOSPHERE_STYLES: readonly string[] = [
+	"warm golden-hour light",
+	"cool overcast clarity",
+	"high-contrast dramatic shadow",
+	"soft, diffused studio light",
+	"muted editorial tone with a single accent colour",
+	"rich, deep-toned atmosphere",
+];
+
+/** Fixed provider-level cliché list -- additive to `brief.avoidElements`,
+ * never a replacement for it. Names the specific AI-art cliches CCS
+ * covers must not repeat, on top of the original restrictions. */
+const NEGATIVE_CONSTRAINTS =
+	"Negative constraints, strictly avoid: smiling office teams, handshakes, people pointing at laptops, generic " +
+	"stock-photo desks or office/team imagery, floating random code characters, meaningless business charts, fake " +
+	"software dashboards, neon cyberpunk cliches, excessive literal AI/robot imagery, humanoid robots unless directly " +
+	"relevant to the subject, glowing brains, hands touching holograms, generic circuit boards, meaningless floating " +
+	"UI elements, generic futuristic buildings or city skylines, and a generic blue-and-gold technology colour scheme " +
+	"as a default choice.";
+
+/** Tiny deterministic string hash (not cryptographic) -- the same text
+ * always produces the same number, so the same article always
+ * regenerates the same composition/atmosphere direction. No
+ * Math.random, no Date.now, no external call. */
+function stableHash(text: string): number {
+	let hash = 0;
+	for (let i = 0; i < text.length; i += 1) {
+		hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+	}
+	return hash;
+}
+
+function pickFromPool(pool: readonly string[], hash: number): string {
+	return pool[hash % pool.length]!;
+}
 
 /**
  * Pure, deterministic prompt construction. Reads only `brief.subject`,
- * `brief.categoryKey`, `brief.requiredElements` and `brief.avoidElements`
- * (plus the fixed CCS identity/category text above) -- never a raw
- * `Article`, article body, `MarketOpportunityEvidence`, `ContentBrief`,
- * or Supabase row, none of which this adapter ever receives in the
- * first place. `brief.locale` deliberately isn't interpolated into the
- * prompt text itself (the identity text above already states the
- * dual-locale audience once, fixed); it exists on `ArticleVisualBrief`
- * for other, non-visual consumers.
+ * `brief.coreIdea`, `brief.categoryKey`, `brief.requiredElements` and
+ * `brief.avoidElements` (plus the fixed CCS language/category text
+ * above) -- never a raw `Article`, article body, `seoDescription`,
+ * `MarketOpportunityEvidence`, `ContentBrief`, or Supabase row, none of
+ * which this adapter ever receives in the first place. `brief.locale`
+ * deliberately isn't interpolated into the prompt text itself (the
+ * language text above already states the dual-locale audience once,
+ * fixed); it exists on `ArticleVisualBrief` for other, non-visual
+ * consumers.
+ *
+ * The article's own subject and core idea drive WHAT the image is about
+ * -- never chosen or varied by the hash below. `stableHash` only ever
+ * selects HOW that subject is presented (composition and atmosphere),
+ * so two different articles get a genuinely different visual concept
+ * because their content differs, not because a hash assigned them
+ * different, unrelated metaphors.
  */
 function buildPrompt(brief: ArticleVisualBrief): string {
-	const parts = [CCS_VISUAL_IDENTITY, CATEGORY_DIRECTION[brief.categoryKey], `Article subject the cover must evoke conceptually, without rendering it as text: "${brief.subject}".`];
+	const variationSeed = `${brief.subject}|${brief.coreIdea}`;
+	const composition = pickFromPool(COMPOSITION_STYLES, stableHash(variationSeed));
+	const atmosphere = pickFromPool(ATMOSPHERE_STYLES, stableHash(`${variationSeed}|atmosphere`));
+
+	const parts = [
+		`Article context. Category: ${brief.categoryKey}. Title (evoke conceptually, never as visible text): "${brief.subject}". Core idea (for concept only, never as visible text): ${brief.coreIdea}`,
+		EDITORIAL_INTENT,
+		CCS_VISUAL_LANGUAGE,
+		CATEGORY_DIRECTION[brief.categoryKey],
+		`Controlled variation, presentation only: composition -- ${composition}. Atmosphere -- ${atmosphere}.`,
+	];
 
 	if (brief.requiredElements.length > 0) {
 		parts.push(`Required visual elements: ${brief.requiredElements.join("; ")}.`);
 	}
+
+	parts.push(NEGATIVE_CONSTRAINTS);
 
 	if (brief.avoidElements.length > 0) {
 		parts.push(`Also strictly avoid: ${brief.avoidElements.join("; ")}.`);

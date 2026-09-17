@@ -103,6 +103,7 @@ const VALID_PNG = pngBytes(1600, 900);
 
 const BRIEF: ArticleVisualBrief = {
 	subject: "Test Article",
+	coreIdea: "A concise, practical explanation of the article's actual subject.",
 	categoryKey: "build",
 	locale: "en",
 	requiredElements: [],
