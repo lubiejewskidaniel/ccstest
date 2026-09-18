@@ -7,18 +7,21 @@ import { getMarketOpportunityEvidence } from "@/features/content-intelligence/ma
 import type { MarketOpportunitySubject } from "@/features/content-intelligence/market-opportunity/types";
 import { MarketOpportunityInspector } from "@/features/content-intelligence/market-opportunity/MarketOpportunityInspector";
 import { ERROR_MESSAGE } from "@/features/content-intelligence/market-opportunity/marketOpportunityPresentation";
+import { TrackMarketKeywordForm } from "@/features/content-intelligence/market/TrackMarketKeywordForm";
 
 export const metadata: Metadata = { title: "Market opportunities" };
 
 /**
- * Phase 3C.1F — read-only admin inspection UI. Server Component only, no
- * "use client", no Server Actions: selection lives entirely in the URL
- * (`?provider=&country=&keyword=`), and the only I/O this page performs
+ * Phase 3C.1F — admin inspection UI, plus (N2/O1) a manual keyword-tracking
+ * form. The evidence inspection below remains read-only Server Component
+ * logic exactly as before: selection lives entirely in the URL
+ * (`?provider=&country=&keyword=`), and the only I/O this part performs
  * is `listTrackedMarketKeywords()` (which subjects even exist) and
  * `getMarketOpportunityEvidence()` (the existing Phase 3C.1E
- * orchestrator, called unchanged — this page never queries Supabase
- * directly for evidence, and never re-derives anything
- * `getMarketOpportunityEvidence()` already computes).
+ * orchestrator, called unchanged). `TrackMarketKeywordForm` is the one
+ * Server Action on this page — it only calls the existing
+ * `fetchMarketKeywordStats()` to register/refresh a keyword; it plays no
+ * part in evidence assembly.
  *
  * `language` is deliberately never a query param — only `country` is,
  * and `toMarketCode` below is the one place that turns it into a full
@@ -86,9 +89,11 @@ export default async function MarketOpportunitiesPage({ searchParams }: { search
 				</Link>
 			</div>
 			<p style={{ color: "var(--ink-3)", fontSize: 13, marginBottom: 24, maxWidth: 720 }}>
-				Read-only evidence assembled from external market data, CCS search visibility, content coverage and business
+				Evidence assembled from external market data, CCS search visibility, content coverage and business
 				relevance. This page describes the evidence only and does not make publishing or content recommendations.
 			</p>
+
+			<TrackMarketKeywordForm />
 
 			{trackedResult.status === "error" ? (
 				<div className="admin-empty">{ERROR_MESSAGE.storage_error}</div>
