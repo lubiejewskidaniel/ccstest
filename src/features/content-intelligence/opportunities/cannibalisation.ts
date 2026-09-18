@@ -5,6 +5,40 @@ import type { Locale } from "@/lib/routes";
 export type CannibalisationPage = { locale: Locale; slug: string; impressions: number; clicks: number; avgPosition: number | null };
 export type CannibalisationRow = { query: string; pages: CannibalisationPage[]; totalImpressions: number };
 
+type ArticleIdentity = { id: string; translationOf: string | null };
+
+// translation_of is one-directional (only one side of a pair points at
+// the other), so a pair is only recognised by checking both ways — same
+// rule as cms/translationLink.ts's hasLinkedTranslation.
+function isTranslationPair(a: ArticleIdentity, b: ArticleIdentity): boolean {
+	return a.translationOf === b.id || b.translationOf === a.id;
+}
+
+// An article has at most one translation_of partner, so a single
+// pairwise pass is enough to collapse pairs — no clustering needed.
+function countDistinctArticles(pages: string[], articlesByKey: Map<string, ArticleIdentity>): number {
+	const counted = new Set<string>();
+	let count = 0;
+
+	for (const key of pages) {
+		const article = articlesByKey.get(key);
+		if (!article) {
+			count++; // unresolved page: never merged with anything
+			continue;
+		}
+		if (counted.has(article.id)) continue;
+		counted.add(article.id);
+		count++;
+
+		for (const otherKey of pages) {
+			const other = articlesByKey.get(otherKey);
+			if (other && !counted.has(other.id) && isTranslationPair(article, other)) counted.add(other.id);
+		}
+	}
+
+	return count;
+}
+
 /**
  * Flags queries where two or more distinct, real Insights articles both
  * received search impressions in the same window — a direct signal that
@@ -13,6 +47,9 @@ export type CannibalisationRow = { query: string; pages: CannibalisationPage[]; 
  * Uses the same `matchArticleUrl` join as `monitoring/performanceAnalysis.ts`
  * so a page URL that doesn't resolve to a real article can't be
  * miscounted as a second competing page.
+ *
+ * A confirmed EN/PL translation pair sharing a query is excluded — that's
+ * intentional bilingual coverage, not the site competing with itself.
  */
 export async function detectCannibalisation(daysBack = 30, limit = 25): Promise<CannibalisationRow[]> {
 	const supabase = await createSupabaseServerClient();
@@ -46,9 +83,33 @@ export async function detectCannibalisation(daysBack = 30, limit = 25): Promise<
 		byQuery.set(row.query, pages);
 	}
 
+	// Only the articles behind pages that actually matched a metric row
+	// are needed -- one bounded `.in()` lookup per locale present (at
+	// most two, run together), rather than the whole table.
+	const slugsByLocale = new Map<Locale, Set<string>>();
+	for (const pages of byQuery.values()) {
+		for (const page of pages.values()) {
+			const slugs = slugsByLocale.get(page.locale) ?? new Set<string>();
+			slugs.add(page.slug);
+			slugsByLocale.set(page.locale, slugs);
+		}
+	}
+
+	const articleLookups = await Promise.all(
+		Array.from(slugsByLocale.entries()).map(([locale, slugs]) =>
+			supabase.from("insights_articles").select("id, locale, slug, translation_of").eq("locale", locale).in("slug", Array.from(slugs)),
+		),
+	);
+	const articlesByKey = new Map<string, ArticleIdentity>();
+	for (const { data: articleRows } of articleLookups) {
+		for (const article of articleRows ?? []) {
+			articlesByKey.set(`${article.locale}:${article.slug}`, { id: article.id, translationOf: article.translation_of });
+		}
+	}
+
 	const rows: CannibalisationRow[] = [];
 	for (const [query, pages] of byQuery) {
-		if (pages.size < 2) continue; // only one article for this query - not cannibalisation
+		if (countDistinctArticles(Array.from(pages.keys()), articlesByKey) < 2) continue;
 		const pageList = Array.from(pages.values());
 		rows.push({
 			query,
